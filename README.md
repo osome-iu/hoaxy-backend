@@ -45,12 +45,11 @@ sudo -u postgres psql
 
 You will be taken to the interactive console of Postgres. Issue the following commands:
 ```sql
--- create a normal role, name 'hoaxy' with password 'hoaxy.is.a.good.tool' 
--- (note: the quotes are NOT part of the password!)
-CREATE USER hoaxy PASSWORD 'hoaxy.is.a.good.tool';
+-- create a normal role, name 'hoaxy' with your own safe password 
+CREATE USER hoaxy PASSWORD 'insert.your.safe.password.here';
 
 -- alternatively you can issue the following command
-CREATE ROLE hoaxy PASSWORD 'hoaxy.is.a.good.tool' LOGIN;
+CREATE ROLE hoaxy PASSWORD 'insert.your.safe.password.here' LOGIN;
 
 -- create database, name 'hoaxy'
 CREATE DATABASE hoaxy;
@@ -84,7 +83,7 @@ If you want to show visualizations similar to the ones on the [official Hoaxy we
 
     http://github.com/iunetsci/hoaxy-frontend
 
-If you want to use Hoaxy purely to collect data, this step is optional.
+If you want to use this system purely to collect data, this step is optional.
 
 # Installation & Configuration Steps
 
@@ -187,7 +186,7 @@ These assume that all prerequisite have been satisfied (see above section).
 
 Please follow these steps to start all Hoaxy backend services. Remember to run these only after activating the virtual environment!
 
-***Note***: The order of these steps is important! You need to fetch the articles before you running the Lucene index, and you need the index before starting the API; this last step is only needed if you want to enable the REST API for searching.
+***Note***: The order of these steps is important! You need to fetch the articles before running the Lucene index, and you need the index before starting the API; this last step is only needed if you want to enable the REST API for searching.
 
 1. Fetch _only the latest_ article URLs:
 
@@ -257,7 +256,7 @@ After you have run the backend for the first time, Hoaxy will be ready to track 
     hoaxy crawl --fetch-html --limit=10000
     ```
     
-    The above for example limits to fetching only 10,000 articles per hour (the default frequency in the crontab). You will need to edit the `crontab.txt` and reinstall it for this change to take place.
+    The above for example limits to fetching only 10,000 articles per hour (the default in the crontab). You will need to edit the `crontab.txt` and reinstall it for this change to take place.
 
 2. Real-time tracking tasks. These include collecting tweet from the Twitter Streaming API. After the process is started, it will keep running. To manage this process, we recommend to use [supervisor](http://supervisord.org/). The following is an example configuration of supervisor (please replace all uppercase variables with sensible values):
     
@@ -323,9 +322,9 @@ However, when it comes to crawling domains, Hoaxy allows a fine control of the t
 
 ## Can I specify alternate domains for the same website?
 
-Most sites are accessible from just one domain, and often the domain reflects the colloquial site name. However, there are cases when the same site can be accessed from multiple domains. For example, the claim site [Dc Gazette](http://thedcgazette.com/), owns two domains `thedcgazette.com` and `dcgazette.com`. When you make an HTTP request to `dcgazette.com`, it will be redirected to `thedcgazette.com`.
+Most sites are accessible from just one domain, and often the domain reflects the colloquial site name. However, there are cases when the same site can be accessed from multiple domains. For example, the claim site [DC Gazette](http://thedcgazette.com/), owns two domains `thedcgazette.com` and `dcgazette.com`. When you make an HTTP request to `dcgazette.com`, it will be redirected to `thedcgazette.com`.
 
-Thus we call `thedcgazette.com` the _primary_ domain and `dcgazette.com` the _alternate_. You provide the primary domain of a site, and alternate domains are optional. This is because when crawling we need to we need to know the scope of our crawling, which is constrained by domains.
+Thus we call `thedcgazette.com` the _primary_ domain and `dcgazette.com` the _alternate_. You provide the primary domain of a site, and alternate domains are optional. This is because when crawling we need to know the scope of our crawling, which is constrained by domains.
 
 ## How does Hoaxy crawl news articles?
 
