@@ -16,6 +16,6 @@ you click retweet button to repost other's tweets without comment.
 (3) If in_reply_to_status_id is populated, then this is a reply tweet. It
 happends when you click reply button and reply to other's tweets.
 
-(4) If quoted_status is populated ** AND other two fields are not populated **,
+(4) If quoted_status is populated **AND other two fields are not populated**,
 then this is a quoted tweet. It happends when you retweet other's tweets
-with comment, ** OR you use the URL of other's status in your post **.
+with comment, **OR you use the URL of other's status in your post**.
