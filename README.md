@@ -84,7 +84,7 @@ If you want to show visualizations similar to the ones on the [official Hoaxy we
 
     http://github.com/iunetsci/hoaxy-frontend
 
-If you want to use purely to collect data, this step is optional.
+If you want to use Hoaxy purely to collect data, this step is optional.
 
 # Installation & Configuration Steps
 
@@ -257,7 +257,7 @@ After you have run the backend for the first time, Hoaxy will be ready to track 
     hoaxy crawl --fetch-html --limit=10000
     ```
     
-    The above for example limits to fetching only 10,000 articles per hour (the default in the crontab). You will need to edit the `crontab.txt` and reinstall it for this change to take place.
+    The above for example limits to fetching only 10,000 articles per hour (the default frequency in the crontab). You will need to edit the `crontab.txt` and reinstall it for this change to take place.
 
 2. Real-time tracking tasks. These include collecting tweet from the Twitter Streaming API. After the process is started, it will keep running. To manage this process, we recommend to use [supervisor](http://supervisord.org/). The following is an example configuration of supervisor (please replace all uppercase variables with sensible values):
     
