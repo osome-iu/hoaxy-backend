@@ -1,0 +1,248 @@
+##############################################################################
+#  SEARCH KEYWORD   *** REQUIRED ***   TO SET YOUR CONFIGURATIONS
+#
+# Since python does not recognize '~' as home directory, please use
+# EXPLICIT HOME DIRECTORY PATH instead of '~'
+#
+# By default, the default home directory is HOAXY_HOME='/YOUR_HOME/.hoaxy/',
+# thus in the following configurations, relative paths
+# 'logging.handlers.file.filename' and 'lucene.index_dir' are derived from
+# HOAXY_HOME. You can set the environment variable HOAXY_HOME for your
+# application. Or you can use absolute path to avoid the HOAXY_HOME directory.
+
+###############################################################################
+# Global settings
+###############################################################################
+#
+# Many options:
+#   - generate a warning message after a bucket of tweets has been recebied
+#   - each time, index as much as windows_size pages
+#
+window_size: 1000
+
+###############################################################################
+# Logger configuration. When using multiprocessing,
+# You can modify the values, but you must keep all these keyword
+###############################################################################
+logging:
+  version: 1
+  disable_existing_loggers: false
+  formatters:
+      default:
+          format: '%(asctime)s - %(name)s - %(levelname)s: %(message)s'
+  handlers:
+      console:
+          class: logging.StreamHandler
+          formatter: default
+          level: DEBUG
+          stream: ext://sys.stdout
+      file:
+          class: logging.handlers.RotatingFileHandler
+          formatter: default
+          level: INFO
+          # if filename is a relative path, it starts from HOAXY_HOME
+          filename: 'hoaxy.log'
+          # 50 MB
+          maxBytes: 52428800
+          encoding: 'utf-8'
+          backupCount: 4
+  loggers:
+    scrapy:
+      level: WARNING
+  root:
+      level: DEBUG
+      handlers: [console, file]
+
+###############################################################################
+# Settings for database
+# We test only on postgresql, please use POSTGRESQL>=9.3
+# *** REQUIRED *** SELF CONFIGURATIONS
+###############################################################################
+database:
+  connect_args:
+    drivername: postgresql
+    host: localhost
+    port: 5432
+    username: '*** REQUIRED ***'
+    password: '*** REQUIRED ***'
+    database: '*** REQUIRED ***'
+  # SQLALCHEMY engine connection settings
+  # http://docs.sqlalchemy.org/en/latest/core/engines.html
+  pool_size: 5
+  pool_recycle: -1
+
+###############################################################################
+# settings for web crawling
+###############################################################################
+crawl:
+  # default settings for scrapy, please check references from scrapy
+  # some settings, e.g., CONCURRENT_REQUESTS, CONCURRENT_REQUESTS_PER_DOMAIN
+  # will be overwritten for different crawling process
+  # view command modules to see the settings.
+  scrapy:
+    LOG_ENABLED: false
+    LOG_FORMATTER: hoaxy.utils.log.PrettyLogFormatter
+    # DOWNLOAD_DELAY: 0.2
+    # CONCURRENT_REQUESTS: 64
+    # CONCURRENT_REQUESTS_PER_DOMAIN: 4
+    # USER_AGENT: 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:46.0) Gecko/20100101 Firefox/46.0'
+    TELNETCONSOLE_ENABLED: false
+    COOKIES_ENABLED: false    # for our experience, disable cookies is better
+  article_parser:
+    # Web content parser, we find two parser, one is python-goose, the other is
+    # a webparser from *** https://mercury.postlight.com/ ***
+    # We found that webparser works better than python-goose,
+    # so we use weparser as default to parse all web news articles.
+    # The api key of webparser, please register and generate your key.
+    # *** REQUIRE *** SELF CONFIGURATION
+    webparser_api_key: '*** REQUIRED ***'
+  # Many URLs we collected are coming from domains we do not need. For these
+  # urls we do not parse their html page.
+  excluded_domains:
+    - twitter.com
+    - youtube.com
+    - google.com
+    - facebook.com
+
+
+###############################################################################
+# settings for social networks
+###############################################################################
+sns:
+# settings for twitter stream
+  twitter:
+    # whether save tweet if it contains no url
+    save_none_url_tweet: true
+    # twitter app credentials, please provide two different credentials
+    # one is for twitter streaming
+    # the other is for requesting bot_or_not score
+    # twitter steaming api
+    # *** REQUIRE *** SELF CONFIGURATION
+    app_credentials1:
+      access_token: 'Please use your twitter app credentials'
+      access_token_secret: '*** REQUIRED ***'
+      consumer_key: ''
+      consumer_secret: ''
+    # bot_or_not score, https://truthy.indiana.edu/botornot/
+    app_credentials2:
+      access_token: 'Please use your twitter app credentials'
+      access_token_secret: '*** REQUIRED ***'
+      consumer_key: ''
+      consumer_secret: ''
+
+###############################################################################
+# settings for lucene indexing and searching
+###############################################################################
+lucene:
+  # Lucene index directory.
+  # if index_dir is a relative path, it starts from HOAXY_HOME
+  index_dir: '*** REQUIRED ***'
+  # datetime to string format, used for datetime fields
+  date_format: '%Y-%m-%dT%H:%M:%S'
+  # Lucene query score weight
+  boost:
+    title: 8.0
+    canonical_url: 4.0
+    meta: 2.0
+    content: 1.0
+
+###############################################################################
+# settings for api
+###############################################################################
+api:
+  # for API that searching articles:
+  # sort by relevance,
+  #   - first get n_query_api_returned of top lucene score
+  #   - then join these records with database to get tweets sharing info
+  #   - finally return them by the number of tweets sharing.
+  # sort by recency,
+  #   - lucene search results are sorted by timestamp descending
+  #   - return n_query_of_recent_sorting results
+  #   - iterate over these results to collect n_query_api_returned
+  #     of records with constrain that the score of records are no less than
+  #     min_score_of_recent_sorting
+  #   - then join these records with database to get tweets sharing info
+  #   - finally return them by the number of tweets sharing.
+
+  # number of records returned from lucene when sorted by recent
+  n_query_of_recent_sorting: 1000
+  # number of records returned from API (/articles)
+  n_query_api_returned: 100
+  # minimum score threshold used when searching is sorted by recency
+  min_score_of_recent_sorting: 0.4
+  # parameters used when transforming pandas.dataframe to json
+  # http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.to_json.html
+  dataframe_to_json_kwargs:
+    orient: records
+    date_format: iso
+  # After searcher_refresh_interval, lucene search will update its content
+  # to provide latest indexing results.
+  searcher_refresh_interval:
+    seconds: 3600
+  # Settings for using mashape platform
+  # IF YOU DO NOT WANT TO USE MASHAPE PLATFORM TO PROVIDE API
+  # MODIFY THE hoaxy.backend.api MODULE
+  mashape:
+    # the X-Mashape-Proxy-Secret key
+    # You should find this key in your mashape API network settings
+    # For security reasons, you should protect your API and block requests
+    # coming from outside the Mashape infrastructure.
+    # Mashape adds the "X-Mashape-Proxy-Secret" header on every request.
+    # This header has a unique value for every API, and if the header is
+    # missing or has a different value, you can assume the request is not
+    # coming from our infrastructure.
+    # *** REQUIRE *** SELF CONFIGURATION
+    secret: '*** REQUIRED ***'
+    # List of IPs used by Mashape, http://docs.mashape.com/firewall
+    ips:
+      - '107.23.255.128'
+      - '107.23.255.129'
+      - '107.23.255.130'
+      - '107.23.255.131'
+      - '107.23.255.132'
+      - '107.23.255.133'
+      - '107.23.255.134'
+      - '107.23.255.135'
+      - '107.23.255.136'
+      - '107.23.255.137'
+      - '107.23.255.138'
+      - '107.23.255.139'
+      - '107.23.255.140'
+      - '107.23.255.141'
+      - '107.23.255.142'
+      - '107.23.255.143'
+      - '107.23.255.144'
+      - '107.23.255.145'
+      - '107.23.255.146'
+      - '107.23.255.147'
+      - '107.23.255.148'
+      - '107.23.255.149'
+      - '107.23.255.150'
+      - '107.23.255.151'
+      - '107.23.255.152'
+      - '107.23.255.153'
+      - '107.23.255.154'
+      - '107.23.255.155'
+      - '107.23.255.156'
+      - '107.23.255.157'
+      - '107.23.255.158'
+      - '107.23.255.159'
+      - '54.172.117.82'
+      - '54.174.126.70'
+      - '54.175.103.105'
+      - '54.209.110.14'
+      - '54.86.14.38'
+      - '54.86.225.32'
+      - '54.86.245.80'
+      - '54.88.28.135'
+      - '54.88.28.194'
+      - '54.88.32.113'
+      - '54.88.37.172'
+      - '54.88.51.199'
+      - '54.88.53.251'
+      - '54.88.54.104'
+      - '54.88.55.60'
+      - '54.88.55.63'
+      # you can add localhost for testing
+      # - '127.0.0.1'
+
