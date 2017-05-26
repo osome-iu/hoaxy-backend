@@ -262,7 +262,7 @@ After you have run the backend for the first time, Hoaxy will be ready to track 
     
     ```
     [program:hoaxy_stream]
-    directory=/home/data/apps/hoaxy/
+    directory=/PATH/TO/HOAXY
     # You can add your path environment here
     # Example, /home/USER/anaconda3/envs/hoaxy/bin
     environment=PATH=PYTHON_BIN_PATH:%(ENV_PATH)s
@@ -282,7 +282,7 @@ After you have run the backend for the first time, Hoaxy will be ready to track 
     
     ```
     [program:hoaxy_backend]
-    directory=/home/data/apps/hoaxy/
+    directory=/PATH/TO/HOAXY
     environment=PATH=PYTHON_BIN_PATH:%(ENV_PATH)s
     command=gunicorn -w 6 --timeout=120 -b HOST:PORT --error-logfile gunicorn_error.log hoaxy.backend.api:app
     user=USER_NAME
