@@ -77,6 +77,15 @@ And follow the instructions there to create a new account and an API key.
 
 This is needed if you want to use the Web front end (see below) or if you want to provide a REST API with, among others, full-text search capabilities. Mashape takes care of authentication and rate limiting, thus protecting your backend from heavy request loads. To set up Mashape, uou must create an account on the [Mashape API Marketplace](http://market.mashape.com/) and create an API key.
 
+## Botometer (_Optional_)
+
+This is needed if you want to integrate [Botometer](http://botometer.iuni.iu.edu/) within Hoaxy to provide social bot scores for the most influential and most active accounts. The Botometer API is served via Mashape and requires access to the Twitter REST API to fetch data about Twitter users. Botometer is integrated within Hoaxy through its Python bindings, see:
+
+    https://github.com/IUNetSci/botometer-python
+
+
+for more information.
+
 ## Web Front End (_Optional_)
 
 If you want to show visualizations similar to the ones on the [official Hoaxy website](http://hoaxy.iuni.iu.edu/), then you should grab a copy of the hoaxy-frontend package at:
