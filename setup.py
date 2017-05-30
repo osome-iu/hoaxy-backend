@@ -35,7 +35,7 @@ setup(
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
     install_requires=[
-        'botornot',
+        'botometer',
         'docopt>=0.6.0',
         'eventlet>=0.19.0',
         'Flask>=0.11.1',

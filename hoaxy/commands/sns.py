@@ -65,7 +65,7 @@ Examples:
         platform_id = get_platform_id(session, name=N_PLATFORM_TWITTER)
         session.close()
         w_size = cls.conf['window_size']
-        c = cls.conf['sns']['twitter']['app_credentials1']
+        c = cls.conf['sns']['twitter']['app_credentials']
         snut = cls.conf['sns']['twitter']['save_none_url_tweet']
 
         retries = 0

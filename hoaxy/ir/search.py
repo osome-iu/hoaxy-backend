@@ -534,11 +534,11 @@ def db_query_top_spreaders(engine, upper_day, most_recent=False):
     pandas.DataFrame
         Columns of the dataframe are ['upper_day', 'user_id',
         'user_raw_id', 'user_screen_name', 'site_type',
-        'spreading_type', 'number_of_tweets', 'score']
+        'spreading_type', 'number_of_tweets', 'bot_score']
     """
     q0 = """
 SELECT upper_day, user_id, user_raw_id, user_screen_name, site_type,
-spreading_type, number_of_tweets, bot_or_not->>'score' AS bot_score
+spreading_type, number_of_tweets, bot_or_not
 FROM top20_spreader_monthly WHERE upper_day=:upper_day
 ORDER BY site_type, spreading_type, number_of_tweets DESC"""
     q = text(q0).bindparams(upper_day=upper_day)
@@ -554,6 +554,19 @@ ORDER BY site_type, spreading_type, number_of_tweets DESC"""
             rp = engine.execute(q)
             df = pd.DataFrame(iter(rp), columns=rp.keys())
     df['user_raw_id'] = df.user_raw_id.astype(str)
+
+    def get_bot_score(bon):
+        if bon is None:
+            return None
+        elif 'score' in bon:
+            return bon['score']
+        elif 'scores' in bon:
+            return bon['scores'].get('universal')
+        else:
+            return None
+
+    df['bot_score'] = df.bot_or_not.apply(get_bot_score)
+    df = df.drop('bot_or_not', axis=1)
     return df
 
 

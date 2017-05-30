@@ -7,7 +7,7 @@ data collection.
 #
 # written by Chengcheng Shao <sccotte@gmail.com>
 
-from botornot import NoTimelineError
+from botometer import NoTimelineError
 from datetime import datetime
 from datetime import timedelta
 from dateutil.parser import parse
@@ -24,7 +24,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from tabulate import tabulate
 from tweepy import TweepError
-import botornot
+import botometer
 import logging
 import sys
 import time
@@ -71,18 +71,19 @@ is working.
     short_description = 'Report and generate statistics of hoaxy collection'
 
     @classmethod
-    def set_bot_or_not(cls, mspreaders, twitter_app_auth):
+    def set_bot_or_not(cls, mspreaders):
         """Fetch bot score of top spreaders.
 
         Parameters
         ----------
             mspreaders : object
                 An instance of model Top20SpreaderMonthly.
-            twitter_app_auth : dict
-                twitter authentication keys.
         """
-        logger.info('Fetching botornot score for top spreaders ...')
-        bon = botornot.BotOrNot(wait_on_ratelimit=True, **twitter_app_auth)
+        logger.info('Fetching bot score for top spreaders ...')
+        bon = botometer.Botometer(
+            mashape_key=cls.conf['botometer']['mashape_key'],
+            wait_on_ratelimit=True,
+            **cls.conf['botometer']['twitter_app_credentials'])
         max_retries = 3
         num_retries = 0
         for ms in mspreaders:
@@ -112,7 +113,18 @@ is working.
 
     @classmethod
     def look_up_top_spreaders(cls, session, upper_day, most_recent):
-        """Look up top spreaders."""
+        """Look up top spreaders.
+
+        Parameters
+        ----------
+        session : object
+            An instance of SQLAlchemy Session.
+        upper_day : date
+            The right edge of 30 days window.
+        most_recent : bool
+            If no result in 30 days windows with `upper_day`, whether return
+            most recently available data.
+        """
         df = db_query_top_spreaders(session, upper_day, most_recent)
         if len(df) == 0:
             logger.warning('No result found!')
@@ -122,8 +134,16 @@ is working.
             cls.print_psql(df)
 
     @classmethod
-    def generate_top_spreaders(cls, session, upper_day, twitter_app_auth):
-        """Generate top spreaders."""
+    def generate_top_spreaders(cls, session, upper_day):
+        """Generate top spreaders.
+
+        Parameters
+        ----------
+        session : object
+            An instance of SQLAlchemy Session.
+        upper_day : Date
+            The right edge of 30 days window.
+        """
         df = db_query_top_spreaders(session, upper_day)
         if len(df) > 0:
             logger.warning('Top spreaders for upper_day %s, already exist!',
@@ -256,7 +276,8 @@ ORDER BY tw.user_id, tw.created_at DESC, t.number_of_retweets DESC
         session.commit()
         mspeaders = session.query(Top20SpreaderMonthly).filter_by(
             upper_day=upper_day).all()
-        cls.set_bot_or_not(mspeaders, twitter_app_auth)
+        if cls.conf['botometer']['enabled'] is True:
+            cls.set_bot_or_not(mspeaders)
         try:
             session.commit()
             df = db_query_top_spreaders(session, upper_day)
@@ -272,7 +293,18 @@ ORDER BY tw.user_id, tw.created_at DESC, t.number_of_retweets DESC
 
     @classmethod
     def look_up_top_articles(cls, session, upper_day, most_recent):
-        """Look up top articles."""
+        """Look up top articles.
+
+        Parameters
+        ----------
+        session : object
+            An instance of SQLAlchemy Session.
+        upper_day : date
+            The right edge of 30 days window.
+        most_recent : bool
+            If no result in 30 days windows with `upper_day`, whether return
+            most recently available data.
+        """
         df = db_query_top_articles(session, upper_day, most_recent)
         if len(df) == 0:
             logger.warning('No result found!')
@@ -283,7 +315,15 @@ ORDER BY tw.user_id, tw.created_at DESC, t.number_of_retweets DESC
 
     @classmethod
     def generate_top_articles(cls, session, upper_day):
-        """Generate top articles."""
+        """Generate top articles.
+
+        Parameters
+        ----------
+        session : object
+            An instance of SQLAlchemy Session.
+        upper_day : Date
+            The right edge of 30 days window.
+        """
         df = db_query_top_articles(session, upper_day)
         if len(df) > 0:
             logger.warning('Top spreaders for upper_day %s, already exist!',
@@ -433,8 +473,7 @@ group by interval order by interval desc limit :limit""" % table
                 logger.warning(
                     'Generating top spreaders for uppder_day=%r ...',
                     upper_day)
-                cls.generate_top_spreaders(session, upper_day, cls.conf[
-                    'sns']['twitter']['app_credentials2'])
+                cls.generate_top_spreaders(session, upper_day)
             elif args['--look-up'] is True:
                 cls.look_up_top_spreaders(session, upper_day,
                                           args['--most-recent'])
