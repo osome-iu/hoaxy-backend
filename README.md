@@ -18,7 +18,20 @@ Hoaxy has been developed using Python 2.7 under Ubuntu. These instructions have 
 
 The recommended installation method is to use a virtual environment. We recommend [anaconda](https://www.continuum.io/downloads) to setup a virtual environment. You *could* directly use the setuptools script by running `python setup.py install`, but that is not recommended if you are not an expert Linux user, as some dependencies (e.g. NumPy) need to be compiled and could result in compilation errors.
 
-Anaconda provides already compiled packages for all dependencies needed to install Hoaxy. In the following, our instructions assume that you are using Anaconda.
+Anaconda provides already compiled packages for all dependencies needed to install Hoaxy. In the following, our instructions assume that you are using Anaconda. Here is an example of how to create and use python environment by conda.
+
+1. Create a new python virtual environment, named hoaxy with version 2.7:
+
+    ```bash
+    conda create -n hoaxy python=2.7
+    ```
+
+2. activate it (note that before you use other python related command, you should activate your python environment first):
+
+    ```bash
+    source activate hoaxy
+    ```
+Most Linux distributions have installed their own python version. After the activation, you are using the new created python environment, which is seperated from the system one. For the new created python environment, the actual python execuble is located at `/ANACONDA_INSTALLATION_HOME/envs/ENV_NAME/bin/python`, where `ANACONDA_INSTALLATION_HOME` is the installation home of your anaconda, and `ENV_NAME` is the name of python environment (here is hoaxy). Please be aware that you must activate the python environment before you call any other python related command. 
 
 ## Lucene
 
@@ -63,7 +76,7 @@ GRANT ALL PRIVILEGES ON DATABASE hoaxy TO hoaxy;
 
 ## Twitter Streaming API
 
-Hoaxy tracks shares of claims and fact checking articles from the Twitter stream. To do so, it uses the [filter](https://dev.twitter.com/streaming/reference/post/statuses/filter) method of the [Twitter Streaming API](https://dev.twitter.com/streaming/overview). You must create __TWO__ Twitter app authentication keys, and obtain their Access Token, Access Token Secret, Consumer Token and Consumer Secret information. Follow [these instructions](https://stackoverflow.com/questions/1808855/getting-new-twitter-api-consumer-and-secret-keys) to create a new app key and to generate all tokens.
+Hoaxy tracks shares of claims and fact checking articles from the Twitter stream. To do so, it uses the [filter](https://dev.twitter.com/streaming/reference/post/statuses/filter) method of the [Twitter Streaming API](https://dev.twitter.com/streaming/overview). You must create at least one Twitter app authentication keys, and obtain their Access Token, Access Token Secret, Consumer Token and Consumer Secret information. Follow [these instructions](https://stackoverflow.com/questions/1808855/getting-new-twitter-api-consumer-and-secret-keys) to create a new app key and to generate all tokens. If you want to have the Botometer feature, you need another Twitter app authentication keys.
 
 ## Mercury Web Parser API
 
@@ -98,48 +111,36 @@ If you want to use this system purely to collect data, this step is optional.
 
 These assume that all prerequisite have been satisfied (see above section).
 
-1. Create a new virtual environment:
-
-    ```bash
-    conda create -n hoaxy python=2.7
-    ```
-
-2. activate it (note that all following operations should be executed within this environment):
-
-    ```bash
-    source activate hoaxy
-    ```
-
-3. Use conda to install all remaining dependencies:
+1. Use conda to install all remaining dependencies (Remeber: activate your python environemnt first):
 
     ```bash
     conda install docopt Flask gunicorn networkx pandas psycopg2 python-dateutil pytz pyyaml scrapy simplejson SQLAlchemy sqlparse tabulate
     ```
 
-4. Clone the hoaxy repository from Github:
+2. Clone the hoaxy repository from Github:
 
     ```bash
     git clone git@github.com:IUNetSci/hoaxy-backend.git
     ```
     If you get an error about SSL certificates, you may need to set the environment variable `GIT_SSL_NO_VERIFY=1` temporarily to download the repo from github.
 
-5. CD into the package folder:
+3. CD into the package folder:
 
     ```bash
     cd hoaxy-backend
     ```
 
-6. If you are _not_ going to use Mashape, you will need to edit the file `hoaxy/backend/api.py` to remove the `authenticate_mashape` decorator from the flask routes.
+4. If you are _not_ going to use Mashape, you will need to edit the file `hoaxy/backend/api.py` to remove the `authenticate_mashape` decorator from the flask routes.
 
-7. Install the package:
+5. Install the package:
 
     ```bash
     python setup.py install
     ```
 
-8. You can now set up hoaxy. A user-friendly command line interface is provided. For the full list of commands, type `hoaxy --help` from the command prompt.
+6. You can now set up hoaxy. A user-friendly command line interface is provided. For the full list of commands, type `hoaxy --help` from the command prompt.
 
-9. Use the `hoaxy config` command to get a list of sample files.
+7. Use the `hoaxy config` command to get a list of sample files.
 
     ```bash
     hoaxy config [--home=YOUR_HOAXY_HOME]
@@ -170,9 +171,9 @@ These assume that all prerequisite have been satisfied (see above section).
     
     If you get an error while running `hoaxy config`, you can simply go under `hoaxy/data/samples` and manually copy its contents to your `HOAXY_HOME`. Make sure to remove the `.sample` part from the extension (e.g. `conf.sample.yaml` -> `conf.yaml`).
 
-10. Rename these sample files.  Ex: rename `conf.sample.yaml` to `conf.yaml`.
+8. Rename these sample files.  Ex: rename `conf.sample.yaml` to `conf.yaml`.
 
-11. Configure Hoaxy for your needs. You may want to edit at least the following files:
+9. Configure Hoaxy for your needs. You may want to edit at least the following files:
       - `conf.yaml` is the main configuration file. 
       
         Search for `*** REQUIRED ***` in conf.yaml to find settings that must be configured, including database login information, Twitter access tokens, etc.
@@ -185,7 +186,7 @@ These assume that all prerequisite have been satisfied (see above section).
         
         Please check [`crontab` manual](http://man7.org/linux/man-pages/man5/crontab.5.html) for more information on Cron.
 
-12. Finally, initialize all database tables and load the information on the sites you want to track:
+10. Finally, initialize all database tables and load the information on the sites you want to track:
 
     ```bash
     hoaxy init
