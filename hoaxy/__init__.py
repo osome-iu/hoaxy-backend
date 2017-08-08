@@ -36,5 +36,10 @@ if not CONF['logging']['handlers']['file']['filename'].startswith('/'):
         HOAXY_HOME, CONF['logging']['handlers']['file']['filename'])
 if not CONF['lucene']['index_dir'].startswith('/'):
     CONF['lucene']['index_dir'] = join(HOAXY_HOME, CONF['lucene']['index_dir'])
+if 'selected_fake_domains_path' in CONF['api']:
+    CONF['api']['selected_fake_domains_path'] = join(
+        HOAXY_HOME, CONF['api']['selected_fake_domains_path'])
+else:
+    CONF['api']['selected_fake_domains_path'] = None
 # project root
 BASE_DIR = dirname(dirname(__file__))

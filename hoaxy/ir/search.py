@@ -333,7 +333,9 @@ SELECT DISTINCT ON (a.group_id) a.group_id AS id,
 FROM article AS a
 JOIN site AS s ON s.id=a.site_id
 JOIN chosen_site AS cs ON cs.site_id=s.id
-WHERE a.date_captured>=:latest {where_condition}
+WHERE a.date_captured>=:latest
+    AND a.canonical_url SIMILAR TO 'https?://[^/]+/_%'
+    {where_condition}
 ORDER BY a.group_id, a.date_captured
 """
     q2 = """
@@ -345,7 +347,9 @@ SELECT DISTINCT ON (a.group_id) a.group_id AS id,
     s.site_type AS site_type
 FROM article AS a
 JOIN site AS s ON s.id=a.site_id
-WHERE a.date_captured>=:latest {where_condition}
+WHERE a.date_captured>=:latest
+    AND a.canonical_url SIMILAR TO 'https?://[^/]+/_%'
+    {where_condition}
 ORDER BY a.group_id, a.date_captured
 """
     latest = datetime.utcnow() - timedelta(hours=past_hours)
