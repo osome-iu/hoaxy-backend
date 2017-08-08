@@ -8,6 +8,7 @@ The backend APIs mainly rely on this module.
 # written by Chengcheng Shao <sccotte@gmail.com>
 
 from datetime import datetime
+from datetime import timedelta
 from hoaxy.database import Session
 from hoaxy.database.functions import get_max
 from hoaxy.database.models import Top20ArticleMonthly
@@ -29,6 +30,7 @@ from org.apache.lucene.search import SortField
 from org.apache.lucene.search import TermRangeFilter
 from org.apache.lucene.store import FSDirectory
 from org.apache.lucene.util import BytesRef
+from os.path import isfile
 from sqlalchemy import text
 import logging
 import networkx as nx
@@ -222,15 +224,14 @@ def db_query_twitter_shares(engine, df):
     engine : object
         A SQLAlchemy connection, e.g., engine or session.
     df : pd.DataFrame
-        A dataframe contains all articles information.
+        A dataframe contains one column named 'id', which representing the
+        the `group_id` of articles.
 
     Returns
     -------
     pandas.DataFrame
-        Columns of the dataframe are ['id', 'canonical_url',
-        'title', 'date_published', 'domain', 'site_type',
-        'number_of_tweets']
-
+        One new column named 'number_of_tweets' is added to the input
+        DataFrame `df`.
     """
     q = """
 SELECT t.group_id, COUNT(DISTINCT atu.tweet_id)
@@ -244,7 +245,6 @@ GROUP BY t.group_id
         .execute(text(q), ids=df['id'].tolist())
     df1 = pd.DataFrame(iter(rs), columns=['id', 'number_of_tweets'])
     df = pd.merge(df, df1, on='id', how='inner', sort=False)
-    df = df.sort_values('number_of_tweets', ascending=False)
     return df
 
 
@@ -278,6 +278,103 @@ ORDER BY a.group_id, a.date_captured
     cnames = ['id', 'canonical_url', 'title', 'date_published',
               'domain', 'site_type']
     return pd.DataFrame(iter(rs), columns=cnames)
+
+
+def db_query_latest_articles(engine, past_hours=2,
+                             domains=None,
+                             domains_file=None
+                             ):
+    """Query the latest collected articles from database.
+
+    Parameters
+    ----------
+    engine : object
+        A SQLAlchemy connection, e.g., engine or session.
+    past_hours : int
+        Set the hours from now to past to be defined as latest hours.
+    domains : object
+        If None, return all articles in the latest hours;
+        If str, should be one of {'fact_checking', 'claim', 'fake'}:
+            if 'fact_checking', return fact checking articles,
+            if 'claim', return claim articles,
+            if 'fake', return selected fake articles, which is a subset of
+               claim, which is selected by us.
+        If array of domain, return articles belonging to these domains.
+    domains_file : str
+        When `domains` is 'fake', the actual used domains are loaded from
+        file `domains_file`. If this file doesn't exist, then `claim` type
+        domains would be used.
+
+    Returns:
+    --------
+    pandas.DataFrame
+        Columns of the dataframe are ['id', 'date_captured',
+        'title', 'canonical_url', 'site_type', 'number_of_tweets'].
+    """
+    q1 = """
+WITH domain AS (
+    SELECT * FROM UNNEST(:domains) AS t(name)
+),
+chosen_site AS(
+    SELECT DISTINCT site.id AS site_id
+    FROM site
+    JOIN domain ON domain.name=site.domain
+    UNION
+    SELECT DISTINCT ad.site_id AS site_id
+    FROM alternate_domain AS ad
+    JOIN domain ON domain.name=ad.name
+)
+SELECT DISTINCT ON (a.group_id) a.group_id AS id,
+    a.canonical_url AS canonical_url,
+    a.title AS title,
+    a.date_captured AS date_published,
+    s.domain AS domain,
+    s.site_type AS site_type
+FROM article AS a
+JOIN site AS s ON s.id=a.site_id
+JOIN chosen_site AS cs ON cs.site_id=s.id
+WHERE a.date_captured>=:latest {where_condition}
+ORDER BY a.group_id, a.date_captured
+"""
+    q2 = """
+SELECT DISTINCT ON (a.group_id) a.group_id AS id,
+    a.canonical_url AS canonical_url,
+    a.title AS title,
+    a.date_captured AS date_published,
+    s.domain AS domain,
+    s.site_type AS site_type
+FROM article AS a
+JOIN site AS s ON s.id=a.site_id
+WHERE a.date_captured>=:latest {where_condition}
+ORDER BY a.group_id, a.date_captured
+"""
+    latest = datetime.utcnow() - timedelta(hours=past_hours)
+    where_condition = ''
+    if domains == 'fact_checking':
+        where_condition += " AND s.site_type LIKE 'fact_checking' "
+    elif domains == 'claim':
+        where_condition += " AND s.site_type LIKE 'claim' "
+    elif domains == 'fake':
+        if domains_file is None:
+            logger.warning('No domains_file provide! Using \'claim\' instead')
+            where_condition += " AND s.site_type LIKE 'claim' "
+        elif not isfile(domains_file):
+            logger.warning('File %s not found! Using \'claim\' instead',
+                        domains_file)
+            where_condition += " AND s.site_type LIKE 'claim' "
+        else:
+            with open(domains_file) as f:
+                domains = f.readlines()
+            domains = [x.strip() for x in domains]
+            domains = [x for x in domains if len(x)>0]
+    if isinstance(domains, (list, tuple)) is True:
+        q = text(q1.format(where_condition=where_condition))\
+                .bindparams(domains=domains)
+    else:
+        q = text(q2.format(where_condition=where_condition))
+    q = q.bindparams(latest=latest)
+    rs = engine.execute(q)
+    return pd.DataFrame(iter(rs), columns=rs.keys())
 
 
 def db_query_tweets(engine, ids):
@@ -493,7 +590,6 @@ JOIN url AS u ON u.article_id=a.id
 JOIN ass_tweet_url AS atu ON atu.url_id=u.id
 JOIN tweet AS tw ON tw.id=atu.tweet_id
 ORDER BY tw.created_at ASC"""
-
     user_map = dict()
     rs = engine.execution_options(stream_results=True)\
         .execute(text(q), gids=ids)

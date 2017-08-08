@@ -18,13 +18,14 @@ from hoaxy.database.models import N_CLAIM, N_FACT_CHECKING
 from hoaxy.exceptions import APINoResultError
 from hoaxy.exceptions import APIParseError
 from hoaxy.ir.search import db_query_network
+from hoaxy.ir.search import db_query_latest_articles
 from hoaxy.ir.search import db_query_top_articles
 from hoaxy.ir.search import db_query_top_spreaders
 from hoaxy.ir.search import db_query_tweets
 from hoaxy.ir.search import db_query_twitter_shares
 from hoaxy.ir.search import Searcher
 from hoaxy.utils.log import configure_logging
-from schema import Schema, Optional, And, Use, Regex
+from schema import Schema, Optional, And, Use, Regex, Or
 from schema import SchemaError
 from sqlalchemy.exc import SQLAlchemyError
 import dateutil
@@ -203,10 +204,84 @@ def query_articles():
         if len(df) == 0:
             raise APINoResultError('No article found!')
         df = db_query_twitter_shares(engine, df)
+        # sort dataframe by 'number_of_tweets'
+        df = df.sort_values('number_of_tweets', ascending=False)
         response = dict(
             status='OK',
             num_of_entries=len(df),
             total_hits=n,
+            articles=flask.json.loads(df.to_json(**TO_JSON_KWARGS)))
+    except SchemaError as e:
+        response = dict(status='Parameter error', error=str(e))
+    except APIParseError as e:
+        response = dict(status='Invalide query', error=str(e))
+    except APINoResultError as e:
+        response = dict(status='No result error', error=str(e))
+    except Exception as e:
+        logger.exception(e)
+        response = dict(status='ERROR', error='Server error, query failed!')
+    return flask.jsonify(response)
+
+
+@app.route('/latest-articles')
+@authenticate_mashape
+def query_latest_articles():
+    """Handle API request '/latest-articles'.
+
+    API Request Parameters
+    ----------------------
+    past_hours : int
+        Set the hours from now to past to be defined as latest hours.
+    domains : object
+        If None, return all articles in the latest hours;
+        If str, should be one of {'fact_checking', 'claim', 'fake'}:
+            if 'fact_checking', return fact checking articles,
+            if 'claim', return claim articles,
+            if 'fake', return selected fake articles, which is a subset of
+               claim, which is selected by us.
+        If array of domain, return articles belonging to these domains.
+    domains_file : str
+        When `domains` is 'fake', the actual used domains are loaded from
+        file `domains_file`. If this file doesn't exist, then `claim` type
+        domains would be used.
+
+    API Response Keys
+    -----------------
+        status : string
+        num_of_entries : int
+        articles : dict
+            keys are:
+                canonical_url : string
+                date_published : string formatted datetime
+                domain : string
+                id : int
+                site_type : {'claim', 'fact_checking'}
+                title : string
+    """
+    lucene.getVMEnv().attachCurrentThread()
+    # Validate input of request
+    q_articles_schema = Schema({
+        'past_hours':
+            And(Use(int), lambda x: x > 0,
+                error='Invalid value of `past_hours`'),
+        Optional('domains', default=None):
+            Or(
+                lambda s: s in ('fact_checking', 'claim', 'fake'),
+                Use(flask.json.loads,
+                    error='Not valid values nor JSON string of `domains`')
+            )
+    })
+    q_kwargs = copy_req_args(request.args)
+    try:
+        q_kwargs = q_articles_schema.validate(q_kwargs)
+        domains_file = CONF['api'].get('selected_fake_domains_path')
+        df = db_query_latest_articles(engine, domains_file=domains_file,
+                                      **q_kwargs)
+        if len(df) == 0:
+            raise APINoResultError('No articles found!')
+        response = dict(
+            status='OK',
+            num_of_entries=len(df),
             articles=flask.json.loads(df.to_json(**TO_JSON_KWARGS)))
     except SchemaError as e:
         response = dict(status='Parameter error', error=str(e))

@@ -180,6 +180,11 @@ api:
   n_query_api_returned: 100
   # minimum score threshold used when searching is sorted by recency
   min_score_of_recent_sorting: 0.4
+  # For API latest-articles:
+  # Set path of the file consisting of selected fake sites
+  # The format of this file is one domain per line.
+  # If not provided, `claim` sites would be used for this API
+  selected_fake_domains_path: selected_fake_domains.txt
   # parameters used when transforming pandas.dataframe to json
   # http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.to_json.html
   dataframe_to_json_kwargs:
