@@ -240,7 +240,7 @@ SELECT DISTINCT s.domain AS domain
 FROM UNNEST(:domains) AS t(domain)
 JOIN site AS s ON s.domain=t.domain
 WHERE s.is_enabled IS TRUE"""
-    rs = engine.execute(text(q).bindparams(list(df.domain.unique())))
+    rs = engine.execute(text(q).bindparams(domains=list(df.domain.unique())))
     return df.loc[df.domain.isin([r[0] for r in rs])]
 
 
