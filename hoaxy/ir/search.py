@@ -236,12 +236,12 @@ def db_query_filter_disabled_site(engine, df):
     if len(df) == 0:
         return df
     q = """
-SELECT DISTINCT s.id AS site_id
-FROM UNNEST(:site_ids) AS t(site_id)
-JOIN site AS s ON s.id=t.site_id
+SELECT DISTINCT s.domain AS domain
+FROM UNNEST(:domains) AS t(domain)
+JOIN site AS s ON s.domain=t.domain
 WHERE s.is_enabled IS TRUE"""
-    rs = engine.execute(text(q).bindparams(list(df.site_id.unique())))
-    return df.loc[df.site_id.isin([r[0] for r in rs])]
+    rs = engine.execute(text(q).bindparams(list(df.domain.unique())))
+    return df.loc[df.domain.isin([r[0] for r in rs])]
 
 
 def db_query_twitter_shares(engine, df):
