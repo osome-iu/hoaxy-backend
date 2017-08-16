@@ -215,6 +215,34 @@ You are quering with lucene syntax, be careful of your query string!""")
                 df['date_published'] = pd.to_datetime(df['date_published'])
             return counter, df
 
+def db_query_filter_disabled_site(engine, df):
+    """Filter out sites that has been disabled.
+
+    After disabling a site, articles from this site are still store in the
+    Lucene indexes. By query the database, we could filter out them.
+
+    Parameters
+    ----------
+    engine : object
+        A SQLAlchemy connection, e.g., engine or session.
+    df : pd.DataFrame
+        A DataFrame that represents article information, specifictly returned
+        from Lucene search.
+
+    Returns
+    -------
+    pd.DataFrame. Articles from disabled site are removed.
+    """
+    if len(df) == 0:
+        return df
+    q = """
+SELECT DISTINCT s.id AS site_id
+FROM UNNEST(:site_ids) AS t(site_id)
+JOIN site AS s ON s.id=t.site_id
+WHERE s.is_enabled IS TRUE"""
+    rs = engine.execute(text(q).bindparams(list(df.site_id.unique())))
+    return df.loc[df.site_id.isin([r[0] for r in rs])]
+
 
 def db_query_twitter_shares(engine, df):
     """Query the number of tweets sharing the articles.
@@ -233,6 +261,8 @@ def db_query_twitter_shares(engine, df):
         One new column named 'number_of_tweets' is added to the input
         DataFrame `df`.
     """
+    if len(df) == 0:
+        return df
     q = """
 SELECT t.group_id, COUNT(DISTINCT atu.tweet_id)
 FROM (SELECT unnest(:ids) AS group_id) AS t

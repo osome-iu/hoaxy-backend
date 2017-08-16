@@ -18,6 +18,7 @@ from hoaxy.database.models import N_CLAIM, N_FACT_CHECKING
 from hoaxy.exceptions import APINoResultError
 from hoaxy.exceptions import APIParseError
 from hoaxy.ir.search import db_query_network
+from hoaxy.ir.search import db_query_filter_disabled_site
 from hoaxy.ir.search import db_query_latest_articles
 from hoaxy.ir.search import db_query_top_articles
 from hoaxy.ir.search import db_query_top_spreaders
@@ -201,9 +202,10 @@ def query_articles():
                                 min_score_of_recent_sorting=MIN_SCORE,
                                 min_date_published=STRAMING_START_AT,
                                 **q_kwargs)
+        df = db_query_filter_disabled_site(engine, df)
+        df = db_query_twitter_shares(engine, df)
         if len(df) == 0:
             raise APINoResultError('No article found!')
-        df = db_query_twitter_shares(engine, df)
         # sort dataframe by 'number_of_tweets'
         df = df.sort_values('number_of_tweets', ascending=False)
         response = dict(
