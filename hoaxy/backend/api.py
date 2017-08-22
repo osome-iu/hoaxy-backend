@@ -102,8 +102,8 @@ def authenticate_mashape(func):
         mashape_secret = request.headers.get('X-Mashape-Proxy-Secret')
         if mashape_secret is not None:
             client_ip = request.access_route[-1]
-            if (client_ip in app.config['MASHAPE_IPS'] and
-                    mashape_secret == app.config['MASHAPE_SECRET']):
+            # test the mashape_secret with corresponding request header
+            if mashape_secret == app.config['MASHAPE_SECRET']:
                 return func(*args, **kwargs)
         # No authentication
         return "Invalid/expired token", 401
