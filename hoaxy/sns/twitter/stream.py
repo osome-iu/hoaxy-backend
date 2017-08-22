@@ -98,11 +98,12 @@ class TwitterStream(object):
     def _authenticate(self):
         """Authenticate and return a requests client object."""
         c = self.credentials
-        oauth = OAuth1(client_key=c['consumer_key'],
-                       client_secret=c['consumer_secret'],
-                       resource_owner_key=c['access_token'],
-                       resource_owner_secret=c['access_token_secret'],
-                       signature_type='auth_header')
+        oauth = OAuth1(
+            client_key=c['consumer_key'],
+            client_secret=c['consumer_secret'],
+            resource_owner_key=c['access_token'],
+            resource_owner_secret=c['access_token_secret'],
+            signature_type='auth_header')
         self.client = requests.session()
         self.client.auth = oauth
 
@@ -152,10 +153,11 @@ class TwitterStream(object):
             while True:
                 try:
                     self._authenticate()
-                    resp = self.client.post(API_URL,
-                                            data=self.params,
-                                            stream=True,
-                                            timeout=self._stall_timeout)
+                    resp = self.client.post(
+                        API_URL,
+                        data=self.params,
+                        stream=True,
+                        timeout=self._stall_timeout)
                     data_lines = 0  # includes keepalives
                     # line is unicode
                     for line in resp.iter_lines():
@@ -168,8 +170,7 @@ class TwitterStream(object):
                                 logger.error(msg, e, line)
                                 continue
                             if not ('in_reply_to_status_id' in jd and
-                                    'user' in jd and
-                                    'text' in jd):
+                                    'user' in jd and 'text' in jd):
                                 logger.error('Not status tweet: %s', jd)
                                 continue
                             self._counter += 1

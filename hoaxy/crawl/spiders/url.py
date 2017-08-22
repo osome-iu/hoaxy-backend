@@ -80,13 +80,13 @@ class FeedSpider(scrapy.spiders.XMLFeedSpider):
             item['date_published'] = utc_from_str(date_published)
             yield item
         else:
-            logger.error('Unexpected item: (%s, %s) from %r',
-                         link, date_published, response.url)
+            logger.error('Unexpected item: (%s, %s) from %r', link,
+                         date_published, response.url)
             return
 
     def close(self, reason):
-        logger.info('%s for %s closed with reason=%r',
-                    self.name, self.allowed_domains, reason)
+        logger.info('%s for %s closed with reason=%r', self.name,
+                    self.allowed_domains, reason)
 
 
 class SitemapSpider(scrapy.spiders.Spider):
@@ -132,8 +132,8 @@ class SitemapSpider(scrapy.spiders.Spider):
                 yield item
 
     def close(self, reason):
-        logger.info('%s for %s closed with reason=%r',
-                    self.name, self.allowed_domains, reason)
+        logger.info('%s for %s closed with reason=%r', self.name,
+                    self.allowed_domains, reason)
 
 
 class PageSpider(scrapy.spiders.Spider):
@@ -171,10 +171,10 @@ class PageSpider(scrapy.spiders.Spider):
         self.url_regex = kwargs.pop('url_regex', None)
         self.start_urls = urls
         self.allowed_domains = domains
-        self.link_extractor = LinkExtractor(allow_domains=self.allowed_domains,
-                                            restrict_xpaths=self.href_xpaths,
-                                            unique=True
-                                            )
+        self.link_extractor = LinkExtractor(
+            allow_domains=self.allowed_domains,
+            restrict_xpaths=self.href_xpaths,
+            unique=True)
         super(PageSpider, self).__init__(*args, **kwargs)
 
     def parse(self, response):
@@ -184,8 +184,8 @@ class PageSpider(scrapy.spiders.Spider):
             yield item
 
     def close(self, reason):
-        logger.info('%s for %s closed with reason=%r',
-                    self.name, self.allowed_domains, reason)
+        logger.info('%s for %s closed with reason=%r', self.name,
+                    self.allowed_domains, reason)
 
 
 class SiteSpider(scrapy.spiders.CrawlSpider):
@@ -221,11 +221,13 @@ class SiteSpider(scrapy.spiders.CrawlSpider):
         self.href_xpaths = kwargs.pop('href_xpaths', ())
         self.start_urls = urls
         self.allowed_domains = domains
-        self.rules = (
-            Rule(LinkExtractor(allow_domains=self.allowed_domains,
-                               restrict_xpaths=self.href_xpaths,
-                               unique=True),
-                 callback="parse_item", follow=True), )
+        self.rules = (Rule(
+            LinkExtractor(
+                allow_domains=self.allowed_domains,
+                restrict_xpaths=self.href_xpaths,
+                unique=True),
+            callback="parse_item",
+            follow=True),)
 
         super(SiteSpider, self).__init__(*args, **kwargs)
 
@@ -248,8 +250,8 @@ class SiteSpider(scrapy.spiders.CrawlSpider):
 
     def close(self, reason):
         """Called when closing spider."""
-        logger.info('%s for %s closed with reason=%r',
-                    self.name, self.allowed_domains, reason)
+        logger.info('%s for %s closed with reason=%r', self.name,
+                    self.allowed_domains, reason)
 
 
 class PageTemplateSpider(scrapy.spiders.Spider):
@@ -265,7 +267,7 @@ class PageTemplateSpider(scrapy.spiders.Spider):
 
     name = 'page_template.spider'
 
-    def __init__(self, domains, page_templates, * args, **kwargs):
+    def __init__(self, domains, page_templates, *args, **kwargs):
         """Constructor for PageTemplateSpider.
 
         Parameters
@@ -323,8 +325,7 @@ class PageTemplateSpider(scrapy.spiders.Spider):
                 p_num=self.p_kw['start'],
                 next_tries=0,
                 max_next_tries=self.p_kw['max_next_tries'],
-                page=page
-            ))
+                page=page))
             logger.debug('Page format meta info:\n%s', pprint.pformat(meta))
             yield scrapy.Request(url, callback=self.parse, meta=meta)
 
@@ -339,9 +340,11 @@ class PageTemplateSpider(scrapy.spiders.Spider):
             url = meta['page'].format(p_num=meta['p_num'])
             meta = dict(archive_meta=meta)
             logger.debug('Page format meta info:\n%s', pprint.pformat(meta))
-            yield scrapy.Request(url, callback=self.parse,
-                                 errback=self.errback_request,
-                                 meta=meta)
+            yield scrapy.Request(
+                url,
+                callback=self.parse,
+                errback=self.errback_request,
+                meta=meta)
         else:
             logger.debug('Reach max next tries! Stop tring next page!')
 
@@ -352,7 +355,7 @@ class PageTemplateSpider(scrapy.spiders.Spider):
         del response.meta['archive_meta']
         urls = set()
         if len(self.href_xpaths) == 0:
-            self.href_xpaths = ('/html/body', )
+            self.href_xpaths = ('/html/body',)
         for xp in self.href_xpaths:
             for href in response.xpath(xp).xpath('.//a/@href').extract():
                 url = urlparse.urljoin(response.url, href)
@@ -372,11 +375,13 @@ class PageTemplateSpider(scrapy.spiders.Spider):
             url = meta['page'].format(p_num=meta['p_num'])
             meta = dict(archive_meta=meta)
             logger.debug('Page format meta info:\n%s', pprint.pformat(meta))
-            yield scrapy.Request(url, callback=self.parse,
-                                 errback=self.errback_request,
-                                 meta=meta)
+            yield scrapy.Request(
+                url,
+                callback=self.parse,
+                errback=self.errback_request,
+                meta=meta)
 
     def close(self, reason):
         """Called when closing spider."""
-        logger.info('%s for %s closed with reason=%r',
-                    self.name, self.allowed_domains, reason)
+        logger.info('%s for %s closed with reason=%r', self.name,
+                    self.allowed_domains, reason)

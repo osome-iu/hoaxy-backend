@@ -79,10 +79,8 @@ class ArticleParserSpider(scrapy.spiders.Spider):
             if marticle.date_captured > created_at:
                 marticle.date_captured = created_at
             try:
-                self.session.query(Url).filter_by(id=url_id).update(dict(
-                    article_id=marticle.id,
-                    status_code=U_WP_SUCCESS
-                ))
+                self.session.query(Url).filter_by(id=url_id).update(
+                    dict(article_id=marticle.id, status_code=U_WP_SUCCESS))
                 self.session.commit()
                 return True
             except SQLAlchemyError as e:
@@ -107,9 +105,12 @@ is not determined""", url_id)
                 url,
                 callback=self.parse_item,
                 errback=self.errback_request,
-                meta=dict(url_id=url_id, date_captured=created_at,
-                          date_published=date_published, site_id=site_id,
-                          canonical_url=canonical),
+                meta=dict(
+                    url_id=url_id,
+                    date_captured=created_at,
+                    date_published=date_published,
+                    site_id=site_id,
+                    canonical_url=canonical),
                 headers={'x-api-key': self.api_key})
 
     def errback_request(self, failure):
@@ -130,11 +131,12 @@ is not determined""", url_id)
         """Parse the response into an ArticleItem."""
         status_code = None
         url_id = response.meta['url_id']
-        item = ArticleItem(date_captured=response.meta['date_captured'],
-                           date_published=response.meta['date_published'],
-                           canonical_url=response.meta['canonical_url'],
-                           site_id=response.meta['site_id'],
-                           url_id=url_id)
+        item = ArticleItem(
+            date_captured=response.meta['date_captured'],
+            date_published=response.meta['date_published'],
+            canonical_url=response.meta['canonical_url'],
+            site_id=response.meta['site_id'],
+            url_id=url_id)
         # load json data
         try:
             data = json.loads(response.text)
@@ -152,15 +154,15 @@ is not determined""", url_id)
                 if content is not None:
                     content = lxml.html.fromstring(html=content).text_content()
                 item['content'] = content
-                item['meta'] = dict(dek=data['dek'],
-                                    excerpt=data['excerpt'],
-                                    author=data['author']
-                                    )
+                item['meta'] = dict(
+                    dek=data['dek'],
+                    excerpt=data['excerpt'],
+                    author=data['author'])
                 if item['date_published'] is None:
                     item['date_published'] = data['date_published']
             except Exception as e:
                 logger.error('Error when parsing data from webparser %r: %s',
-                        data, e)
+                             data, e)
                 status_code = U_WP_ERROR_DATA_INVALID
         # No error happens, send to pipeline
         # remeber pipeline will also handle the url.status_code

@@ -32,18 +32,14 @@ N_PLATFORM_TWITTER = 'twitter'
 # name of web platform
 N_PLATFORM_WEB = 'news_website'
 # enum type for platform
-PLATFORM_TYPES = (
-    'social_network',
-    'news_website'
-)
+PLATFORM_TYPES = ('social_network', 'news_website')
 # type of social and web
 T_PLATFORM_SOCIAL, T_PLATFORM_WEB = PLATFORM_TYPES
 # twitter platform data
-TWITTER_PLATFORM_DICT = dict(name=N_PLATFORM_TWITTER,
-                             platform_type=T_PLATFORM_SOCIAL)
+TWITTER_PLATFORM_DICT = dict(
+    name=N_PLATFORM_TWITTER, platform_type=T_PLATFORM_SOCIAL)
 # web platform data
-WEB_PLATFORM_DICT = dict(name=N_PLATFORM_WEB,
-                         platform_type=T_PLATFORM_WEB)
+WEB_PLATFORM_DICT = dict(name=N_PLATFORM_WEB, platform_type=T_PLATFORM_WEB)
 # The maximum length of URL allowed.
 MAX_URL_LEN = 2083
 
@@ -99,6 +95,7 @@ class TableMixin(object):
         tname = re.sub('(?!^)([A-Z]+)', r'_\1', cls.__name__).lower()
         logger.debug("Building schema of table %s", tname)
         return tname
+
     # id, keep `id` as the first column when create a table
     id = Column(Integer, primary_key=True)
 
@@ -106,56 +103,66 @@ class TableMixin(object):
 class AuditColumns(object):
     """Another Mixin class that adds audit columns: created_at and updated_at.
     """
-    created_at = Column(DateTime,
-                        default=datetime.utcnow,
-                        server_default=text("(now() at time zone 'utc')"))
-    updated_at = Column(DateTime,
-                        default=datetime.utcnow,
-                        onupdate=datetime.utcnow)
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        server_default=text("(now() at time zone 'utc')"))
+    updated_at = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class AssTweetUrl(TableMixin, Base):
     """Association table to connect table `tweet` and `url`."""
-    tweet_id = Column(Integer, ForeignKey('tweet.id', ondelete='CASCADE',
-                                          onupdate='CASCADE'))
-    url_id = Column(Integer, ForeignKey('url.id', ondelete='CASCADE',
-                                        onupdate='CASCADE'))
-    __table_args__ = (
-        UniqueConstraint('tweet_id', 'url_id', name='tweet_url_uq'),
-    )
+    tweet_id = Column(Integer,
+                      ForeignKey(
+                          'tweet.id', ondelete='CASCADE', onupdate='CASCADE'))
+    url_id = Column(Integer,
+                    ForeignKey(
+                        'url.id', ondelete='CASCADE', onupdate='CASCADE'))
+    __table_args__ = (UniqueConstraint(
+        'tweet_id', 'url_id', name='tweet_url_uq'),)
 
 
 class AssTweetHashtag(TableMixin, Base):
     """Association table to connect table `tweet` and `hashtag`."""
-    tweet_id = Column(Integer, ForeignKey('tweet.id', ondelete='CASCADE',
-                                          onupdate='CASCADE'))
-    hashtag_id = Column(Integer, ForeignKey('hashtag.id', ondelete='CASCADE',
-                                            onupdate='CASCADE'))
-    __table_args__ = (
-        UniqueConstraint('tweet_id', 'hashtag_id', name='tweet_hashtag_uq'),
-    )
+    tweet_id = Column(Integer,
+                      ForeignKey(
+                          'tweet.id', ondelete='CASCADE', onupdate='CASCADE'))
+    hashtag_id = Column(Integer,
+                        ForeignKey(
+                            'hashtag.id',
+                            ondelete='CASCADE',
+                            onupdate='CASCADE'))
+    __table_args__ = (UniqueConstraint(
+        'tweet_id', 'hashtag_id', name='tweet_hashtag_uq'),)
 
 
 class AssUrlPlatform(TableMixin, Base):
     """Association table to connect table `url` and `platform`."""
-    url_id = Column(Integer, ForeignKey('url.id', ondelete='CASCADE',
-                                        onupdate='CASCADE'))
-    platform_id = Column(Integer, ForeignKey('platform.id', ondelete='CASCADE',
-                                             onupdate='CASCADE'))
-    __table_args__ = (
-        UniqueConstraint('url_id', 'platform_id', name='url_platform_uq'),
-    )
+    url_id = Column(Integer,
+                    ForeignKey(
+                        'url.id', ondelete='CASCADE', onupdate='CASCADE'))
+    platform_id = Column(Integer,
+                         ForeignKey(
+                             'platform.id',
+                             ondelete='CASCADE',
+                             onupdate='CASCADE'))
+    __table_args__ = (UniqueConstraint(
+        'url_id', 'platform_id', name='url_platform_uq'),)
 
 
 class AssSiteSiteTag(TableMixin, Base):
     """Association table to connect table `site` and `site_tag`."""
-    site_id = Column(Integer, ForeignKey('site.id', ondelete='CASCADE',
-                                         onupdate='CASCADE'))
-    site_tag_id = Column(Integer, ForeignKey('site_tag.id', ondelete='CASCADE',
-                                             onupdate='CASCADE'))
-    __table_args__ = (
-        UniqueConstraint('site_id', 'site_tag_id', name='site_site_tag_id'),
-    )
+    site_id = Column(Integer,
+                     ForeignKey(
+                         'site.id', ondelete='CASCADE', onupdate='CASCADE'))
+    site_tag_id = Column(Integer,
+                         ForeignKey(
+                             'site_tag.id',
+                             ondelete='CASCADE',
+                             onupdate='CASCADE'))
+    __table_args__ = (UniqueConstraint(
+        'site_id', 'site_tag_id', name='site_site_tag_id'),)
 
 
 class Platform(TableMixin, AuditColumns, Base):
@@ -166,13 +173,14 @@ class Platform(TableMixin, AuditColumns, Base):
     platform <-- MANY TO MANY --> url
     """
     name = Column(String(31), unique=True, nullable=False)
-    platform_type = Column(Enum(*PLATFORM_TYPES, name='platform_types'),
-                           nullable=False)
+    platform_type = Column(
+        Enum(*PLATFORM_TYPES, name='platform_types'), nullable=False)
     # Relationship attributes
-    urls = relationship('Url',
-                        passive_deletes=True,
-                        secondary='ass_url_platform',
-                        back_populates='platforms')
+    urls = relationship(
+        'Url',
+        passive_deletes=True,
+        secondary='ass_url_platform',
+        back_populates='platforms')
 
 
 class Url(TableMixin, AuditColumns, Base):
@@ -225,25 +233,29 @@ class Url(TableMixin, AuditColumns, Base):
     canonical = Column(String(MAX_URL_LEN))
     html = deferred(Column(Text))
     date_published = Column(DateTime)
-    status_code = Column(SmallInteger, default=U_DEFAULT,
-                         server_default=str(U_DEFAULT))
+    status_code = Column(
+        SmallInteger, default=U_DEFAULT, server_default=str(U_DEFAULT))
 
     # foreign keys
-    article_id = Column(Integer, ForeignKey('article.id',
-                                            ondelete='CASCADE',
-                                            onupdate='CASCADE'))
-    site_id = Column(Integer, ForeignKey('site.id',
-                                         ondelete='CASCADE',
-                                         onupdate='CASCADE'))
+    article_id = Column(Integer,
+                        ForeignKey(
+                            'article.id',
+                            ondelete='CASCADE',
+                            onupdate='CASCADE'))
+    site_id = Column(Integer,
+                     ForeignKey(
+                         'site.id', ondelete='CASCADE', onupdate='CASCADE'))
     # relationship attributes
-    platforms = relationship('Platform',
-                             passive_deletes=True,
-                             secondary='ass_url_platform',
-                             back_populates='urls')
-    tweets = relationship('Tweet',
-                          passive_deletes=True,
-                          secondary='ass_tweet_url',
-                          back_populates='urls')
+    platforms = relationship(
+        'Platform',
+        passive_deletes=True,
+        secondary='ass_url_platform',
+        back_populates='urls')
+    tweets = relationship(
+        'Tweet',
+        passive_deletes=True,
+        secondary='ass_tweet_url',
+        back_populates='urls')
     site = relationship('Site', back_populates='urls')
 
 
@@ -268,10 +280,10 @@ class UrlMatch(TableMixin, AuditColumns, Base):
     fact_checking_canonical = Column(String(MAX_URL_LEN), nullable=False)
     method = Column(String(255))
     match_or_not = Column(Boolean)
-    __table_args__ = (
-        UniqueConstraint('claim_canonical', 'fact_checking_canonical',
-                         name='claim_fact_checking_uq'),
-    )
+    __table_args__ = (UniqueConstraint(
+        'claim_canonical',
+        'fact_checking_canonical',
+        name='claim_fact_checking_uq'),)
 
 
 class Article(TableMixin, AuditColumns, Base):
@@ -289,9 +301,9 @@ class Article(TableMixin, AuditColumns, Base):
     content = deferred(Column(Text, nullable=False))
     date_published = Column(DateTime)
     date_captured = Column(DateTime, nullable=False)
-    site_id = Column(Integer, ForeignKey('site.id',
-                                         ondelete='CASCADE',
-                                         onupdate='CASCADE'))
+    site_id = Column(Integer,
+                     ForeignKey(
+                         'site.id', ondelete='CASCADE', onupdate='CASCADE'))
     group_id = Column(Integer)
 
 
@@ -315,10 +327,11 @@ class Site(TableMixin, AuditColumns, Base):
     last_alive = Column(DateTime, default=datetime.now)
 
     # relationship attributes
-    site_tags = relationship('SiteTag',
-                             passive_deletes=True,
-                             secondary='ass_site_site_tag',
-                             back_populates='sites')
+    site_tags = relationship(
+        'SiteTag',
+        passive_deletes=True,
+        secondary='ass_site_site_tag',
+        back_populates='sites')
     alternate_domains = relationship("AlternateDomain", back_populates='site')
     urls = relationship("Url", back_populates='site')
 
@@ -327,9 +340,9 @@ class AlternateDomain(TableMixin, AuditColumns, Base):
     """Table `alternate_domain`."""
     name = Column(String(255), unique=True, nullable=False)
     is_alive = Column(Boolean, default=True)
-    site_id = Column(Integer, ForeignKey('site.id',
-                                         ondelete='CASCADE',
-                                         onupdate='CASCADE'))
+    site_id = Column(Integer,
+                     ForeignKey(
+                         'site.id', ondelete='CASCADE', onupdate='CASCADE'))
     site = relationship("Site", back_populates='alternate_domains')
 
 
@@ -337,13 +350,12 @@ class SiteTag(TableMixin, AuditColumns, Base):
     """Table `site_tag`."""
     name = Column(String(32), nullable=False)
     source = Column(String(255), nullable=False)
-    sites = relationship('Site',
-                         passive_deletes=True,
-                         secondary='ass_site_site_tag',
-                         back_populates='site_tags')
-    __table_args__ = (
-        UniqueConstraint('name', 'source', name='name_source'),
-    )
+    sites = relationship(
+        'Site',
+        passive_deletes=True,
+        secondary='ass_site_site_tag',
+        back_populates='site_tags')
+    __table_args__ = (UniqueConstraint('name', 'source', name='name_source'),)
 
 
 class SiteActivity(TableMixin, Base):
@@ -354,9 +366,9 @@ class SiteActivity(TableMixin, Base):
     event = Column(String(31))
     description = Column(String(255))
     timestamp = Column(DateTime, default=datetime.now)
-    site_id = Column(Integer, ForeignKey('site.id',
-                                         ondelete='CASCADE',
-                                         onupdate='CASCADE'))
+    site_id = Column(Integer,
+                     ForeignKey(
+                         'site.id', ondelete='CASCADE', onupdate='CASCADE'))
 
 
 class Hashtag(TableMixin, AuditColumns, Base):
@@ -368,10 +380,11 @@ class Hashtag(TableMixin, AuditColumns, Base):
     """
     text = Column(String(255), unique=True, nullable=False)
     # relationship attributes
-    tweets = relationship('Tweet',
-                          passive_deletes=True,
-                          secondary='ass_tweet_hashtag',
-                          back_populates='hashtags')
+    tweets = relationship(
+        'Tweet',
+        passive_deletes=True,
+        secondary='ass_tweet_hashtag',
+        back_populates='hashtags')
 
 
 class Tweet(TableMixin, AuditColumns, Base):
@@ -387,18 +400,22 @@ class Tweet(TableMixin, AuditColumns, Base):
     json_data = deferred(Column(postgresql.JSON, nullable=False))
 
     # foreign keys
-    user_id = Column(Integer, ForeignKey('twitter_user.id',
-                                         ondelete='CASCADE',
-                                         onupdate='CASCADE'))
+    user_id = Column(Integer,
+                     ForeignKey(
+                         'twitter_user.id',
+                         ondelete='CASCADE',
+                         onupdate='CASCADE'))
     # relationship attributes
-    urls = relationship('Url',
-                        passive_deletes=True,
-                        secondary='ass_tweet_url',
-                        back_populates='tweets')
-    hashtags = relationship('Hashtag',
-                            passive_deletes=True,
-                            secondary='ass_tweet_hashtag',
-                            back_populates='tweets')
+    urls = relationship(
+        'Url',
+        passive_deletes=True,
+        secondary='ass_tweet_url',
+        back_populates='tweets')
+    hashtags = relationship(
+        'Hashtag',
+        passive_deletes=True,
+        secondary='ass_tweet_hashtag',
+        back_populates='tweets')
     user = relationship('TwitterUser', back_populates='tweets')
 
 
@@ -423,9 +440,7 @@ class TwitterUser(TableMixin, Base):
     raw_id = Column(BigInteger, unique=True, nullable=False)
 
     # relationship attribute
-    tweets = relationship('Tweet',
-                          passive_deletes=True,
-                          back_populates='user')
+    tweets = relationship('Tweet', passive_deletes=True, back_populates='user')
 
 
 class MetaInfo(TableMixin, AuditColumns, Base):
@@ -476,8 +491,11 @@ class Top20SpreaderMonthly(TableMixin, Base):
     number_of_tweets = Column(Integer, nullable=False)
     bot_or_not = Column(postgresql.JSON)
     __table_args__ = (UniqueConstraint(
-        'upper_day', 'user_id', 'site_type', 'spreading_type',
-        name='spreading_uq'), )
+        'upper_day',
+        'user_id',
+        'site_type',
+        'spreading_type',
+        name='spreading_uq'),)
 
 
 class Top20ArticleMonthly(TableMixin, Base):
@@ -489,4 +507,4 @@ class Top20ArticleMonthly(TableMixin, Base):
     site_type = Column(String(255), nullable=False)
     number_of_tweets = Column(Integer, nullable=False)
     __table_args__ = (UniqueConstraint(
-        'upper_day', 'canonical_url', name='top20_article_uq'), )
+        'upper_day', 'canonical_url', name='top20_article_uq'),)

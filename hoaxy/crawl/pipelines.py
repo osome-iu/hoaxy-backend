@@ -113,8 +113,8 @@ class HtmlPipeline(object):
             spider.session.query(Url).filter_by(id=item['id'])\
                 .update(dict(item), synchronize_session=False)
             spider.session.commit()
-            logger.debug('Fetched html of url %r with status %i',
-                         item['raw'], item['status_code'])
+            logger.debug('Fetched html of url %r with status %i', item['raw'],
+                         item['status_code'])
         except SQLAlchemyError as e:
             logger.error(e)
             spider.session.rollback()

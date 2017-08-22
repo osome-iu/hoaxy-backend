@@ -94,14 +94,13 @@ is working.
                 except (TweepError, NoTimelineError) as e:
                     err_msg = '{}: {}'.format(
                         type(e).__name__,
-                        getattr(e, 'msg', '') or getattr(e, 'reason', ''),
-                    )
+                        getattr(e, 'msg', '') or getattr(e, 'reason', ''),)
                     result = {'error': err_msg}
                 except (Timeout, ConnectionError) as e:
                     if num_retries >= max_retries:
                         raise
                     else:
-                        time.sleep(2 ** num_retries)
+                        time.sleep(2**num_retries)
                 if result is not None:
                     ms.bot_or_not = result
                     break
@@ -154,125 +153,128 @@ is working.
         lower_day = upper_day - month_delta
         # top 20 most active spreaders for 'fact_checking'
         q1 = """
-INSERT INTO top20_spreader_monthly (upper_day, user_id, user_raw_id,
-user_screen_name, site_type, spreading_type, number_of_tweets)
-SELECT DISTINCT ON(tw.user_id)
-    :upper_day AS upper_day,
-    tw.user_id,
-    tu.raw_id AS user_raw_id,
-    tw.json_data#>>'{user, screen_name}' AS user_screen_name,
-    'fact_checking' AS site_type,
-    'active' AS spreading_type,
-    t.number_of_tweets
-FROM
-    (
-        SELECT tw1.user_id, COUNT(tw1.id) AS number_of_tweets
-        FROM tweet AS tw1
-        JOIN ass_tweet_url AS atu ON atu.tweet_id=tw1.id
-        JOIN url AS u ON u.id=atu.url_id
-        JOIN site AS s ON s.id=u.site_id
-        WHERE tw1.created_at BETWEEN :lower_day AND :upper_day
-              AND site_type LIKE 'fact_checking'
-        GROUP BY tw1.user_id
-        ORDER BY number_of_tweets DESC LIMIT 20
-    ) AS t
-JOIN tweet AS tw ON t.user_id=tw.user_id
-JOIN twitter_user AS tu ON tu.id=tw.user_id
-ORDER BY tw.user_id, tw.created_at DESC, t.number_of_tweets DESC"""
+        INSERT INTO top20_spreader_monthly (upper_day, user_id, user_raw_id,
+            user_screen_name, site_type, spreading_type, number_of_tweets)
+        SELECT DISTINCT ON(tw.user_id)
+            :upper_day AS upper_day,
+            tw.user_id,
+            tu.raw_id AS user_raw_id,
+            tw.json_data#>>'{user, screen_name}' AS user_screen_name,
+            'fact_checking' AS site_type,
+            'active' AS spreading_type,
+            t.number_of_tweets
+        FROM
+            (
+                SELECT tw1.user_id, COUNT(tw1.id) AS number_of_tweets
+                FROM tweet AS tw1
+                    JOIN ass_tweet_url AS atu ON atu.tweet_id=tw1.id
+                    JOIN url AS u ON u.id=atu.url_id
+                    JOIN site AS s ON s.id=u.site_id
+                WHERE tw1.created_at BETWEEN :lower_day AND :upper_day
+                    AND site_type LIKE 'fact_checking'
+                GROUP BY tw1.user_id
+                ORDER BY number_of_tweets DESC LIMIT 20
+            ) AS t
+            JOIN tweet AS tw ON t.user_id=tw.user_id
+            JOIN twitter_user AS tu ON tu.id=tw.user_id
+        ORDER BY tw.user_id, tw.created_at DESC, t.number_of_tweets DESC
+        """
         # top 20 most active spreaders for 'claim'
         q2 = """
-INSERT INTO top20_spreader_monthly (upper_day, user_id, user_raw_id,
-user_screen_name, site_type, spreading_type, number_of_tweets)
-SELECT DISTINCT ON(tw.user_id)
-    :upper_day AS upper_day,
-    tw.user_id,
-    tu.raw_id AS user_raw_id,
-    tw.json_data#>>'{user, screen_name}' AS user_screen_name,
-    'claim' AS site_type,
-    'active' AS spreading_type,
-    t.number_of_tweets
-FROM
-    (
-        SELECT tw1.user_id, COUNT(tw1.id) AS number_of_tweets
-        FROM tweet AS tw1
-        JOIN ass_tweet_url AS atu ON atu.tweet_id=tw1.id
-        JOIN url AS u ON u.id=atu.url_id
-        JOIN site AS s ON s.id=u.site_id
-        WHERE tw1.created_at BETWEEN :lower_day AND :upper_day
-              AND site_type LIKE 'claim'
-        GROUP BY tw1.user_id
-        ORDER BY number_of_tweets DESC LIMIT 20
-    ) AS t
-JOIN tweet AS tw ON t.user_id=tw.user_id
-JOIN twitter_user AS tu ON tu.id=tw.user_id
-ORDER BY tw.user_id, t.number_of_tweets DESC, tw.created_at DESC"""
+        INSERT INTO top20_spreader_monthly (upper_day, user_id, user_raw_id,
+            user_screen_name, site_type, spreading_type, number_of_tweets)
+        SELECT DISTINCT ON(tw.user_id)
+            :upper_day AS upper_day,
+            tw.user_id,
+            tu.raw_id AS user_raw_id,
+            tw.json_data#>>'{user, screen_name}' AS user_screen_name,
+            'claim' AS site_type,
+            'active' AS spreading_type,
+            t.number_of_tweets
+        FROM
+            (
+                SELECT tw1.user_id, COUNT(tw1.id) AS number_of_tweets
+                FROM tweet AS tw1
+                    JOIN ass_tweet_url AS atu ON atu.tweet_id=tw1.id
+                    JOIN url AS u ON u.id=atu.url_id
+                    JOIN site AS s ON s.id=u.site_id
+                WHERE tw1.created_at BETWEEN :lower_day AND :upper_day
+                    AND site_type LIKE 'claim'
+                GROUP BY tw1.user_id
+                ORDER BY number_of_tweets DESC LIMIT 20
+            ) AS t
+            JOIN tweet AS tw ON t.user_id=tw.user_id
+            JOIN twitter_user AS tu ON tu.id=tw.user_id
+        ORDER BY tw.user_id, t.number_of_tweets DESC, tw.created_at DESC
+        """
         # top 20 most influential spreaders for 'fact_checking'
         q3 = """
-INSERT INTO top20_spreader_monthly (upper_day, user_id, user_raw_id,
-user_screen_name, site_type, spreading_type, number_of_tweets)
-SELECT DISTINCT ON(tw.user_id)
-    :upper_day AS upper_day,
-    tw.user_id,
-    tu.raw_id AS user_raw_id,
-    tw.json_data#>>'{user, screen_name}' AS user_screen_name,
-    'fact_checking' AS site_type,
-    'influential' AS spreading_type,
-    t.number_of_retweets
-FROM (
-    SELECT COUNT(DISTINCT atw.id) AS number_of_retweets,
-            tu.id AS user_id
-    FROM ass_tweet AS atw
-    JOIN tweet AS tw ON tw.raw_id=atw.retweeted_status_id
-    JOIN twitter_user AS tu ON tu.id=tw.user_id
-    JOIN ass_tweet_url AS atu ON atu.tweet_id=tw.id
-    JOIN url AS u ON u.id=atu.url_id
-    JOIN site AS s ON s.id=u.site_id
-    WHERE tw.created_at BETWEEN :lower_day AND :upper_day
-        AND s.site_type LIKE 'fact_checking'
-    GROUP BY tu.id
-    ORDER BY number_of_retweets DESC LIMIT 20
-    ) AS t
-JOIN tweet AS tw ON t.user_id=tw.user_id
-JOIN twitter_user AS tu ON tu.id=tw.user_id
-ORDER BY tw.user_id, tw.created_at DESC, t.number_of_retweets DESC"""
+        INSERT INTO top20_spreader_monthly (upper_day, user_id, user_raw_id,
+            user_screen_name, site_type, spreading_type, number_of_tweets)
+        SELECT DISTINCT ON(tw.user_id)
+            :upper_day AS upper_day,
+            tw.user_id,
+            tu.raw_id AS user_raw_id,
+            tw.json_data#>>'{user, screen_name}' AS user_screen_name,
+            'fact_checking' AS site_type,
+            'influential' AS spreading_type,
+            t.number_of_retweets
+        FROM (
+            SELECT COUNT(DISTINCT atw.id) AS number_of_retweets,
+                    tu.id AS user_id
+            FROM ass_tweet AS atw
+                JOIN tweet AS tw ON tw.raw_id=atw.retweeted_status_id
+                JOIN twitter_user AS tu ON tu.id=tw.user_id
+                JOIN ass_tweet_url AS atu ON atu.tweet_id=tw.id
+                JOIN url AS u ON u.id=atu.url_id
+                JOIN site AS s ON s.id=u.site_id
+            WHERE tw.created_at BETWEEN :lower_day AND :upper_day
+                AND s.site_type LIKE 'fact_checking'
+            GROUP BY tu.id
+            ORDER BY number_of_retweets DESC LIMIT 20
+            ) AS t
+            JOIN tweet AS tw ON t.user_id=tw.user_id
+            JOIN twitter_user AS tu ON tu.id=tw.user_id
+        ORDER BY tw.user_id, tw.created_at DESC, t.number_of_retweets DESC
+        """
         # top 20 most influential for 'claim'
         q4 = """
-INSERT INTO top20_spreader_monthly (upper_day, user_id, user_raw_id,
-user_screen_name, site_type, spreading_type, number_of_tweets)
-SELECT DISTINCT ON(tw.user_id)
-    :upper_day AS upper_day,
-    tw.user_id,
-    tu.raw_id AS user_raw_id,
-    tw.json_data#>>'{user, screen_name}' AS user_screen_name,
-    'claim' AS site_type,
-    'influential' AS spreading_type,
-    t.number_of_retweets
-FROM (
-    SELECT COUNT(DISTINCT atw.id) AS number_of_retweets,
-            tu.id AS user_id
-    FROM ass_tweet AS atw
-    JOIN tweet AS tw ON tw.raw_id=atw.retweeted_status_id
-    JOIN twitter_user AS tu ON tu.id=tw.user_id
-    JOIN ass_tweet_url AS atu ON atu.tweet_id=tw.id
-    JOIN url AS u ON u.id=atu.url_id
-    JOIN site AS s ON s.id=u.site_id
-    WHERE tw.created_at BETWEEN :lower_day AND :upper_day
-        AND s.site_type LIKE 'claim'
-    GROUP BY tu.id
-    ORDER BY number_of_retweets DESC LIMIT 20
-    ) AS t
-JOIN tweet AS tw ON t.user_id=tw.user_id
-JOIN twitter_user AS tu ON tu.id=tw.user_id
-ORDER BY tw.user_id, tw.created_at DESC, t.number_of_retweets DESC
+        INSERT INTO top20_spreader_monthly (upper_day, user_id, user_raw_id,
+            user_screen_name, site_type, spreading_type, number_of_tweets)
+        SELECT DISTINCT ON(tw.user_id)
+            :upper_day AS upper_day,
+            tw.user_id,
+            tu.raw_id AS user_raw_id,
+            tw.json_data#>>'{user, screen_name}' AS user_screen_name,
+            'claim' AS site_type,
+            'influential' AS spreading_type,
+            t.number_of_retweets
+        FROM (
+            SELECT COUNT(DISTINCT atw.id) AS number_of_retweets,
+                    tu.id AS user_id
+            FROM ass_tweet AS atw
+                JOIN tweet AS tw ON tw.raw_id=atw.retweeted_status_id
+                JOIN twitter_user AS tu ON tu.id=tw.user_id
+                JOIN ass_tweet_url AS atu ON atu.tweet_id=tw.id
+                JOIN url AS u ON u.id=atu.url_id
+                JOIN site AS s ON s.id=u.site_id
+            WHERE tw.created_at BETWEEN :lower_day AND :upper_day
+                AND s.site_type LIKE 'claim'
+            GROUP BY tu.id
+            ORDER BY number_of_retweets DESC LIMIT 20
+            ) AS t
+            JOIN tweet AS tw ON t.user_id=tw.user_id
+            JOIN twitter_user AS tu ON tu.id=tw.user_id
+        ORDER BY tw.user_id, tw.created_at DESC, t.number_of_retweets DESC
 """
-        session.execute(text(q1).bindparams(
-            lower_day=lower_day, upper_day=upper_day))
-        session.execute(text(q2).bindparams(
-            lower_day=lower_day, upper_day=upper_day))
-        session.execute(text(q3).bindparams(
-            lower_day=lower_day, upper_day=upper_day))
-        session.execute(text(q4).bindparams(
-            lower_day=lower_day, upper_day=upper_day))
+        session.execute(
+            text(q1).bindparams(lower_day=lower_day, upper_day=upper_day))
+        session.execute(
+            text(q2).bindparams(lower_day=lower_day, upper_day=upper_day))
+        session.execute(
+            text(q3).bindparams(lower_day=lower_day, upper_day=upper_day))
+        session.execute(
+            text(q4).bindparams(lower_day=lower_day, upper_day=upper_day))
         session.commit()
         mspeaders = session.query(Top20SpreaderMonthly).filter_by(
             upper_day=upper_day).all()
@@ -334,51 +336,52 @@ ORDER BY tw.user_id, tw.created_at DESC, t.number_of_retweets DESC
         lower_day = upper_day - month_delta
         # top 20 most sharing articles for 'fact_checking'
         q1 = """
-INSERT INTO top20_article_monthly (upper_day, date_captured, title,
-    canonical_url, site_type, number_of_tweets)
-SELECT :upper_day AS upper_day,
-       a.date_captured AS date_captured,
-       a.title AS title,
-       a.canonical_url AS canonical_url,
-       'fact_checking' AS site_type,
-       COUNT(DISTINCT tw.id) AS number_of_tweets
-FROM article AS a
-JOIN url AS u ON u.article_id=a.id
-JOIN ass_tweet_url AS atu ON atu.url_id=u.id
-JOIN tweet AS tw ON tw.id=atu.tweet_id
-JOIN site AS s ON s.id=u.site_id
-WHERE a.date_captured BETWEEN :lower_day AND :upper_day
-        AND tw.created_at BETWEEN :lower_day AND :upper_day
-        AND s.site_type LIKE 'fact_checking'
-GROUP BY a.date_captured, a.title, a.canonical_url
-ORDER BY number_of_tweets DESC
-LIMIT 20 """
+        INSERT INTO top20_article_monthly (upper_day, date_captured, title,
+            canonical_url, site_type, number_of_tweets)
+        SELECT :upper_day AS upper_day,
+            a.date_captured AS date_captured,
+            a.title AS title,
+            a.canonical_url AS canonical_url,
+            'fact_checking' AS site_type,
+            COUNT(DISTINCT tw.id) AS number_of_tweets
+        FROM article AS a
+            JOIN url AS u ON u.article_id=a.id
+            JOIN ass_tweet_url AS atu ON atu.url_id=u.id
+            JOIN tweet AS tw ON tw.id=atu.tweet_id
+            JOIN site AS s ON s.id=u.site_id
+        WHERE a.date_captured BETWEEN :lower_day AND :upper_day
+                AND tw.created_at BETWEEN :lower_day AND :upper_day
+                AND s.site_type LIKE 'fact_checking'
+        GROUP BY a.date_captured, a.title, a.canonical_url
+        ORDER BY number_of_tweets DESC
+        LIMIT 20
+        """
         # top 20 most sharing articles for 'claim'
         q2 = """
-INSERT INTO top20_article_monthly (upper_day, date_captured, title,
-    canonical_url, site_type, number_of_tweets)
-SELECT :upper_day AS upper_day,
-       a.date_captured AS date_captured,
-       a.title AS title,
-       a.canonical_url AS canonical_url,
-       'claim' AS site_type,
-       COUNT(DISTINCT tw.id) AS number_of_tweets
-FROM article AS a
-JOIN url AS u ON u.article_id=a.id
-JOIN ass_tweet_url AS atu ON atu.url_id=u.id
-JOIN tweet AS tw ON tw.id=atu.tweet_id
-JOIN site AS s ON s.id=u.site_id
-WHERE a.date_captured BETWEEN :lower_day AND :upper_day
-        AND tw.created_at BETWEEN :lower_day AND :upper_day
-        AND s.site_type LIKE 'claim'
-GROUP BY a.date_captured, a.title, a.canonical_url
-ORDER BY number_of_tweets DESC
-LIMIT 20 """
-
-        session.execute(text(q1).bindparams(
-            lower_day=lower_day, upper_day=upper_day))
-        session.execute(text(q2).bindparams(
-            lower_day=lower_day, upper_day=upper_day))
+        INSERT INTO top20_article_monthly (upper_day, date_captured, title,
+            canonical_url, site_type, number_of_tweets)
+        SELECT :upper_day AS upper_day,
+            a.date_captured AS date_captured,
+            a.title AS title,
+            a.canonical_url AS canonical_url,
+            'claim' AS site_type,
+            COUNT(DISTINCT tw.id) AS number_of_tweets
+        FROM article AS a
+            JOIN url AS u ON u.article_id=a.id
+            JOIN ass_tweet_url AS atu ON atu.url_id=u.id
+            JOIN tweet AS tw ON tw.id=atu.tweet_id
+            JOIN site AS s ON s.id=u.site_id
+        WHERE a.date_captured BETWEEN :lower_day AND :upper_day
+                AND tw.created_at BETWEEN :lower_day AND :upper_day
+                AND s.site_type LIKE 'claim'
+        GROUP BY a.date_captured, a.title, a.canonical_url
+        ORDER BY number_of_tweets DESC
+        LIMIT 20
+        """
+        session.execute(
+            text(q1).bindparams(lower_day=lower_day, upper_day=upper_day))
+        session.execute(
+            text(q2).bindparams(lower_day=lower_day, upper_day=upper_day))
         try:
             session.commit()
             df = db_query_top_articles(session, upper_day)
@@ -397,16 +400,16 @@ LIMIT 20 """
         """Overriding method as the entry point of this command."""
         session = Session()
         if args['--volume'] is True:
-            configure_logging('report.volume',
-                              console_level='INFO',
-                              file_level='WARNING')
+            configure_logging(
+                'report.volume', console_level='INFO', file_level='WARNING')
             table_names = ['tweet', 'url', 'article']
             table = args['--table']
             if table not in table_names:
                 logger.error('Available tables are: %s' % table_names)
                 sys.exit(2)
-            interval_names = ['minute', 'hour', 'day', 'week', 'month',
-                              'quarter', 'year']
+            interval_names = [
+                'minute', 'hour', 'day', 'week', 'month', 'quarter', 'year'
+            ]
             interval = args['--interval']
             if interval not in interval_names:
                 logger.error('Available intervals are: %s' % interval_names)
@@ -416,9 +419,12 @@ LIMIT 20 """
                 logger.error('%r should larger than 0' % limit)
                 sys.exit(2)
             sql = """
-SELECT count(id) as agg_num, date_trunc(:interval, created_at) as interval
-FROM %s
-group by interval order by interval desc limit :limit""" % table
+            SELECT count(id) as agg_num,
+                date_trunc(:interval, created_at) as interval
+            FROM %s
+            GROUP BY interval
+            ORDER BY interval DESC
+            LIMIT :limit""" % table
             stmt = text(sql).bindparams(interval=interval, limit=limit)
             strf = '%Y-%m-%d %H:%M:%S'
             with ENGINE.connect() as conn:
@@ -454,11 +460,12 @@ group by interval order by interval desc limit :limit""" % table
                     logger.info('Most recent %s streaming update is %s',
                                 args['--status'], str(most_recent) + ' (UTC)')
         elif args['--top-spreader'] is True:
-            configure_logging('report.top-spreaders',
-                              console_level='INFO',
-                              file_level='WARNING')
+            configure_logging(
+                'report.top-spreaders',
+                console_level='INFO',
+                file_level='WARNING')
             # try to create table
-            if(Top20SpreaderMonthly.__table__.exists(bind=ENGINE)) is False:
+            if (Top20SpreaderMonthly.__table__.exists(bind=ENGINE)) is False:
                 Top20SpreaderMonthly.__table__.create(bind=ENGINE)
             if args['--force-today'] is True:
                 upper_day = datetime.utcnow().date()
@@ -470,19 +477,19 @@ group by interval order by interval desc limit :limit""" % table
                 except Exception:
                     raise ValueError('Invalid date: %s', args['--upper-day'])
             if args['--generate'] is True:
-                logger.warning(
-                    'Generating top spreaders for uppder_day=%r ...',
-                    upper_day)
+                logger.warning('Generating top spreaders for uppder_day=%r ...',
+                               upper_day)
                 cls.generate_top_spreaders(session, upper_day)
             elif args['--look-up'] is True:
                 cls.look_up_top_spreaders(session, upper_day,
                                           args['--most-recent'])
         elif args['--top-article'] is True:
-            configure_logging('report.top-article',
-                              console_level='INFO',
-                              file_level='WARNING')
+            configure_logging(
+                'report.top-article',
+                console_level='INFO',
+                file_level='WARNING')
             # try to create table
-            if(Top20ArticleMonthly.__table__.exists(bind=ENGINE)) is False:
+            if (Top20ArticleMonthly.__table__.exists(bind=ENGINE)) is False:
                 Top20ArticleMonthly.__table__.create(bind=ENGINE)
             if args['--force-today'] is True:
                 upper_day = datetime.utcnow().date()

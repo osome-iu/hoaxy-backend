@@ -92,6 +92,6 @@ Also please edit and rename samples to make Hoaxy work with them.
             if not sample.startswith('__init__.'):
                 sample = resource_filename('hoaxy.data.samples', sample)
                 shutil.copy(sample, hoaxy_home)
-                os.chmod(os.path.join(hoaxy_home, os.path.basename(sample)),
-                         0644)
+                os.chmod(
+                    os.path.join(hoaxy_home, os.path.basename(sample)), 0644)
         print(msg)

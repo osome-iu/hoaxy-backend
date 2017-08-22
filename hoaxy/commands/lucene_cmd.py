@@ -51,26 +51,32 @@ Examples:
     name = 'lucene'
     short_description = 'Lucene Indexing and Searching'
     args_schema = Schema({
-        '--query': Or(None, lambda s: len(s) > 0),
-        '--mode': Or(None, And(Use(str.lower),
-                               lambda s: s in ('create_or_append', 'create',
-                                               'append'))),
-        '--top': Or(None, And(Use(int), lambda x: x > 0)),
-        object: object
+        '--query':
+        Or(None, lambda s: len(s) > 0),
+        '--mode':
+        Or(None,
+           And(
+               Use(str.lower),
+               lambda s: s in ('create_or_append', 'create', 'append'))),
+        '--top':
+        Or(None, And(Use(int), lambda x: x > 0)),
+        object:
+        object
     })
 
     @classmethod
     def prepare_article(cls, article_data):
         article_id, group_id, canonical_url, title, meta, content,\
             date_published, domain, site_type = article_data
-        article = dict(article_id=article_id,
-                       group_id=group_id,
-                       canonical_url=canonical_url,
-                       title=title,
-                       content=content,
-                       date_published=date_published,
-                       domain=domain,
-                       site_type=site_type)
+        article = dict(
+            article_id=article_id,
+            group_id=group_id,
+            canonical_url=canonical_url,
+            title=title,
+            content=content,
+            date_published=date_published,
+            domain=domain,
+            site_type=site_type)
         article['meta'] = unicode(meta)
         article['uq_id_str'] = unicode(group_id) + title
         if article['content'] is None:
@@ -81,8 +87,8 @@ Examples:
     def index(cls, session, mode, articles_iter, mgid):
         lucene.initVM()
         index_dir = cls.conf['lucene']['index_dir']
-        indexer = Indexer(index_dir, mode,
-                          date_format=cls.conf['lucene']['date_format'])
+        indexer = Indexer(
+            index_dir, mode, date_format=cls.conf['lucene']['date_format'])
         article = None
         for i, data in enumerate(articles_iter):
             article = cls.prepare_article(data)
@@ -119,25 +125,30 @@ Examples:
         lucene.getVMEnv().attachCurrentThread()
         if args['--index'] is True:
             configure_logging('lucene.index', console_level='INFO')
-            mgid = get_or_create_m(session, MetaInfo, data=dict(
-                name='article_group_id_lucene_index',
-                value='0',
-                value_type='int',
-                description='article.group_id used for lucene index'),
+            mgid = get_or_create_m(
+                session,
+                MetaInfo,
+                data=dict(
+                    name='article_group_id_lucene_index',
+                    value='0',
+                    value_type='int',
+                    description='article.group_id used for lucene index'),
                 fb_uk='name')
             if args['--mode'] == 'create':
                 mgid.set_value(0)
                 session.commit()
-            q = """\
-SELECT DISTINCT ON (a.group_id) a.id, a.group_id,
-a.canonical_url,
-a.title, a.meta, a.content,
-coalesce(a.date_published, a.date_captured) AS pd,
-s.domain, s.site_type
-FROM article AS a
-JOIN site AS s ON s.id=a.site_id
-WHERE a.site_id IS NOT NULL AND s.is_enabled IS TRUE AND a.group_id>:gid
-ORDER BY group_id, pd ASC"""
+            q = """
+            SELECT DISTINCT ON (a.group_id) a.id, a.group_id,
+                a.canonical_url,
+                a.title, a.meta, a.content,
+                coalesce(a.date_published, a.date_captured) AS pd,
+                s.domain, s.site_type
+            FROM article AS a
+                JOIN site AS s ON s.id=a.site_id
+            WHERE a.site_id IS NOT NULL AND s.is_enabled IS TRUE
+                AND a.group_id>:gid
+            ORDER BY group_id, pd ASC
+            """
             articles_iter = session.execute(
                 sqlalchemy.text(q).bindparams(gid=mgid.get_value()))
             cls.index(session, args['--mode'], articles_iter, mgid)

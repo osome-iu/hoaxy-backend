@@ -70,16 +70,15 @@ Examples:
 
         retries = 0
         q = Queue.Queue()
-        consumer = QueueParser(q, platform_id, w_size,
-                               save_none_url_tweet=snut)
+        consumer = QueueParser(q, platform_id, w_size, save_none_url_tweet=snut)
         qhandler = QueueHandler(q)
         consumer.start()
         stall_time = retry_stall
 
         while True:
             try:
-                streamer = TwitterStream(c, [qhandler], dict(track=keywords),
-                                         w_size)
+                streamer = TwitterStream(
+                    c, [qhandler], dict(track=keywords), w_size)
                 streamer.stream()
             except Exception as e:
                 logger.exception(e)

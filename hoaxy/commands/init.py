@@ -61,13 +61,13 @@ Examples:
     short_description = 'Initialize DB tables and load site data if exists'
 
     @classmethod
-    def init(cls, session, force_drop,
+    def init(cls,
+             session,
+             force_drop,
              ignore_inactive=False,
              force_inactive=False,
              ignore_redirected=False):
-        configure_logging('init',
-                          console_level='INFO',
-                          file_level='WARNING')
+        configure_logging('init', console_level='INFO', file_level='WARNING')
         dt_before = datetime.utcnow()
         logging.info('Creating database tables:')
         if force_drop is True:
@@ -85,34 +85,41 @@ Examples:
         site_file = join(HOAXY_HOME, 'sites.yaml')
         if isfile(dc_file) is True:
             logging.info('Claim domains %s found', dc_file)
-            SiteCmd.load_domains(session, dc_file, site_type='claim',
-                                 ignore_inactive=ignore_inactive,
-                                 force_inactive=force_inactive,
-                                 ignore_redirected=ignore_redirected)
+            SiteCmd.load_domains(
+                session,
+                dc_file,
+                site_type='claim',
+                ignore_inactive=ignore_inactive,
+                force_inactive=force_inactive,
+                ignore_redirected=ignore_redirected)
         else:
             logging.info('Claim domains %s not found', dc_file)
         if isfile(df_file) is True:
             logging.info('Fact checking domains %s found', df_file)
-            SiteCmd.load_domains(session, df_file, site_type='fact_checking',
-                                 ignore_inactive=ignore_inactive,
-                                 force_inactive=force_inactive,
-                                 ignore_redirected=ignore_redirected)
+            SiteCmd.load_domains(
+                session,
+                df_file,
+                site_type='fact_checking',
+                ignore_inactive=ignore_inactive,
+                force_inactive=force_inactive,
+                ignore_redirected=ignore_redirected)
         else:
             logging.info('Fact checking domains %s not found', df_file)
 
         if isfile(site_file) is True:
             logging.info('Site file %s found', site_file)
-            SiteCmd.load_sites(session, site_file,
-                               ignore_inactive=ignore_inactive,
-                               force_inactive=force_inactive,
-                               ignore_redirected=ignore_redirected)
+            SiteCmd.load_sites(
+                session,
+                site_file,
+                ignore_inactive=ignore_inactive,
+                force_inactive=force_inactive,
+                ignore_redirected=ignore_redirected)
         else:
             logging.info('Site file %s not found', site_file)
-        sites = session.query(Site.domain, Site.site_type, Site.base_url
-                              ).filter(or_(
-                                  Site.created_at > dt_before,
-                                  Site.updated_at > dt_before
-                              )).order_by(Site.id).all()
+        sites = session.query(
+            Site.domain, Site.site_type, Site.base_url).filter(
+                or_(Site.created_at > dt_before, Site.updated_at >
+                    dt_before)).order_by(Site.id).all()
         logger.info("Added or updated sites are:\n %s", pprint.pformat(sites))
         logger.info("Done.")
 
@@ -120,7 +127,9 @@ Examples:
     def run(cls, args):
         """Overriding method as the entry point of this command."""
         session = Session()
-        cls.init(session, args['--force-drop'],
-                 ignore_inactive=args['--ignore-inactive'],
-                 force_inactive=args['--force-inactive'],
-                 ignore_redirected=args['--ignore-redirected'])
+        cls.init(
+            session,
+            args['--force-drop'],
+            ignore_inactive=args['--ignore-inactive'],
+            force_inactive=args['--force-inactive'],
+            ignore_redirected=args['--ignore-redirected'])

@@ -36,7 +36,6 @@ import logging
 import lucene
 import sqlalchemy
 
-
 logger = logging.getLogger(__name__)
 
 # Flask app instance configuration of mashape authentication
@@ -45,8 +44,8 @@ app.config['MASHAPE_SECRET'] = CONF['api']['mashape']['secret']
 app.config['MASHAPE_IPS'] = CONF['api']['mashape']['ips']
 
 # Prepare EasyLuceneSearcher class
-searcher = Searcher(index_dir=CONF['lucene']['index_dir'],
-                    boost=CONF['lucene']['boost'])
+searcher = Searcher(
+    index_dir=CONF['lucene']['index_dir'], boost=CONF['lucene']['boost'])
 # API Settings
 REFRESH_INTERVAL = timedelta(**CONF['api']['searcher_refresh_interval'])
 TO_JSON_KWARGS = CONF['api']['dataframe_to_json_kwargs']
@@ -96,6 +95,7 @@ def copy_req_args(req_args):
 
 def authenticate_mashape(func):
     """Decorator to authenticate request with Mashape."""
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         # Mashape authentication
@@ -107,6 +107,7 @@ def authenticate_mashape(func):
                 return func(*args, **kwargs)
         # No authentication
         return "Invalid/expired token", 401
+
     return wrapper
 
 
@@ -187,21 +188,24 @@ def query_articles():
     lucene.getVMEnv().attachCurrentThread()
     # Validate input of request
     q_articles_schema = Schema({
-        'query': lambda s: len(s) > 0,
+        'query':
+        lambda s: len(s) > 0,
         Optional('sort_by', default='relevant'):
-            And(unicode, lambda s: s in ('relevant', 'recent')),
-        Optional('use_lucene_syntax', default=True): And(
-            unicode, Use(lambda s: s.lower()),
-            lambda s: s in ('true', 'false'),
+        And(unicode, lambda s: s in ('relevant', 'recent')),
+        Optional('use_lucene_syntax', default=True):
+        And(unicode,
+            Use(lambda s: s.lower()), lambda s: s in ('true', 'false'),
             Use(lambda s: True if s == 'true' else False)),
     })
     q_kwargs = copy_req_args(request.args)
     try:
         q_kwargs = q_articles_schema.validate(q_kwargs)
-        n, df = searcher.search(n1=N1, n2=N2,
-                                min_score_of_recent_sorting=MIN_SCORE,
-                                min_date_published=STRAMING_START_AT,
-                                **q_kwargs)
+        n, df = searcher.search(
+            n1=N1,
+            n2=N2,
+            min_score_of_recent_sorting=MIN_SCORE,
+            min_date_published=STRAMING_START_AT,
+            **q_kwargs)
         df = db_query_filter_disabled_site(engine, df)
         df = db_query_twitter_shares(engine, df)
         if len(df) == 0:
@@ -264,21 +268,18 @@ def query_latest_articles():
     # Validate input of request
     q_articles_schema = Schema({
         'past_hours':
-            And(Use(int), lambda x: x > 0,
-                error='Invalid value of `past_hours`'),
+        And(Use(int), lambda x: x > 0, error='Invalid value of `past_hours`'),
         Optional('domains', default=None):
-            Or(
-                lambda s: s in ('fact_checking', 'claim', 'fake'),
-                Use(flask.json.loads,
-                    error='Not valid values nor JSON string of `domains`')
-            )
+        Or(lambda s: s in ('fact_checking', 'claim', 'fake'),
+           Use(flask.json.loads,
+               error='Not valid values nor JSON string of `domains`'))
     })
     q_kwargs = copy_req_args(request.args)
     try:
         q_kwargs = q_articles_schema.validate(q_kwargs)
         domains_file = CONF['api'].get('selected_fake_domains_path')
-        df = db_query_latest_articles(engine, domains_file=domains_file,
-                                      **q_kwargs)
+        df = db_query_latest_articles(
+            engine, domains_file=domains_file, **q_kwargs)
         if len(df) == 0:
             raise APINoResultError('No articles found!')
         response = dict(
@@ -322,9 +323,10 @@ def query_tweets():
     """
     lucene.getVMEnv().attachCurrentThread()
     q_tweets_schema = Schema({
-        'ids': And(Use(flask.json.loads, error="Format error of `ids`"),
-                   lambda s: len(s) > 0, error='Empty of `ids`'
-                   ),
+        'ids':
+        And(Use(flask.json.loads, error="Format error of `ids`"),
+            lambda s: len(s) > 0,
+            error='Empty of `ids`'),
     })
     q_kwargs = copy_req_args(request.args)
     try:
@@ -332,9 +334,10 @@ def query_tweets():
         df = db_query_tweets(engine, q_kwargs['ids'])
         if len(df) == 0:
             raise APINoResultError('No tweet found!')
-        response = dict(status='OK',
-                        num_of_entries=len(df),
-                        tweets=flask.json.loads(df.to_json(**TO_JSON_KWARGS)))
+        response = dict(
+            status='OK',
+            num_of_entries=len(df),
+            tweets=flask.json.loads(df.to_json(**TO_JSON_KWARGS)))
     except SchemaError as e:
         response = dict(status='ERROR', error=str(e))
     except APINoResultError as e:
@@ -368,11 +371,12 @@ def query_timeline():
     """
     lucene.getVMEnv().attachCurrentThread()
     q_tweets_schema = Schema({
-        'ids': And(Use(flask.json.loads, error="Format error of `ids`"),
-                   lambda s: len(s) > 0, error='Empty of `ids`'
-                   ),
-        Optional('resolution', default='D'): And(
-            Use(lambda s: s.upper()), lambda s: s in 'HDWM'),
+        'ids':
+        And(Use(flask.json.loads, error="Format error of `ids`"),
+            lambda s: len(s) > 0,
+            error='Empty of `ids`'),
+        Optional('resolution', default='D'):
+        And(Use(lambda s: s.upper()), lambda s: s in 'HDWM'),
     })
 
     q_kwargs = copy_req_args(request.args)
@@ -392,16 +396,15 @@ def query_timeline():
         s1, s2 = s1.align(s2, join='outer', fill_value=0)
         s1 = s1.cumsum()
         s2 = s2.cumsum()
-        response = dict(status='OK',
-                        timeline=dict(
-                            fact_checking=dict(
-                                timestamp=s1.index.strftime(
-                                    '%Y-%m-%dT%H:%M:%SZ').tolist(),
-                                volume=s1.tolist()),
-                            claim=dict(
-                                timestamp=s2.index.strftime(
-                                    '%Y-%m-%dT%H:%M:%SZ').tolist(),
-                                volume=s2.tolist())))
+        response = dict(
+            status='OK',
+            timeline=dict(
+                fact_checking=dict(
+                    timestamp=s1.index.strftime('%Y-%m-%dT%H:%M:%SZ').tolist(),
+                    volume=s1.tolist()),
+                claim=dict(
+                    timestamp=s2.index.strftime('%Y-%m-%dT%H:%M:%SZ').tolist(),
+                    volume=s2.tolist())))
     except SchemaError as e:
         response = dict(status='ERROR', error=str(e))
     except APINoResultError as e:
@@ -446,12 +449,15 @@ def query_network():
     """
     lucene.getVMEnv().attachCurrentThread()
     q_network_schema = Schema({
-        'ids': Use(flask.json.loads),
-        Optional('nodes_limit', default=1000): And(Use(int), lambda i: i > 0),
-        Optional('edges_limit', default=12500): And(Use(int), lambda i: i > 0),
-        Optional('include_user_mentions', default=True): And(
-            unicode, Use(lambda s: s.lower()),
-            lambda s: s in ('true', 'false'),
+        'ids':
+        Use(flask.json.loads),
+        Optional('nodes_limit', default=1000):
+        And(Use(int), lambda i: i > 0),
+        Optional('edges_limit', default=12500):
+        And(Use(int), lambda i: i > 0),
+        Optional('include_user_mentions', default=True):
+        And(unicode,
+            Use(lambda s: s.lower()), lambda s: s in ('true', 'false'),
             Use(lambda s: True if s == 'true' else False)),
     })
     q_kwargs = copy_req_args(request.args)
@@ -460,9 +466,10 @@ def query_network():
         df = db_query_network(engine, **q_kwargs)
         if len(df) == 0:
             raise APINoResultError('No edge could be built!')
-        response = dict(status='OK',
-                        num_of_entries=len(df),
-                        edges=flask.json.loads(df.to_json(**TO_JSON_KWARGS)))
+        response = dict(
+            status='OK',
+            num_of_entries=len(df),
+            edges=flask.json.loads(df.to_json(**TO_JSON_KWARGS)))
     except SchemaError as e:
         response = dict(status='ERROR', error=str(e))
     except APINoResultError as e:
@@ -503,13 +510,13 @@ def query_top_spreaders():
     yesterday = yesterday.strftime('%Y-%m-%d')
 
     q_top_spreaders_schema = Schema({
-        Optional('upper_day', default=yesterday): And(
-            Regex('^\d{4}-\d{2}-\d{2}$'),
+        Optional('upper_day', default=yesterday):
+        And(Regex('^\d{4}-\d{2}-\d{2}$'),
             Use(dateutil.parser.parse),
             error='Invalid date, should be yyyy-mm-dd format'),
-        Optional('most_recent', default=True): And(
-            unicode, Use(lambda s: s.lower()),
-            lambda s: s in ('true', 'false'),
+        Optional('most_recent', default=True):
+        And(unicode,
+            Use(lambda s: s.lower()), lambda s: s in ('true', 'false'),
             Use(lambda s: True if s == 'true' else False)),
     })
     q_kwargs = copy_req_args(request.args)
@@ -559,13 +566,13 @@ def query_top_articles():
     yesterday = yesterday.strftime('%Y-%m-%d')
 
     q_top_article_schema = Schema({
-        Optional('upper_day', default=yesterday): And(
-            Regex('^\d{4}-\d{2}-\d{2}$'),
+        Optional('upper_day', default=yesterday):
+        And(Regex('^\d{4}-\d{2}-\d{2}$'),
             Use(dateutil.parser.parse),
             error='Invalid date, shoul be yyyy-mm-dd format'),
-        Optional('most_recent', default=True): And(
-            unicode, Use(lambda s: s.lower()),
-            lambda s: s in ('true', 'false'),
+        Optional('most_recent', default=True):
+        And(unicode,
+            Use(lambda s: s.lower()), lambda s: s in ('true', 'false'),
             Use(lambda s: True if s == 'true' else False)),
     })
     q_kwargs = copy_req_args(request.args)

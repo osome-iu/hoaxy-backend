@@ -15,9 +15,7 @@ import logging.config
 class HoaxyFormatter(logging.Filter):
     """Re-structure logger name."""
 
-    def __init__(self,
-                 pretty_name,
-                 override_inside_name_only=True):
+    def __init__(self, pretty_name, override_inside_name_only=True):
         self.pretty_name = pretty_name
         self.override_inside_name_only = override_inside_name_only
 
@@ -96,9 +94,7 @@ class PrettyLogFormatter(LogFormatter):
         }
 
 
-def configure_logging(cmd_name=None,
-                      console_level='DEBUG',
-                      file_level='INFO'):
+def configure_logging(cmd_name=None, console_level='DEBUG', file_level='INFO'):
     """Configure the logging.
 
     Parameters

@@ -109,8 +109,10 @@ def get_msites(session,
                f_expr=None,
                ob_expr=None,
                limit=None,
-               options=[joinedload(Site.alternate_domains),
-                        joinedload(Site.site_tags)]):
+               options=[
+                   joinedload(Site.alternate_domains),
+                   joinedload(Site.site_tags)
+               ]):
     """A quick query to fetch sites with frequently used attributes. Returned
     as ORM object.
 
@@ -142,8 +144,10 @@ def get_site_tuples(session,
                     f_expr=None,
                     ob_expr=None,
                     limit=None,
-                    options=[joinedload(Site.alternate_domains),
-                             joinedload(Site.site_tags)]):
+                    options=[
+                        joinedload(Site.alternate_domains),
+                        joinedload(Site.site_tags)
+                    ]):
     """A quick query to fetch sites with frequently used attributes. Returned
     as tuple.
 
@@ -168,8 +172,13 @@ def get_site_tuples(session,
         A list of tuple (id, domain).
     """
     r = []
-    for ms in get_msites(session, fb_kw=fb_kw, f_expr=f_expr, ob_expr=ob_expr,
-                         limit=limit, options=options):
+    for ms in get_msites(
+            session,
+            fb_kw=fb_kw,
+            f_expr=f_expr,
+            ob_expr=ob_expr,
+            limit=limit,
+            options=options):
         r.append((ms.id, ms.domain))
         for d in ms.alternate_domains:
             r.append((ms.id, d.name))
@@ -247,9 +256,14 @@ def create_or_get_m(session, cls, data, fb_uk):
         return q.one()
 
 
-def get_or_create_m(session, cls, data,
-                    fb_uk=None, fb_kws=None, f_expr=None,
-                    onduplicate='ignore', load_cols=None):
+def get_or_create_m(session,
+                    cls,
+                    data,
+                    fb_uk=None,
+                    fb_kws=None,
+                    f_expr=None,
+                    onduplicate='ignore',
+                    load_cols=None):
     """Try to get one record from table, if not exist, try to insert it.
 
     This function first try to insert the record, if fail because of
@@ -341,7 +355,8 @@ def append_platform_to_url(session, url_id, platform_id):
             session.rollback()
 
 
-def get_or_create_murl(session, data,
+def get_or_create_murl(session,
+                       data,
                        platform_id=None,
                        load_cols=['id', 'date_published']):
     """Get a URL record from table, if not exists, insert it.
@@ -413,12 +428,13 @@ def qquery_msite(session, name=None, domain=None):
         q = q.filter_by(name=name)
     else:
         q = q.filter_by(domain=domain)
-    q = q.options(joinedload(Site.alternate_domains),
-                  joinedload(Site.site_tags))
+    q = q.options(
+        joinedload(Site.alternate_domains), joinedload(Site.site_tags))
     return q.one_or_none()
 
 
-def get_or_create_msite(session, site,
+def get_or_create_msite(session,
+                        site,
                         alternate_domains=[],
                         site_tags=[],
                         onduplicate='update'):
@@ -441,11 +457,10 @@ def get_or_create_msite(session, site,
         How to handle duplication.
     """
     # FIRST, check whether this site exist
-    q = session.query(Site).filter(or_(
-        Site.domain.like(site['domain']),
-        Site.name.like(site['name']))) .options(
-        joinedload(Site.alternate_domains),
-        joinedload(Site.site_tags))
+    q = session.query(Site).filter(
+        or_(Site.domain.like(site['domain']), Site.name.like(site[
+            'name']))).options(
+                joinedload(Site.alternate_domains), joinedload(Site.site_tags))
     msite = q.one_or_none()
     if msite is None:
         msite = Site(**site)
@@ -453,8 +468,8 @@ def get_or_create_msite(session, site,
             mad = get_or_create_m(session, AlternateDomain, d, fb_uk='name')
             msite.alternate_domains.append(mad)
         for t in site_tags:
-            mtag = get_or_create_m(session, SiteTag, t,
-                                   fb_uk=['name', 'source'])
+            mtag = get_or_create_m(
+                session, SiteTag, t, fb_uk=['name', 'source'])
             msite.site_tags.append(mtag)
         session.add(msite)
     elif onduplicate == 'update':
@@ -481,8 +496,8 @@ def get_or_create_msite(session, site,
         # add new ones
         for t in site_tags:
             if (t['name'], t['source']) not in owned_tags:
-                mtag = get_or_create_m(session, SiteTag, t,
-                                       fb_uk=['name', 'source'])
+                mtag = get_or_create_m(
+                    session, SiteTag, t, fb_uk=['name', 'source'])
                 msite.site_tags.append(mtag)
     try:
         session.commit()
@@ -494,8 +509,8 @@ def get_or_create_msite(session, site,
 def convert_to_sqlalchemy_statement(raw_sql_script):
     """Convert raw SQL into SQLAlchemy statement."""
     # remove comment and tail spaces
-    formated_sql_script = sqlparse.format(raw_sql_script.strip(),
-                                          strip_comments=True)
+    formated_sql_script = sqlparse.format(
+        raw_sql_script.strip(), strip_comments=True)
     return sqlparse.split(formated_sql_script)
 
 
@@ -542,17 +557,16 @@ def column_windows(session, w_column, w_size, fb_kw=None, f_expr=None):
             yield row
 
     """
+
     def int_for_range(start_id, end_id):
         """Internal function to build range."""
         if end_id:
-            return and_(
-                w_column >= start_id,
-                w_column < end_id
-            )
+            return and_(w_column >= start_id, w_column < end_id)
         else:
             return w_column >= start_id
-    q = session.query(w_column, func.row_number().over(
-        order_by=w_column).label('w_row_num'))
+
+    q = session.query(
+        w_column, func.row_number().over(order_by=w_column).label('w_row_num'))
     if fb_kw:
         q = q.filter_by(**fb_kw)
     if f_expr:

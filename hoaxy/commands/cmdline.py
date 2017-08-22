@@ -87,14 +87,13 @@ NO HOAXY CONFIGURATION FILE FOUND: (DEFAULT '{}')!
 
 Currently, hoaxy uses default settings and may not work properly.
 *******************************************************************************
-""".format(os.path.join(HOAXY_HOME, 'conf.yaml'),
-           DEFAULT_HOAXY_HOME)
+""".format(os.path.join(HOAXY_HOME, 'conf.yaml'), DEFAULT_HOAXY_HOME)
     # no conf.yaml found, we need to prompt error message
     if (len(sys.argv) == 1 or sys.argv[1] != 'config') and \
             (not HOAXY_CONF.endswith('conf.yaml')):
         print(error_msg)
-    args = docopt(HOAXY_USAGE.format(
-        cmds_short_description=cmds_short_description),
+    args = docopt(
+        HOAXY_USAGE.format(cmds_short_description=cmds_short_description),
         version=VERSION,
         options_first=True,
         argv=argv or sys.argv[1:])

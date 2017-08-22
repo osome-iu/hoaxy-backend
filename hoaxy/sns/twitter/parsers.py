@@ -131,12 +131,18 @@ class Parser():
         #
         # creating user
         logger.debug('creating user')
-        muser = get_or_create_m(self.session, TwitterUser,
-                                data=dict(raw_id=user_raw_id), fb_uk='raw_id')
+        muser = get_or_create_m(
+            self.session,
+            TwitterUser,
+            data=dict(raw_id=user_raw_id),
+            fb_uk='raw_id')
         # creating tweet
         logger.debug('creating tweet')
-        mtweet = Tweet(raw_id=tw_raw_id, json_data=jd,
-                       created_at=created_at, user_id=muser.id)
+        mtweet = Tweet(
+            raw_id=tw_raw_id,
+            json_data=jd,
+            created_at=created_at,
+            user_id=muser.id)
         self.session.add(mtweet)
         try:
             self.session.commit()
@@ -149,9 +155,7 @@ class Parser():
         logger.debug('creating urls')
         for url in urls_set:
             murl = get_or_create_murl(
-                self.session,
-                data=dict(raw=url),
-                platform_id=self.platform_id)
+                self.session, data=dict(raw=url), platform_id=self.platform_id)
             self.session.add(AssTweetUrl(tweet_id=mtweet.id, url_id=murl.id))
             try:
                 self.session.commit()
@@ -161,10 +165,10 @@ class Parser():
         # creating hashtags
         logger.debug('creating hashtags')
         for hashtag in hashtags_set:
-            mhashtag = get_or_create_m(self.session, Hashtag,
-                                       data=dict(text=hashtag), fb_uk='text')
-            self.session.add(AssTweetHashtag(tweet_id=mtweet.id,
-                                             hashtag_id=mhashtag.id))
+            mhashtag = get_or_create_m(
+                self.session, Hashtag, data=dict(text=hashtag), fb_uk='text')
+            self.session.add(
+                AssTweetHashtag(tweet_id=mtweet.id, hashtag_id=mhashtag.id))
             try:
                 self.session.commit()
             except IntegrityError as e:
@@ -172,15 +176,15 @@ class Parser():
                 self.session.rollback()
         # paring associate tweet
         q1 = """
-INSERT INTO ass_tweet (id, retweeted_status_id, quoted_status_id,
-                      in_reply_to_status_id)
-    SELECT id,
-        CAST(json_data#>>'{retweeted_status, id}' AS BIGINT),
-        CAST(json_data#>>'{quoted_status, id}' AS BIGINT),
-        CAST(json_data->>'in_reply_to_status_id' AS BIGINT)
-    FROM tweet
-    WHERE id=:tweet_id
-"""
+        INSERT INTO ass_tweet (id, retweeted_status_id, quoted_status_id,
+            in_reply_to_status_id)
+        SELECT id,
+            CAST(json_data#>>'{retweeted_status, id}' AS BIGINT),
+            CAST(json_data#>>'{quoted_status, id}' AS BIGINT),
+            CAST(json_data->>'in_reply_to_status_id' AS BIGINT)
+        FROM tweet
+        WHERE id=:tweet_id
+        """
         q1 = text(q1).bindparams(tweet_id=mtweet.id)
         try:
             self.session.execute(q1)
@@ -190,10 +194,10 @@ INSERT INTO ass_tweet (id, retweeted_status_id, quoted_status_id,
             logger.warning(e)
             self.session.rollback()
             q2 = r"""
-UPDATE tweet SET json_data=regexp_replace(
-            json_data::text, '\\u0000', '\\\\u0000', 'g')::json
-WHERE id=:tweet_id
-    """
+            UPDATE tweet SET json_data=regexp_replace(
+                        json_data::text, '\\u0000', '\\\\u0000', 'g')::json
+            WHERE id=:tweet_id
+            """
             q2 = text(q2).bindparams(tweet_id=mtweet.id)
             self.session.execute(q2)
             self.session.commit()
@@ -256,7 +260,7 @@ class QueueParser(object):
         t.setDaemon(True)
         t.start()
 
-    def stop (self):
+    def stop(self):
         """Stop the listener.
 
         This asks the thread to terminate, and then waits for it to do so.

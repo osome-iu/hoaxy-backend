@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Hoaxy exception moduel."""
+
 #
 # written by Chengcheng Shao <sccotte@gmail.com>
 
@@ -9,6 +10,7 @@ class HoaxyError(Exception):
 
     HoaxyError derived from build-in exception class Exception.
     """
+
     def __init__(self, *args, **kwargs):
         super(HoaxyError, self).__init__(*args, **kwargs)
 
@@ -36,17 +38,20 @@ class ArgumentError(Exception):
 
 class APIError(HoaxyError):
     """Indicate APIError."""
+
     def __init__(self, *args, **kwargs):
         super(APIError, self).__init__(*args, **kwargs)
 
 
 class APINoResultError(APIError):
     """Indicate no result found."""
+
     def __init__(self, *args, **kwargs):
         super(APINoResultError, self).__init__(*args, **kwargs)
 
 
 class APIParseError(APIError):
     """Indicate API parse input error."""
+
     def __init__(self, *args, **kwargs):
         super(APIParseError, self).__init__(*args, **kwargs)

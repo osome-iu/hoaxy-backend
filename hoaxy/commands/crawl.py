@@ -31,7 +31,7 @@ import re
 import sys
 
 logger = logging.getLogger(__name__)
-HTTP_TIMEOUT = 30           # HTTP REQUEST TIMEOUT, IN SECONDS
+HTTP_TIMEOUT = 30  # HTTP REQUEST TIMEOUT, IN SECONDS
 # regular expression to match domain
 DOMAIN_RE = re.compile('^([a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}$')
 REQ_FIELDS = ('name', 'domain', 'site_type')
@@ -144,10 +144,15 @@ Examples (`||` represents continue of commands, you can ignore when using):
     name = 'crawl'
     short_description = 'Crawl news sites'
     args_schema = Schema({
-        '--order-by': Or(None, Use(str.lower), lambda s: s in ('asc', 'desc'),
-                         error='must be asc or desc'),
-        '--limit': Or(None, Use(int)),
-        object: object
+        '--order-by':
+        Or(None,
+           Use(str.lower),
+           lambda s: s in ('asc', 'desc'),
+           error='must be asc or desc'),
+        '--limit':
+        Or(None, Use(int)),
+        object:
+        object
     })
 
     @classmethod
@@ -164,8 +169,8 @@ Examples (`||` represents continue of commands, you can ignore when using):
                 indicate which url to fetch.
         """
         settings = Settings(cls.conf['crawl']['scrapy'])
-        settings.set('ITEM_PIPELINES', {
-                     'hoaxy.crawl.pipelines.UrlPipeline': 300})
+        settings.set('ITEM_PIPELINES',
+                     {'hoaxy.crawl.pipelines.UrlPipeline': 300})
         process = CrawlerProcess(settings)
         sll = cls.conf['logging']['loggers']['scrapy']['level']
         logging.getLogger('scrapy').setLevel(logging.getLevelName(sll))
@@ -188,17 +193,17 @@ Examples (`||` represents continue of commands, you can ignore when using):
                 a list of url tuple (id, raw, status_code).
         """
         settings = Settings(cls.conf['crawl']['scrapy'])
-        settings.set('ITEM_PIPELINES', {
-                     'hoaxy.crawl.pipelines.HtmlPipeline': 300})
+        settings.set('ITEM_PIPELINES',
+                     {'hoaxy.crawl.pipelines.HtmlPipeline': 300})
         process = CrawlerProcess(settings)
         sll = cls.conf['logging']['loggers']['scrapy']['level']
         logging.getLogger('scrapy').setLevel(logging.getLevelName(sll))
         logger.warning('Number of url to fetch html is: %s', len(url_tuples))
-        process.crawl(HtmlSpider,
-                      session=session,
-                      url_tuples=url_tuples,
-                      excluded_domains=cls.conf['crawl']['excluded_domains']
-                      )
+        process.crawl(
+            HtmlSpider,
+            session=session,
+            url_tuples=url_tuples,
+            excluded_domains=cls.conf['crawl']['excluded_domains'])
         process.start()
 
     @classmethod
@@ -214,8 +219,8 @@ Examples (`||` represents continue of commands, you can ignore when using):
                 canonical, site_id)
         """
         settings = Settings(cls.conf['crawl']['scrapy'])
-        settings.set('ITEM_PIPELINES', {
-                     'hoaxy.crawl.pipelines.ArticlePipeline': 300})
+        settings.set('ITEM_PIPELINES',
+                     {'hoaxy.crawl.pipelines.ArticlePipeline': 300})
         process = CrawlerProcess(settings)
         sll = cls.conf['logging']['loggers']['scrapy']['level']
         logging.getLogger('scrapy').setLevel(logging.getLevelName(sll))
@@ -224,8 +229,7 @@ Examples (`||` represents continue of commands, you can ignore when using):
             ArticleParserSpider,
             session=session,
             url_tuples=url_tuples,
-            api_key=cls.conf['crawl']['article_parser']['webparser_api_key'],
-        )
+            api_key=cls.conf['crawl']['article_parser']['webparser_api_key'],)
         process.start()
 
     @classmethod
@@ -243,17 +247,16 @@ Examples (`||` represents continue of commands, you can ignore when using):
         limit = args['--limit']
         # --fetch-url
         if args['--fetch-url'] is True:
-            configure_logging('crawl.fetch-url',
-                              console_level='DEBUG',
-                              file_level='WARNING')
+            configure_logging(
+                'crawl.fetch-url', console_level='DEBUG', file_level='WARNING')
             purpose = 'update' if args['--update'] is True else 'archive'
             if where_expr is None:
                 where_expr = [text(DEFAULT_WHERE_EXPR_FETCH_URL)]
             else:
                 where_expr = [text(where_expr)]
             ob_expr = Site.id.asc() if ob_expr == 'asc' else Site.id.desc()
-            msites = get_msites(session, f_expr=where_expr, ob_expr=ob_expr,
-                                limit=limit)
+            msites = get_msites(
+                session, f_expr=where_expr, ob_expr=ob_expr, limit=limit)
             if len(msites) == 0:
                 logger.warning("None sites you queried found in DB!")
                 raise SystemExit(2)
@@ -262,12 +265,11 @@ Examples (`||` represents continue of commands, you can ignore when using):
             # since they definitely would not be modified in session
             for ms in msites:
                 session.expunge(ms)
-            logger.warning(
-                'Starting crawling process to fetch URL update ...')
+            logger.warning('Starting crawling process to fetch URL update ...')
             cls.fetch_url(session, msites, platform_id, purpose)
         elif args['--fetch-html'] is True:
-            configure_logging('crawl.fetch-html', console_level='DEBUG',
-                              file_level='WARNING')
+            configure_logging(
+                'crawl.fetch-html', console_level='DEBUG', file_level='WARNING')
             if not session.query(Site.id).count() > 0:
                 raise SystemExit('Your site table is empty!')
             q = session.query(Url.id, Url.raw)
@@ -279,19 +281,20 @@ Examples (`||` represents continue of commands, you can ignore when using):
             q = q.filter(*where_expr).order_by(ob_expr)
             if limit is not None:
                 q = q.limit(limit)
-            logger.info(q.statement.compile(
-                compile_kwargs={"literal_binds": True}))
+            logger.info(
+                q.statement.compile(compile_kwargs={"literal_binds": True}))
             url_tuples = q.all()
             if not url_tuples:
                 logger.warning('No such URLs in DB!')
                 raise SystemExit(2)
-            logger.warning(
-                'Staring crawling process to fetch HTML ...')
+            logger.warning('Staring crawling process to fetch HTML ...')
             cls.fetch_html(session, url_tuples)
         # --parse-article
         elif args['--parse-article'] is True:
-            configure_logging('crawl.parse-article', console_level='DEBUG',
-                              file_level='WARNING')
+            configure_logging(
+                'crawl.parse-article',
+                console_level='DEBUG',
+                file_level='WARNING')
             q = session.query(Url.id, Url.created_at, Url.date_published,
                               Url.canonical, Url.site_id)
             if where_expr is None:
@@ -302,13 +305,12 @@ Examples (`||` represents continue of commands, you can ignore when using):
             q = q.filter(*where_expr).order_by(ob_expr)
             if limit is not None:
                 q = q.limit(limit)
-            logger.info(q.statement.compile(
-                compile_kwargs={"literal_binds": True}))
+            logger.info(
+                q.statement.compile(compile_kwargs={"literal_binds": True}))
             url_tuples = q.all()
             if not url_tuples:
                 logger.warning('No URLs found from DB!')
                 raise SystemExit(2)
-            logger.warning(
-                'Starting crawling process to parse article ...')
+            logger.warning('Starting crawling process to parse article ...')
             cls.parse_article(session, url_tuples)
         session.close()

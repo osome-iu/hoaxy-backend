@@ -15,22 +15,21 @@ if CONF['crawl']['scrapy'].get('USER_AGENT') is not None:
     HEADERS = {'user-agent': CONF['crawl']['scrapy']['USER_AGENT']}
 else:
     HEADERS = dict()
-HTTP_TIMEOUT = 30           # HTTP REQUEST TIMEOUT, IN SECONDS
+HTTP_TIMEOUT = 30  # HTTP REQUEST TIMEOUT, IN SECONDS
 
 
 def canonicalize(url,
-                 remove_parameters=('utm_medium', 'utm_source',
-                                    'utm_campaign', 'utm_term',
-                                    'utm_content')):
+                 remove_parameters=('utm_medium', 'utm_source', 'utm_campaign',
+                                    'utm_term', 'utm_content')):
     """Canonicalize URL."""
     try:
         curl = url_query_cleaner(
-            canonicalize_url(url, keep_blank_values=False,
-                             keep_fragments=False),
+            canonicalize_url(
+                url, keep_blank_values=False, keep_fragments=False),
             parameterlist=remove_parameters,
             remove=True)
-        return canonicalize_url(curl, keep_blank_values=False,
-                                keep_fragments=False)
+        return canonicalize_url(
+            curl, keep_blank_values=False, keep_fragments=False)
     except Exception as e:
         logger.warning('Fail to canonicalize url %r: %s', url, e)
         return None
@@ -84,8 +83,11 @@ def belongs_to_msite(host, msites):
 def infer_base_url(domain):
     """Fetch the base URL of a domain by sending HTTP HEAD request."""
     try:
-        r = requests.head('http://' + domain, allow_redirects=True,
-                          headers=HEADERS, timeout=HTTP_TIMEOUT)
+        r = requests.head(
+            'http://' + domain,
+            allow_redirects=True,
+            headers=HEADERS,
+            timeout=HTTP_TIMEOUT)
         base_url = r.url
         if not base_url.endswith('/'):
             base_url = base_url + '/'
@@ -94,8 +96,11 @@ def infer_base_url(domain):
         base_url = None
     if base_url is None:
         try:
-            r = requests.head('https://' + domain, allow_redirects=True,
-                              headers=HEADERS, timeout=HTTP_TIMEOUT)
+            r = requests.head(
+                'https://' + domain,
+                allow_redirects=True,
+                headers=HEADERS,
+                timeout=HTTP_TIMEOUT)
             base_url = r.url
             if not base_url.endswith('/'):
                 base_url = base_url + '/'

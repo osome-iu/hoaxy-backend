@@ -45,19 +45,29 @@ def fill_rules(site):
     if 'article_rules' not in site:
         site['article_rules'] = dict(
             url_regex=None,
-            update=[dict(spider_name=PageSpider.name,
-                         spider_kwargs=dict(urls=[site['base_url']]))],
-            archive=[dict(spider_name=SiteSpider.name,
-                          spider_kwargs=dict(urls=[site['base_url']]))])
+            update=[
+                dict(
+                    spider_name=PageSpider.name,
+                    spider_kwargs=dict(urls=[site['base_url']]))
+            ],
+            archive=[
+                dict(
+                    spider_name=SiteSpider.name,
+                    spider_kwargs=dict(urls=[site['base_url']]))
+            ])
     else:
         if 'update' not in site['article_rules']:
             site['article_rules']['update'] = [
-                dict(spider_name=FeedSpider.name,
-                     spider_kwargs=dict(urls=[site['base_url']]))]
+                dict(
+                    spider_name=FeedSpider.name,
+                    spider_kwargs=dict(urls=[site['base_url']]))
+            ]
         if 'archive' not in site['article_rules']:
             site['article_rules']['archive'] = [
-                dict(spider_name=SiteSpider.name,
-                     spider_kwargs=dict(urls=[site['base_url']]))]
+                dict(
+                    spider_name=SiteSpider.name,
+                    spider_kwargs=dict(urls=[site['base_url']]))
+            ]
         if 'url_regex' not in site['article_rules']:
             site['url_regex'] = None
 
@@ -94,8 +104,12 @@ def parse_domain(line, site_type):
         return (None, 'invalid')
     base_url = infer_base_url(d)
     if base_url is None:
-        site = dict(name=d, domain=d, base_url='http://' + d + '/',
-                    site_type=site_type, is_alive=False)
+        site = dict(
+            name=d,
+            domain=d,
+            base_url='http://' + d + '/',
+            site_type=site_type,
+            is_alive=False)
         fill_rules(site)
         return (site, 'inactive')
     elif owns_url(d, base_url):
@@ -300,7 +314,10 @@ Examples (`||` represents the continue of commands, you can ignore when using):
     short_description = 'News site management: add, alter and dump'
 
     @classmethod
-    def load_domains(cls, session, fn, site_type,
+    def load_domains(cls,
+                     session,
+                     fn,
+                     site_type,
                      ignore_inactive=False,
                      force_inactive=False,
                      ignore_redirected=False):
@@ -322,8 +339,8 @@ Examples (`||` represents the continue of commands, you can ignore when using):
                 logger.warning('line %i %r, domain inactive!', n, line)
             elif status == 'redirected':
                 redirected_flag = True
-                logger.warning('line %i %r, domain redirected to %s!', n,
-                               line, site['base_url'])
+                logger.warning('line %i %r, domain redirected to %s!', n, line,
+                               site['base_url'])
         if invalid_flag is True or \
                 (inactive_flag is True and (ignore_inactive is False and
                                             force_inactive is False)) or \
@@ -338,8 +355,8 @@ or Use --ignore-inactive or --force-inactive  to handle inactive domains""")
             elif status == 'redirected' and ignore_redirected is True:
                 continue
             else:
-                get_or_create_m(session, Site, site, fb_uk='domain',
-                                onduplicate='ignore')
+                get_or_create_m(
+                    session, Site, site, fb_uk='domain', onduplicate='ignore')
                 logger.debug('Insert or update site %s', site['domain'])
 
     @classmethod
@@ -355,8 +372,8 @@ or Use --ignore-inactive or --force-inactive  to handle inactive domains""")
         for site, status in site_tuples:
             if status == 'invalid':
                 invalid_flag = True
-                logger.error('Site %s absence of required fields (%s)!',
-                             site, REQ_FIELDS)
+                logger.error('Site %s absence of required fields (%s)!', site,
+                             REQ_FIELDS)
             elif status == 'inactive':
                 inactive_flag = True
                 logger.warning('Site %s is inactive now!', site['name'])
@@ -380,14 +397,19 @@ or Use --ignore-inactive or --force-inactive  to handle inactive domains""")
             else:
                 alternate_domains = site.pop('alternate_domains', [])
                 site_tags = site.pop('site_tags', [])
-                get_or_create_msite(session, site,
-                                    alternate_domains=alternate_domains,
-                                    site_tags=site_tags,
-                                    onduplicate='update')
+                get_or_create_msite(
+                    session,
+                    site,
+                    alternate_domains=alternate_domains,
+                    site_tags=site_tags,
+                    onduplicate='update')
                 logger.debug('Insert or update site %s', site['domain'])
 
     @classmethod
-    def add_site(cls, session, domain, site_type,
+    def add_site(cls,
+                 session,
+                 domain,
+                 site_type,
                  name=None,
                  site_tags=[],
                  tag_source=None,
@@ -411,9 +433,9 @@ or Use --ignore-inactive or --force-inactive  to handle inactive domains""")
 the base URL. Try `--force-inactive` to force insert.""", domain)
                 error_flag = True
         elif status == 'redirected':
-            if'ignore_redirected' is True:
-                logger.warning('Domain %r is redirected to %s, ignored',
-                               domain, site['base_url'])
+            if 'ignore_redirected' is True:
+                logger.warning('Domain %r is redirected to %s, ignored', domain,
+                               site['base_url'])
             else:
                 error_flag = True
                 logger.error("""Domain %r is redirected to %r \
@@ -421,10 +443,12 @@ Use the redirected domain as primary domain and add %r as secondary domain""",
                              domain, site['base_url'], domain)
         else:
             site_tags = [dict(source=tag_source, name=t) for t in site_tags]
-            get_or_create_msite(session, site,
-                                site_tags=site_tags,
-                                alternate_domains=alternate_domains,
-                                onduplicate='ignore')
+            get_or_create_msite(
+                session,
+                site,
+                site_tags=site_tags,
+                alternate_domains=alternate_domains,
+                onduplicate='ignore')
         if error_flag:
             raise SystemExit(1)
         else:
@@ -438,8 +462,8 @@ Use the redirected domain as primary domain and add %r as secondary domain""",
         for tag in tags:
             tag_data = dict(name=tag, source=source)
             if (tag, source) in owned_tags:
-                logger.warning('Site %r already contains tag %r!',
-                               msite.name, tag_data)
+                logger.warning('Site %r already contains tag %r!', msite.name,
+                               tag_data)
             else:
                 mtag = get_or_create_m(session, SiteTag, tag_data, fb_uk=fb_uk)
                 msite.site_tags.append(mtag)
@@ -461,8 +485,8 @@ Use the redirected domain as primary domain and add %r as secondary domain""",
             if (mt.name, mt.source) not in adding_tags:
                 session.delete(mt)
         session.commit()
-        logger.info('Replace site tags for site %r from %r to %r',
-                    msite.name, owned_tags, adding_tags)
+        logger.info('Replace site tags for site %r from %r to %r', msite.name,
+                    owned_tags, adding_tags)
 
     @classmethod
     def add_alternate_domains(cls, session, msite, domains):
@@ -489,12 +513,12 @@ Use the redirected domain as primary domain and add %r as secondary domain""",
         owned_domains = [md.name for md in msite.alternate_domains]
         for d in domains:
             if d not in owned_domains:
-                md = session.query(AlternateDomain).filter_by(name=d
-                                                              ).one_or_none()
+                md = session.query(AlternateDomain).filter_by(
+                    name=d).one_or_none()
                 if md is not None:
                     logger.error(
-                        'AlternateDomain %r is already owned by site %r',
-                        d, md.site.name)
+                        'AlternateDomain %r is already owned by site %r', d,
+                        md.site.name)
                     return
                 else:
                     msite.alternate_domains.append(AlternateDomain(name=d))
@@ -547,11 +571,11 @@ You need to restart your tracking process!""", msite.name)
                 inactive.append(dict(id=sid, domain=domain))
             else:
                 if owns_url(domain, base_url) is True:
-                    stable.append(dict(id=sid, domain=domain,
-                                       base_url=base_url))
+                    stable.append(
+                        dict(id=sid, domain=domain, base_url=base_url))
                 else:
-                    redirected.append(dict(id=sid, domain=domain,
-                                           base_url=base_url))
+                    redirected.append(
+                        dict(id=sid, domain=domain, base_url=base_url))
         logger.info('Stable sites: %s', pprint.pformat(stable))
         for o in stable:
             session.query(Site).filter_by(id=o['id'])\
@@ -573,11 +597,13 @@ You need to restart your tracking process!""", msite.name)
             site['domain'] = ms.domain
             site['site_type'] = ms.site_type
             site['base_url'] = ms.base_url
-            site['site_tags'] = [dict(name=t.name, source=t.source)
-                                 for t in ms.site_tags]
+            site['site_tags'] = [
+                dict(name=t.name, source=t.source) for t in ms.site_tags
+            ]
             site['alternate_domains'] = [
                 dict(name=ad.name, is_alive=ad.is_alive)
-                for ad in ms.alternate_domains]
+                for ad in ms.alternate_domains
+            ]
             site['is_alive'] = ms.is_alive
             site['is_enabled'] = ms.is_enabled
             article_rules = CommentedMap()
@@ -619,53 +645,60 @@ You need to restart your tracking process!""", msite.name)
             args['<file>'] = os.path.expanduser(args['<file>'])
         # --load-domains commands
         if args['--load-domains'] is True:
-            configure_logging('site.load-domains', console_level='INFO',
-                              file_level='WARNING')
+            configure_logging(
+                'site.load-domains', console_level='INFO', file_level='WARNING')
             fn = args.get('<file>', join(HOAXY_HOME, 'domains.txt'))
             logger.info('Loading data from file %r', fn)
-            cls.load_domains(session, fn,
-                             site_type=args['--site-type'],
-                             ignore_inactive=args['--ignore-inactive'],
-                             force_inactive=args['--force-inactive'],
-                             ignore_redirected=args['--ignore-redirected'])
+            cls.load_domains(
+                session,
+                fn,
+                site_type=args['--site-type'],
+                ignore_inactive=args['--ignore-inactive'],
+                force_inactive=args['--force-inactive'],
+                ignore_redirected=args['--ignore-redirected'])
         # --load-sites commands
         elif args['--load-sites'] is True:
-            configure_logging('site.load-sites', console_level='INFO',
-                              file_level='WARNING')
+            configure_logging(
+                'site.load-sites', console_level='INFO', file_level='WARNING')
             fn = args.get('<file>', join(HOAXY_HOME, 'sites.yaml'))
             logger.info('Loading data from file %r', fn)
-            cls.load_sites(session, fn,
-                           ignore_inactive=args['--ignore-inactive'],
-                           force_inactive=args['--force-inactive'],
-                           ignore_redirected=args['--ignore-redirected'])
+            cls.load_sites(
+                session,
+                fn,
+                ignore_inactive=args['--ignore-inactive'],
+                force_inactive=args['--force-inactive'],
+                ignore_redirected=args['--ignore-redirected'])
         # --add commands
         elif args['--add'] is True:
-            configure_logging('site.add', console_level='INFO',
-                              file_level='WARNING')
+            configure_logging(
+                'site.add', console_level='INFO', file_level='WARNING')
             msite = qquery_msite(session, domain=args['--domain'])
             if msite is not None:
                 logger.warning('Site %s already exists!', args['--domain'])
             else:
-                cls.add_site(session,
-                             domain=args['--domain'],
-                             site_type=args['--site-type'],
-                             name=args['--name'],
-                             tag_source=args['--tag-source'],
-                             site_tags=args['--site-tag'],
-                             alternate_domains=args['--alternate-domain'],
-                             ignore_inactive=args['--ignore-inactive'],
-                             force_inactive=args['--force-inactive'],
-                             ignore_redirected=args['--ignore-redirected'])
+                cls.add_site(
+                    session,
+                    domain=args['--domain'],
+                    site_type=args['--site-type'],
+                    name=args['--name'],
+                    tag_source=args['--tag-source'],
+                    site_tags=args['--site-tag'],
+                    alternate_domains=args['--alternate-domain'],
+                    ignore_inactive=args['--ignore-inactive'],
+                    force_inactive=args['--force-inactive'],
+                    ignore_redirected=args['--ignore-redirected'])
         # --add-site-tags
         elif args['--add-site-tags'] is True:
-            configure_logging('site.add-site-tags', console_level='INFO',
-                              file_level='WARNING')
+            configure_logging(
+                'site.add-site-tags',
+                console_level='INFO',
+                file_level='WARNING')
             if args['--name'] is not None:
                 site_identity = args['--name']
             else:
                 site_identity = args['--domain']
-            msite = qquery_msite(session, name=args['--name'],
-                                 domain=args['--domain'])
+            msite = qquery_msite(
+                session, name=args['--name'], domain=args['--domain'])
             if msite is None:
                 logger.warning('Site %s does not exist!', site_identity)
             else:
@@ -673,14 +706,16 @@ You need to restart your tracking process!""", msite.name)
                                   args['--site-tag'])
         # --replace-site-tags
         elif args['--replace-site-tags'] is True:
-            configure_logging('site.repalce-site-tags', console_level='INFO',
-                              file_level='WARNING')
+            configure_logging(
+                'site.repalce-site-tags',
+                console_level='INFO',
+                file_level='WARNING')
             if args['--name'] is not None:
                 site_identity = args['--name']
             else:
                 site_identity = args['--domain']
-            msite = qquery_msite(session, name=args['--name'],
-                                 domain=args['--domain'])
+            msite = qquery_msite(
+                session, name=args['--name'], domain=args['--domain'])
             if msite is None:
                 logger.warning('Site %s does not exist!', site_identity)
             else:
@@ -688,15 +723,16 @@ You need to restart your tracking process!""", msite.name)
                                       args['--site-tag'])
         # --add-alternate-domains
         elif args['--add-alternate-domains'] is True:
-            configure_logging('site.add-alternate-domains',
-                              console_level='INFO',
-                              file_level='WARNING')
+            configure_logging(
+                'site.add-alternate-domains',
+                console_level='INFO',
+                file_level='WARNING')
             if args['--name'] is not None:
                 site_identity = args['--name']
             else:
                 site_identity = args['--domain']
-            msite = qquery_msite(session, name=args['--name'],
-                                 domain=args['--domain'])
+            msite = qquery_msite(
+                session, name=args['--name'], domain=args['--domain'])
             if msite is None:
                 logger.warning('Site %s does not exist!', site_identity)
             else:
@@ -704,58 +740,59 @@ You need to restart your tracking process!""", msite.name)
                                           args['--alternate-domain'])
         # --replace-alternate-domains
         elif args['--replace-alternate-domains'] is True:
-            configure_logging('site.replace-alternate-domains',
-                              console_level='INFO',
-                              file_level='WARNING')
+            configure_logging(
+                'site.replace-alternate-domains',
+                console_level='INFO',
+                file_level='WARNING')
             if args['--name'] is not None:
                 site_identity = args['--name']
             else:
                 site_identity = args['--domain']
-            msite = qquery_msite(session, name=args['--name'],
-                                 domain=args['--domain'])
+            msite = qquery_msite(
+                session, name=args['--name'], domain=args['--domain'])
             if msite is None:
                 logger.warning('Site %s does not exist!', site_identity)
             else:
                 cls.replace_alternate_domains(session, msite,
                                               args['--alternate-domain'])
         elif args['--disable'] is True:
-            configure_logging('site.disable', console_level='INFO',
-                              file_level='WARNING')
+            configure_logging(
+                'site.disable', console_level='INFO', file_level='WARNING')
             if args['--name'] is not None:
                 site_identity = args['--name']
             else:
                 site_identity = args['--domain']
-            msite = qquery_msite(session, name=args['--name'],
-                                 domain=args['--domain'])
+            msite = qquery_msite(
+                session, name=args['--name'], domain=args['--domain'])
             if msite is None:
                 logger.warning('Site %s does not exist!', site_identity)
             else:
                 cls.disable_site(session, msite)
         elif args['--enable'] is True:
-            configure_logging('site.enable', console_level='INFO',
-                              file_level='WARNING')
+            configure_logging(
+                'site.enable', console_level='INFO', file_level='WARNING')
             if args['--name'] is not None:
                 site_identity = args['--name']
             else:
                 site_identity = args['--domain']
-            msite = qquery_msite(session, name=args['--name'],
-                                 domain=args['--domain'])
+            msite = qquery_msite(
+                session, name=args['--name'], domain=args['--domain'])
             if msite is None:
                 logger.warning('Site %s does not exist!', site_identity)
             else:
                 cls.enable_site(session, msite)
         # --status
         elif args['--status'] is True:
-            configure_logging('site.status', console_level='INFO',
-                              file_level='WARNING')
+            configure_logging(
+                'site.status', console_level='INFO', file_level='WARNING')
             if args['--include-disabled'] is True:
                 cls.site_status(session, True)
             else:
                 cls.site_status(session, False)
         # --dump
         elif args['--dump'] is True:
-            configure_logging('site.status', console_level='INFO',
-                              file_level='INFO')
+            configure_logging(
+                'site.status', console_level='INFO', file_level='INFO')
             cls.dump(session, args['<file>'])
 
         session.close()

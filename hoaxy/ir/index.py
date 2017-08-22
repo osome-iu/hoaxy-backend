@@ -42,8 +42,7 @@ class Indexer():
         self.mode = mode
         self.date_format = date_format
         if mode == 'create_or_append':
-            self.config.setOpenMode(
-                IndexWriterConfig.OpenMode.CREATE_OR_APPEND)
+            self.config.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND)
         elif mode == 'create':
             self.config.setOpenMode(IndexWriterConfig.OpenMode.CREATE)
         elif mode == 'append':
@@ -60,25 +59,22 @@ class Indexer():
                 self.date_format)
         except Exception as e:
             logger.warning('Error when formating date_published %r: %s ',
-                           article['canonical_url'],
-                           e)
+                           article['canonical_url'], e)
             return
         doc = Document()
         doc.add(IntField('group_id', article['group_id'], Field.Store.YES))
         doc.add(IntField('article_id', article['article_id'], Field.Store.YES))
-        doc.add(StringField('date_published',
-                            date_published_str,
-                            Field.Store.YES))
+        doc.add(
+            StringField('date_published', date_published_str, Field.Store.YES))
         doc.add(StringField('domain', article['domain'], Field.Store.YES))
-        doc.add(StringField('site_type', article['site_type'],
-                            Field.Store.YES))
-        doc.add(TextField('canonical_url', article['canonical_url'],
-                          Field.Store.YES))
+        doc.add(StringField('site_type', article['site_type'], Field.Store.YES))
+        doc.add(
+            TextField('canonical_url', article['canonical_url'],
+                      Field.Store.YES))
         doc.add(TextField('title', article['title'], Field.Store.YES))
         doc.add(TextField('meta', article['meta'], Field.Store.NO))
         doc.add(TextField('content', article['content'], Field.Store.NO))
-        doc.add(StringField('uq_id_str', article[
-                'uq_id_str'], Field.Store.YES))
+        doc.add(StringField('uq_id_str', article['uq_id_str'], Field.Store.YES))
         self.writer.addDocument(doc)
 
     def close(self):

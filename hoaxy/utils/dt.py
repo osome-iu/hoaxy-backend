@@ -48,8 +48,7 @@ def datetime_strformat(dt_str,
 def utc_from_str(dt_str, with_tzinfo=False):
     """Convert datetime str to datetime (utc)."""
     try:
-        dt = dateutil.parser.parse(dt_str,
-                                   default=datetime(1970, 1, 1))
+        dt = dateutil.parser.parse(dt_str, default=datetime(1970, 1, 1))
         if dt.tzinfo:
             dt = dt.astimezone(pytz.UTC)
             if with_tzinfo is False:

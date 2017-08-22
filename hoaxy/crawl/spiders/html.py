@@ -77,8 +77,8 @@ class HtmlSpider(scrapy.spiders.Spider):
         else:
             item['expanded'] = item['raw']
             item['status_code'] = U_HTML_ERROR_NONHTTP
-            logger.error('NON-HTTP error when fetching url %r: %s',
-                         item['raw'], repr(failure))
+            logger.error('NON-HTTP error when fetching url %r: %s', item['raw'],
+                         repr(failure))
         yield item
 
     def start_requests(self):
@@ -97,11 +97,11 @@ class HtmlSpider(scrapy.spiders.Spider):
                 logger.debug('Ignore excluded domain %r', raw)
             else:
                 try:
-                    yield scrapy.Request(raw,
-                                         callback=self.parse,
-                                         meta=dict(url_id=url_id,
-                                                   raw=raw),
-                                         errback=self.errback_request)
+                    yield scrapy.Request(
+                        raw,
+                        callback=self.parse,
+                        meta=dict(url_id=url_id, raw=raw),
+                        errback=self.errback_request)
                 except Exception as e:
                     logger.error('Error when sending request %r: %s', raw, e)
                     status_code = U_HTML_ERROR_INVALID_URL

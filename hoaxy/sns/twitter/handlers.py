@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 class BaseHandler(object):
     """The abstract class of the handler."""
+
     def process_one(self, jd):
         """The main function of the handler.
 
@@ -40,6 +41,7 @@ class BaseHandler(object):
 
 class FileHandler(BaseHandler):
     """A file implementation to handle tweet."""
+
     def __init__(self, filepath):
         """Constructor.
 
@@ -87,6 +89,7 @@ class FileHandler(BaseHandler):
 
 class QueueHandler(BaseHandler):
     """A Queue implementation to handle tweet."""
+
     def __init__(self, queue):
         """Constructor of QueueHandler.
 
