@@ -18,14 +18,14 @@ PATH=/YOUR_HOME/anaconda3/bin:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr
 # * * * * * env > crontab.env
 
 # hoaxy: fetch article update every hour
-0 * * * * source activate hoaxy && hoaxy site --crawl --fetch-url --update > /dev/null
+0 * * * * source activate hoaxy && hoaxy crawl --fetch-url --update > /dev/null
 
 # hoaxy: fetch HTML page hourly
 # set --limit=10000 option in case of very large URL collection
-10 * * * * source activate hoaxy && hoaxy site --fetch-html --limit=10000 > /dev/null
+10 * * * * source activate hoaxy && hoaxy crawl --fetch-html --limit=10000 > /dev/null
 
 # hoaxy: parse article hourly
-20 * * * * source activate hoaxy && hoaxy site --parse-article --limit=10000 > /dev/null
+20 * * * * source activate hoaxy && hoaxy crawl --parse-article --limit=10000 > /dev/null
 
 # hoaxy: index articles hourly
 30 * * * * source activate hoaxy && hoaxy lucene --index > /dev/null
