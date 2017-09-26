@@ -58,11 +58,12 @@ class Searcher():
     duplication should be avoid.
     """
 
-    def __init__(self, index_dir,
+    def __init__(self,
+                 index_dir,
                  search_fields=['canonical_url', 'title', 'meta', 'content'],
                  unique_field='uq_id_str',
-                 boost=dict(canonical_url=4.0, title=8.0,
-                            meta=2.0, content=1.0),
+                 boost=dict(
+                     canonical_url=4.0, title=8.0, meta=2.0, content=1.0),
                  date_format='%Y-%m-%dT%H:%M:%S'):
         """Constructor of Searcher.
 
@@ -82,8 +83,8 @@ class Searcher():
         """
         self.index_dir = index_dir
         self.search_fields = search_fields
-        self.sort_by_recent = Sort(SortField('date_published',
-                                             SortField.Type.STRING, True))
+        self.sort_by_recent = Sort(
+            SortField('date_published', SortField.Type.STRING, True))
         self.store = FSDirectory.open(File(index_dir))
         self.reader = DirectoryReader.open(self.store)
         self.isearcher = IndexSearcher(self.reader)
@@ -98,14 +99,13 @@ class Searcher():
 
     def prepare_chained_filter(self, dt1, dt2):
         """Return a chained filter."""
-        return ChainedFilter(
-            [self.dup_filter,
-             TermRangeFilter('date_published',
-                             BytesRef(dt1.strftime(self.date_format)),
-                             BytesRef(dt2.strftime(self.date_format)),
-                             True, True)],
-            [ChainedFilter.AND, ChainedFilter.AND]
-        )
+        return ChainedFilter([
+            self.dup_filter,
+            TermRangeFilter('date_published',
+                            BytesRef(dt1.strftime(self.date_format)),
+                            BytesRef(dt2.strftime(self.date_format)), True,
+                            True)
+        ], [ChainedFilter.AND, ChainedFilter.AND])
 
     def refresh(self):
         """Refresh the searsher, if index is changed."""
@@ -128,10 +128,12 @@ class Searcher():
             doc.get("date_published"),
             doc.get("domain"),
             doc.get("site_type"),
-            score_doc.score,
-        )
+            score_doc.score,)
 
-    def search(self, query, n1=100, n2=100000,
+    def search(self,
+               query,
+               n1=100,
+               n2=100000,
                sort_by='relevant',
                use_lucene_syntax=False,
                min_score_of_recent_sorting=0.4,
@@ -183,8 +185,10 @@ You are quering with lucene syntax, be careful of your query string!""")
             else:
                 raise APIParseError('Error when parse the query string!')
 
-        cnames = ['id', 'canonical_url', 'title', 'date_published',
-                  'domain', 'site_type', 'score']
+        cnames = [
+            'id', 'canonical_url', 'title', 'date_published', 'domain',
+            'site_type', 'score'
+        ]
         if sort_by == 'relevant':
             top_docs = self.isearcher.search(q, sf, n1)
             score_docs = top_docs.scoreDocs
@@ -199,9 +203,8 @@ You are quering with lucene syntax, be careful of your query string!""")
         elif sort_by == 'recent':
             counter = 0
             records = []
-            top_field_docs = self.isearcher.search(q, sf, n2,
-                                                   self.sort_by_recent,
-                                                   True, True)
+            top_field_docs = self.isearcher.search(
+                q, sf, n2, self.sort_by_recent, True, True)
             if top_field_docs.maxScore >= min_score_of_recent_sorting:
                 for sd in top_field_docs.scoreDocs:
                     if sd.score >= min_score_of_recent_sorting:
@@ -215,6 +218,7 @@ You are quering with lucene syntax, be careful of your query string!""")
                 df = pd.DataFrame(records, columns=cnames)
                 df['date_published'] = pd.to_datetime(df['date_published'])
             return counter, df
+
 
 def db_query_filter_disabled_site(engine, df):
     """Filter out sites that has been disabled.
@@ -244,6 +248,28 @@ def db_query_filter_disabled_site(engine, df):
     """
     rs = engine.execute(text(q).bindparams(domains=list(df.domain.unique())))
     return df.loc[df.domain.isin([r[0] for r in rs])]
+
+
+def attach_site_tags(engine, df):
+    if len(df) < 1:
+        return df
+    if 'domain' not in df:
+        raise ValueError('`domain` column should exist in `df`')
+    q = """
+    SELECT t.domain,
+        JSON_AGG(JSON_BUILD_OBJECT('name', st.name, 'source', st.source))
+            AS site_tags
+    FROM UNNEST(:domains) AS t(domain)
+        JOIN site AS s ON s.domain=t.domain
+        JOIN ass_site_site_tag AS ast ON ast.site_id=s.id
+        JOIN site_tag AS st ON st.id=ast.site_tag_id
+    GROUP BY t.domain
+    """
+    rs = engine.execute(text(q).\
+                        bindparams(domains=df.domain.unique().tolist()))
+    df2 = pd.DataFrame(iter(rs), columns=rs.keys())
+    df = pd.merge(df, df2, how='left', on='domain')
+    return df
 
 
 def db_query_twitter_shares(engine, df):
@@ -315,10 +341,10 @@ def db_query_article(engine, ids):
     return pd.DataFrame(iter(rs), columns=rs.keys())
 
 
-def db_query_latest_articles(engine, past_hours=2,
+def db_query_latest_articles(engine,
+                             past_hours=2,
                              domains=None,
-                             domains_file=None
-                             ):
+                             domains_file=None):
     """Query the latest collected articles from database.
 
     Parameters
@@ -399,13 +425,13 @@ def db_query_latest_articles(engine, past_hours=2,
             where_condition += " AND s.site_type LIKE 'claim' "
         elif not isfile(domains_file):
             logger.warning('File %s not found! Using \'claim\' instead',
-                        domains_file)
+                           domains_file)
             where_condition += " AND s.site_type LIKE 'claim' "
         else:
             with open(domains_file) as f:
                 domains = f.readlines()
             domains = [x.strip() for x in domains]
-            domains = [x for x in domains if len(x)>0]
+            domains = [x for x in domains if len(x) > 0]
     if isinstance(domains, (list, tuple)) is True:
         q = text(q1.format(where_condition=where_condition))\
                 .bindparams(domains=domains)
@@ -413,8 +439,8 @@ def db_query_latest_articles(engine, past_hours=2,
         q = text(q2.format(where_condition=where_condition))
     q = q.bindparams(latest=latest)
     rs = engine.execute(q)
-    return pd.DataFrame(iter(rs), columns=rs.keys())
-
+    df = pd.DataFrame(iter(rs), columns=rs.keys())
+    return attach_site_tags(engine, df)
 
 def db_query_tweets(engine, ids):
     """Query tweets that sharing articles with group_id equals ids.
@@ -506,8 +532,8 @@ def edge_iter(iter, user_map, include_user_mentions=True):
         if from_uid is not None and to_uid is not None:
             user_map[from_uid] = from_sn
             user_map[to_uid] = to_sn
-            yield (gid, tw_id, tw_created_at, from_uid, to_uid,
-                   False, tweet_type, url_id)
+            yield (gid, tw_id, tw_created_at, from_uid, to_uid, False,
+                   tweet_type, url_id)
         # mentions
         # include_user_mentions is set
         # user_mentions of current tweet is not empty
@@ -557,8 +583,8 @@ def limit_by_k_core(df, nodes_limit, edges_limit):
         This dataframe is refined with k_core algorithm.
     """
     v_cols = ['from_user_id', 'to_user_id']
-    G = nx.from_pandas_dataframe(df, v_cols[0], v_cols[1],
-                                 create_using=nx.DiGraph())
+    G = nx.from_pandas_dataframe(
+        df, v_cols[0], v_cols[1], create_using=nx.DiGraph())
     G.remove_edges_from(G.selfloop_edges())
     core = nx.core_number(G)
     nodes_list = sorted(core.items(), key=lambda k: k[1], reverse=False)
@@ -575,14 +601,16 @@ def limit_by_k_core(df, nodes_limit, edges_limit):
             s = e
             e = s + step
             G.remove_nodes_from(nodes_list[s:e])
-    logger.debug('filtered nodes/edges = %s/%s', G.number_of_nodes(),
-                 G.number_of_edges())
+    logger.debug('filtered nodes/edges = %s/%s',
+                 G.number_of_nodes(), G.number_of_edges())
     df = df.set_index(['from_user_id', 'to_user_id'])
     df = df.loc[G.edges()]
     return df.reset_index()
 
 
-def db_query_network(engine, ids, nodes_limit=1000,
+def db_query_network(engine,
+                     ids,
+                     nodes_limit=1000,
                      edges_limit=12500,
                      include_user_mentions=True):
     """Query the diffusion network that shares articles with group_id as `ids`.
@@ -635,19 +663,20 @@ def db_query_network(engine, ids, nodes_limit=1000,
     user_map = dict()
     rs = engine.execution_options(stream_results=True)\
         .execute(text(q), gids=ids)
-    df2 = pd.DataFrame(edge_iter(rs, user_map, include_user_mentions),
-                       columns=['id', 'tweet_id', 'tweet_created_at',
-                                'from_user_id', 'to_user_id',
-                                'is_mention', 'tweet_type', 'url_id'])
+    df2 = pd.DataFrame(
+        edge_iter(rs, user_map, include_user_mentions),
+        columns=[
+            'id', 'tweet_id', 'tweet_created_at', 'from_user_id', 'to_user_id',
+            'is_mention', 'tweet_type', 'url_id'
+        ])
     if len(user_map) == 0 or len(df2) == 0:
         return pd.DataFrame()
     df3 = pd.DataFrame.from_dict(user_map, orient='index')
     df3.columns = ['screen_name']
-    df2 = pd.merge(df2, df3, how='left', left_on='from_user_id',
-                   right_index=True)
+    df2 = pd.merge(
+        df2, df3, how='left', left_on='from_user_id', right_index=True)
     df2.rename(inplace=True, columns=dict(screen_name='from_user_screen_name'))
-    df2 = pd.merge(df2, df3, how='left', left_on='to_user_id',
-                   right_index=True)
+    df2 = pd.merge(df2, df3, how='left', left_on='to_user_id', right_index=True)
     df2.rename(inplace=True, columns=dict(screen_name='to_user_screen_name'))
     df = pd.merge(df, df2, on='id', how='inner', sort=False)
     df = df.sort_values('date_published', ascending=True)
