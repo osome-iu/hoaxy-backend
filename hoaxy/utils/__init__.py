@@ -15,8 +15,7 @@ def list_cls_under_mod(mod, cls, uq_attr):
     """
     r = dict()
     for loader, name, ispkg in pkgutil.walk_packages(
-            getattr(mod, '__path__', None),
-            prefix=mod.__name__ + '.'):
+            getattr(mod, '__path__', None), prefix=mod.__name__ + '.'):
         if ispkg is False:
             mod = importlib.import_module(name)
             for name, c in inspect.getmembers(mod, inspect.isclass):

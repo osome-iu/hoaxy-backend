@@ -4,7 +4,6 @@ from setuptools import setup, find_packages
 with open(join(dirname(__file__), 'hoaxy/VERSION'), 'rb') as f:
     version = f.read().decode('ascii').strip()
 
-
 setup(
     name='hoaxy',
     version=version,
@@ -18,9 +17,7 @@ setup(
     packages=find_packages(exclude=('tests', 'tests.*')),
     include_package_data=True,
     zip_safe=True,
-    entry_points={
-        'console_scripts': ['hoaxy = hoaxy.commands.cmdline:main']
-    },
+    entry_points={'console_scripts': ['hoaxy = hoaxy.commands.cmdline:main']},
     classifiers=[
         'Framework :: Scrapy',
         'Development Status :: 5 - Production/Stable',
@@ -54,5 +51,4 @@ setup(
         'tabulate',
         'tweepy',
         'ruamel.yaml',
-    ],
-)
+    ],)

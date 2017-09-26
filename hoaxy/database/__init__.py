@@ -20,10 +20,11 @@ import os
 # logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
 try:
-    ENGINE = create_engine(URL(**CONF['database']['connect_args']),
-                           pool_size=CONF['database']['pool_size'],
-                           pool_recycle=CONF['database']['pool_recycle'],
-                           client_encoding='utf8')
+    ENGINE = create_engine(
+        URL(**CONF['database']['connect_args']),
+        pool_size=CONF['database']['pool_size'],
+        pool_recycle=CONF['database']['pool_recycle'],
+        client_encoding='utf8')
     Session = scoped_session(sessionmaker(bind=ENGINE))
 except Exception:
     raise
@@ -39,8 +40,6 @@ def checkout(dbapi_connection, connection_record, connection_proxy):
     pid = os.getpid()
     if connection_record.info['pid'] != pid:
         connection_record.connection = connection_proxy.connection = None
-        raise exc.DisconnectionError(
-            "Connection record belongs to pid %s, "
-            "attempting to check out in pid %s" %
-            (connection_record.info['pid'], pid)
-        )
+        raise exc.DisconnectionError("Connection record belongs to pid %s, "
+                                     "attempting to check out in pid %s" %
+                                     (connection_record.info['pid'], pid))

@@ -32,9 +32,7 @@ class HoaxyCommand(object):
     name = None
     short_description = 'This is the base hoaxy command'
     conf = copy.deepcopy(CONF)
-    args_schema = Schema({
-        object: object
-    })
+    args_schema = Schema({object: object})
 
     @classmethod
     def run(cls, args):

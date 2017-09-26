@@ -442,6 +442,7 @@ def db_query_latest_articles(engine,
     df = pd.DataFrame(iter(rs), columns=rs.keys())
     return attach_site_tags(engine, df)
 
+
 def db_query_tweets(engine, ids):
     """Query tweets that sharing articles with group_id equals ids.
 

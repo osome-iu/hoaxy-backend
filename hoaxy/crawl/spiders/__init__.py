@@ -56,5 +56,4 @@ def build_spiders_iter(msite, purpose):
         yield dict(
             cls=all_spiders[rule['spider_name']],
             args=(domains,),
-            kwargs=rule['spider_kwargs']
-        )
+            kwargs=rule['spider_kwargs'])
