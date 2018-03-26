@@ -21,6 +21,7 @@ Note:
 from hoaxy.database import ENGINE
 from hoaxy.database.models import AssUrlPlatform, Platform
 from hoaxy.database.models import Url, Site, AlternateDomain, SiteTag
+from hoaxy.database.models import TwitterUserUnion
 from sqlalchemy import and_, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, load_only
@@ -504,6 +505,20 @@ def get_or_create_msite(session,
     except IntegrityError as e:
         logger.exception(e)
         session.rollback()
+
+
+def create_or_update_muser(session, data):
+    muser = TwitterUserUnion(**data)
+    try:
+        session.add(muser)
+        session.commit()
+    except IntegrityError as e:
+        logger.debug('Error %s', e)
+        session.rollback()
+        raw_id = data.pop('raw_id')
+        session.query(TwitterUserUnion).filter_by(raw_id=raw_id).update(data)
+        session.commit()
+        data['raw_id'] = raw_id
 
 
 def convert_to_sqlalchemy_statement(raw_sql_script):

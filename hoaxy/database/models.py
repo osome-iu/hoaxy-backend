@@ -443,6 +443,49 @@ class TwitterUser(TableMixin, Base):
     tweets = relationship('Tweet', passive_deletes=True, back_populates='user')
 
 
+class TwitterUserUnion(TableMixin, Base):
+    """A Union set of all related Twitter users, including
+    original, the user who is original tweeter;
+    retweeter, the user who retweets it;
+    replier, the user who replies it;
+    quoter, the user who quotes it; and
+    mentioner, the user who is mentioned;
+
+    This super user table save not only more users, but also more attributes
+    about the users. Please note that
+    1) for cases like original, retweeter, quoter, the profile of these user
+       is updated; for mentioner, the profile need to fetch if not exist
+    2) it is not guaranteed that the attributes of this user is the newest,
+       we can only say that it is the newest from the tweets we collected.
+    """
+    raw_id = Column(BigInteger, unique=True)
+    screen_name = Column(String(255))
+    followers_count = Column(Integer)
+    last_tweet_id = Column(Integer, unique=True)
+    profile = deferred(Column(postgresql.JSONB))
+    updated_at = Column(DateTime, onupdate=datetime.utcnow)
+
+
+class TwitterNetworkEdge(TableMixin, Base):
+    """Edges of the information diffusion network in Twitter."""
+    tweet_raw_id = Column(BigInteger, nullable=False)
+    from_raw_id = Column(BigInteger, nullable=False)
+    to_raw_id = Column(BigInteger, nullable=False)
+    url_id = Column(Integer, nullable=False)
+    # Indicating whether the url is in the quoted_status
+    is_quoted_url = Column(Boolean, nullable=False)
+    is_mention = Column(Boolean, nullable=False)
+    tweet_type = Column(String(31), nullable=False)
+    __table_args__ = (UniqueConstraint(
+        'tweet_raw_id',
+        'from_raw_id',
+        'to_raw_id',
+        'url_id',
+        'is_quoted_url',
+        'tweet_type',
+        name='uk_edge'),)
+
+
 class MetaInfo(TableMixin, AuditColumns, Base):
     """Table `meta_info` to record meta values.
 
