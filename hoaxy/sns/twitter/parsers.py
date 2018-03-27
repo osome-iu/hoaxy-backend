@@ -51,7 +51,8 @@ def replace_null_byte(jd, new=''):
     if r'\u0000' in data:
         logger.warning(r'NULL byte (\u0000) found and deleted!')
         data = data.replace(r'\u0000', new)
-        return json.loads(data)
+        # return json.loads(data.decode('utf-8'), encoding='utf-8')
+        return json.loads(data, encoding='utf-8')
     else:
         return jd
 
