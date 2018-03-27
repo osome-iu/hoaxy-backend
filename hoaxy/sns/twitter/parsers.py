@@ -29,7 +29,7 @@ import time
 logger = logging.getLogger(__name__)
 
 
-def replace_null_byte(jd, new=''):
+def replace_null_byte(jd, fp=None, new=''):
     """Find and delete NULL bytes in a JSON string dumped from a JSON object.
 
     We have experienced DataError exception when inserting the tweet JSON
@@ -49,10 +49,12 @@ def replace_null_byte(jd, new=''):
         return jd
     data = json.dumps(jd, encoding='utf-8')
     if r'\u0000' in data:
-        logger.warning(r'NULL byte (\u0000) found and deleted!')
+        logger.warning(r'NULL byte (\u0000) found in %r and deleted!', jd['id'])
+        if fp is not None:
+            fp.write(jd['id'])
+            fp.write('\n')
         data = data.replace(r'\u0000', new)
-        # return json.loads(data.decode('utf-8'), encoding='utf-8')
-        return json.loads(data, encoding='utf-8')
+        return json.loads(data.decode('utf-8'), encoding='utf-8')
     else:
         return jd
 
@@ -66,7 +68,8 @@ class Parser():
                  session,
                  platform_id,
                  save_none_url_tweet=True,
-                 saved_tweet=False):
+                 saved_tweet=False,
+                 file_save_null_byte_tweet=None):
         """Constructor of Parser.
 
         Parameters
@@ -82,6 +85,10 @@ class Parser():
         self.save_none_url_tweet = save_none_url_tweet
         self.platform_id = platform_id
         self.saved_tweet = saved_tweet
+        if file_save_null_byte_tweet is not None:
+            self.fp = open(file_save_null_byte_tweet, 'rw')
+        else:
+            self.fp = None
 
     def _parse_entities(self,
                         entities,
@@ -171,7 +178,7 @@ class Parser():
         #
         # 1-1) parsing necessary fields, if failed then it is not a valid tweet
         logger.debug('Replacing null byte if existing ...')
-        jd = replace_null_byte(jd)
+        jd = replace_null_byte(jd, self.fp)
         logger.debug('1) Roughly parsing ...')
         try:
             tw_raw_id = jd['id']

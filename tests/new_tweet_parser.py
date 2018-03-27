@@ -20,10 +20,14 @@ def init_tables(engine, drop_first=False):
 def main_test(engine,
               session,
               min_id=None,
-              max_id=10000,
+              max_id=None,
               window_size=1000,
               drop_first=False):
-    parser = Parser(session, platform_id=1, saved_tweet=True)
+    parser = Parser(
+        session,
+        platform_id=1,
+        saved_tweet=True,
+        file_save_null_byte_tweet='null_byte_tweet.txt')
     # init tables
     init_tables(engine, drop_first)
     if min_id is None:
@@ -41,11 +45,11 @@ def main_test(engine,
             max_id = 0
             logger.error('No data in tweet table!')
             return None
-    w_open_left = 0
-    w_close_right = window_size
-    counter = 0
+    w_open_left = min_id
+    w_close_right = min_id + window_size
+    counter = min_id
     while True:
-        logger.info('Paring counter is %s ...', counter)
+        logger.info('Current paring tweet id is %s ...', counter)
         q = """
             SELECT tw.json_data
             FROM tweet AS tw
@@ -63,6 +67,8 @@ def main_test(engine,
             counter += 1
         w_open_left = w_close_right
         w_close_right += window_size
+    if parser.fp:
+        parser.fp.close()
 
 
 if __name__ == '__main__':
@@ -71,4 +77,4 @@ if __name__ == '__main__':
     logger = logging.getLogger()
     logging.basicConfig(level='INFO')
     session = Session()
-    main_test(ENGINE, session, window_size=1000, drop_first=True)
+    main_test(ENGINE, session, min_id=933000, window_size=1000, drop_first=True)
