@@ -86,7 +86,7 @@ class Parser():
         self.platform_id = platform_id
         self.saved_tweet = saved_tweet
         if file_save_null_byte_tweet is not None:
-            self.fp = open(file_save_null_byte_tweet, 'rw')
+            self.fp = open(file_save_null_byte_tweet, 'w')
         else:
             self.fp = None
 
