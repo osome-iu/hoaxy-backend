@@ -51,10 +51,10 @@ def replace_null_byte(jd, fp=None, new=''):
     if r'\u0000' in data:
         logger.warning(r'NULL byte (\u0000) found in %r and deleted!', jd['id'])
         if fp is not None:
-            fp.write(jd['id'])
+            fp.write(jd['id_str'])
             fp.write('\n')
-        data = data.replace(r'\u0000', new)
-        return json.loads(data.decode('utf-8'), encoding='utf-8')
+        data = data.replace(r'\\u0000', new)
+        return json.loads(data, encoding='utf-8')
     else:
         return jd
 
