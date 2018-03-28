@@ -290,7 +290,11 @@ class Parser():
                     profile=retweeted_user_jd,
                     updated_at=created_at))
             # retweeted user has been saved above, should be removed from mentions
-            mentions_set.remove((retweeted_user_id, retweeted_screen_name))
+            try:
+                mentions_set.remove((retweeted_user_id, retweeted_screen_name))
+            except KeyError as e:
+                logger.warning('Tweet %r: retweeted user not in mentions',
+                        tw_raw_id)
             logger.debug('2-1-a) Saving edges for retweet ...')
             self._save_edges(
                 url_map,

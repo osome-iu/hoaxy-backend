@@ -63,7 +63,11 @@ def main_test(engine,
             break
         for jd, in engine.execute(
                 text(q).bindparams(l=w_open_left, r=w_close_right)):
-            parser.parse(jd)
+            try:
+                parser.parse(jd)
+            except Exception as e:
+                logger.error('Tweet raw id is: %s', jd['id'])
+                raise
             counter += 1
         w_open_left = w_close_right
         w_close_right += window_size
@@ -77,4 +81,6 @@ if __name__ == '__main__':
     logger = logging.getLogger()
     logging.basicConfig(level='INFO')
     session = Session()
-    main_test(ENGINE, session, min_id=933000, window_size=1000, drop_first=True)
+    # import pdb; pdb.set_trace()
+    # main_test(ENGINE, session, min_id=0, window_size=1000, drop_first=True)
+    main_test(ENGINE, session, window_size=1000, drop_first=False)
