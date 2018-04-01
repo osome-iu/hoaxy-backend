@@ -84,7 +84,7 @@ def main_test(engine,
 
 if __name__ == '__main__':
     # setting sqlalchemy logging
-    logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
+    # logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
     logger = logging.getLogger()
     logging.basicConfig(level='INFO')
     session = Session()
