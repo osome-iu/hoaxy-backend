@@ -21,7 +21,7 @@ def main_test(engine,
               session,
               min_id=None,
               max_id=None,
-              window_size=2000,
+              window_size=1000,
               drop_first=False):
     parser = BulkParser(
         platform_id=1,
@@ -64,18 +64,19 @@ def main_test(engine,
         # q = """
         #     SELECT tw.id, tw.json_data, u.id, u.raw
         #     FROM tweet AS tw
-        #     JOIN ass_tweet_url AS atu ON atu.tweet_id=tw.id
-        #     JOIN url AS u ON u.id=atu.url_id
-        #     WHERE tw.raw_id in (894709077665751040)
+        #     LEFT JOIN ass_tweet_url AS atu ON atu.tweet_id=tw.id
+        #     LEFT JOIN url AS u ON u.id=atu.url_id
+        #     WHERE tw.raw_id in (894686360900177920)
         #     """
         for tw_id, jd, url_id, url in engine.execute(
                 text(q).bindparams(l=w_open_left, r=w_close_right)):
                 # text(q)):
             jds[tw_id] = jd
-            g_urls_map[url] = url_id
+            if url_id is not None:
+                g_urls_map[url] = url_id
         w_open_left = w_close_right
         w_close_right += window_size
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         parser.bulk_parse_and_save(session=session, jds=jds,
                                    existed_tweets=True,
                                    g_urls_map=g_urls_map)
@@ -87,5 +88,5 @@ if __name__ == '__main__':
     logger = logging.getLogger()
     logging.basicConfig(level='INFO')
     session = Session()
-    main_test(ENGINE, session, min_id=0, window_size=1000, drop_first=True)
+    main_test(ENGINE, session, min_id=0, window_size=10000, drop_first=True)
     # main_test(ENGINE, session, window_size=1000, drop_first=False)

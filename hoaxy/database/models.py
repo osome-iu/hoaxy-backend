@@ -458,8 +458,8 @@ class TwitterUserUnion(TableMixin, Base):
     2) it is not guaranteed that the attributes of this user is the newest,
        we can only say that it is the newest from the tweets we collected.
     """
-    raw_id = Column(BigInteger, unique=True)
-    screen_name = Column(String(255))
+    raw_id = Column(BigInteger, unique=True, nullable=False)
+    screen_name = Column(String(255), nullable=False)
     followers_count = Column(Integer)
     profile = deferred(Column(postgresql.JSONB))
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
