@@ -729,14 +729,14 @@ class BulkParser():
                     murl_id = get_or_create_murl(
                         session, data=dict(raw=u),
                         platform_id=self.platform_id).id
+                    # Saving AssTweetUrl
+                    session.add(AssTweetUrl(tweet_id=tw_id, url_id=murl_id))
+                    try:
+                        session.commit()
+                    except IntegrityError as e:
+                        logger.error('ass_tweet_url IntegrityError, see: %s', e)
+                        session.rollback()
                 g_urls_map[u] = murl_id
-                # Saving AssTweetUrl
-                session.add(AssTweetUrl(tweet_id=tw_id, url_id=murl_id))
-                try:
-                    session.commit()
-                except IntegrityError as e:
-                    logger.error('ass_tweet_url IntegrityError, see: %s', e)
-                    session.rollback()
         logger.debug('Level 2 parsing, deeply parse ...')
         self._parse_l2(jd, l_urls, l_mentions, g_urls_map, g_uusers_set,
                        g_edges_set)
