@@ -120,6 +120,7 @@ def workers_queue(pid, q1, q2):
                 is_quoted_url=t4,
                 is_mention=t5,
                 tweet_type=t6) for t0, t1, t2, t3, t4, t5, t6 in g_edges_set
+            if t3 != -1
         ]
         uusers = [dict(raw_id=t1, screen_name=t2) for t1, t2 in g_uusers_set]
         session.bulk_insert_mappings(TwitterNetworkEdge, edges)

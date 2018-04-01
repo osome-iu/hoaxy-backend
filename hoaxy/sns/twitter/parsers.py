@@ -17,6 +17,7 @@ from hoaxy.database.models import TwitterUser
 from hoaxy.database.models import TwitterUserUnion
 from hoaxy.database.models import TwitterNetworkEdge
 from hoaxy.database.models import AssTweet
+from hoaxy.database.models import MAX_URL_LEN
 from hoaxy.utils.dt import utc_from_str
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import OperationalError
@@ -716,11 +717,18 @@ class BulkParser():
         # Make sure we do saved and fetched all url_ids
         for u in l_urls['union']:
             if g_urls_map.get(u) is None:
-                logger.warning('Previously incomplete parsing, missing %s of tweet %s',
-                u, jd['id'])
-                murl_id = get_or_create_murl(
-                    session, data=dict(raw=u),
-                    platform_id=self.platform_id).id
+                if len(u) > MAX_URL_LEN:
+                    logger.warning(
+                        'URL %s of tweet %s was ignored because of too long', u,
+                        jd['id'])
+                    murl_id = -1
+                else:
+                    logger.warning(
+                        'Previously incomplete parsing, missing %s of tweet %s',
+                        u, jd['id'])
+                    murl_id = get_or_create_murl(
+                        session, data=dict(raw=u),
+                        platform_id=self.platform_id).id
                 g_urls_map[u] = murl_id
                 # Saving AssTweetUrl
                 session.add(AssTweetUrl(tweet_id=tw_id, url_id=murl_id))
@@ -731,7 +739,7 @@ class BulkParser():
                     session.rollback()
         logger.debug('Level 2 parsing, deeply parse ...')
         self._parse_l2(jd, l_urls, l_mentions, g_urls_map, g_uusers_set,
-                           g_edges_set)
+                       g_edges_set)
 
     def parse_new_one(self,
                       jd,
@@ -819,6 +827,7 @@ class BulkParser():
                 is_quoted_url=t4,
                 is_mention=t5,
                 tweet_type=t6) for t0, t1, t2, t3, t4, t5, t6 in g_edges_set
+            if t3 != -1
         ]
         uusers = [dict(raw_id=t1, screen_name=t2) for t1, t2 in g_uusers_set]
         session.bulk_insert_mappings(TwitterNetworkEdge, edges)
