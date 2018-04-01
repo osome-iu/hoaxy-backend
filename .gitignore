@@ -63,3 +63,6 @@ venv/
 build-index/
 lucene-index/
 .ropeproject
+
+# logs in tests
+tests/*.log

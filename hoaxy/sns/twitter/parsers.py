@@ -698,7 +698,8 @@ class BulkParser():
         for m in l_mentions['union']:
             g_uusers_set.add(m)
 
-    def parse_existed_one(self, jd, g_urls_map, g_uusers_set, g_edges_set):
+    def parse_existed_one(self, tw_id, jd, session, g_urls_map, g_uusers_set,
+                          g_edges_set):
         """The main parse function. This function will parse tweet into different
         components corresponding to related table records.
 
@@ -706,15 +707,31 @@ class BulkParser():
         ---------
         jd : json
             Tweet json data.
-        tw_db_id : integer
+        tw_id : integer
             If tweet has been saved, tw_db_id is the id of
         """
         logger.debug('Parsing tweet %r begin ...', jd['id'])
         logger.debug('Level 1 parsing, roughly parse ...')
         l_urls, l_mentions, l_hashtags = self._parse_l1(jd)
+        # Make sure we do saved and fetched all url_ids
+        for u in l_urls['union']:
+            if g_urls_map.get(u) is None:
+                logger.warning('Previously incomplete parsing, missing %s of tweet %s',
+                u, jd['id'])
+                murl_id = get_or_create_murl(
+                    session, data=dict(raw=u),
+                    platform_id=self.platform_id).id
+                g_urls_map[u] = murl_id
+                # Saving AssTweetUrl
+                session.add(AssTweetUrl(tweet_id=tw_id, url_id=murl_id))
+                try:
+                    session.commit()
+                except IntegrityError as e:
+                    logger.error('ass_tweet_url IntegrityError, see: %s', e)
+                    session.rollback()
         logger.debug('Level 2 parsing, deeply parse ...')
         self._parse_l2(jd, l_urls, l_mentions, g_urls_map, g_uusers_set,
-                       g_edges_set)
+                           g_edges_set)
 
     def parse_new_one(self,
                       jd,
@@ -838,19 +855,16 @@ class BulkParser():
                     g_edges_set=g_edges_set)
         else:
             if isinstance(jds, dict):
-                for jd_id, jd in jds.iteritems():
+                for tw_id, jd in jds.iteritems():
                     self.parse_existed_one(
+                        tw_id,
                         jd,
+                        session,
                         g_urls_map=g_urls_map,
                         g_uusers_set=g_uusers_set,
                         g_edges_set=g_edges_set)
             else:
-                for jd in jds:
-                    self.parse_existed_one(
-                        jd,
-                        g_urls_map=g_urls_map,
-                        g_uusers_set=g_uusers_set,
-                        g_edges_set=g_edges_set)
+                raise TypeError('Input jds should be dict!')
         self.save_bulk(session, g_uusers_set, g_edges_set)
 
 
