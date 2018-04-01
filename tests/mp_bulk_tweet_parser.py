@@ -101,6 +101,8 @@ def consumer_queue(pid, q):
             jds=jds,
             existed_tweets=True,
             g_urls_map=g_urls_map)
+        logger.info('Subprocess %s: Finish task of bulk tweets from %s to %s',
+                    pid, w_open_left + 1, w_close_right)
 
 
 class ParserManager(object):
