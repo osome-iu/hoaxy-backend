@@ -492,7 +492,7 @@ class BulkParser():
     """
 
     def __init__(self,
-                 platform_id,
+                 platform_id=None,
                  save_none_url_tweet=True,
                  file_save_null_byte_tweet=None):
         """Constructor of Parser.
