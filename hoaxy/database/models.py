@@ -461,9 +461,9 @@ class TwitterUserUnion(TableMixin, Base):
     raw_id = Column(BigInteger, unique=True)
     screen_name = Column(String(255))
     followers_count = Column(Integer)
-    last_tweet_id = Column(Integer, unique=True)
     profile = deferred(Column(postgresql.JSONB))
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
+    user_error_code = Column(Integer)
 
 
 class TwitterNetworkEdge(TableMixin, Base):
@@ -482,8 +482,9 @@ class TwitterNetworkEdge(TableMixin, Base):
         'to_raw_id',
         'url_id',
         'is_quoted_url',
+        'is_mention',
         'tweet_type',
-        name='uk_edge'),)
+        name='uq_edge'),)
 
 
 class MetaInfo(TableMixin, AuditColumns, Base):

@@ -14,13 +14,16 @@ from hoaxy.database.models import AssTweetUrl
 from hoaxy.database.models import Hashtag
 from hoaxy.database.models import Tweet
 from hoaxy.database.models import TwitterUser
+from hoaxy.database.models import TwitterUserUnion
 from hoaxy.database.models import TwitterNetworkEdge
 from hoaxy.database.models import AssTweet
 from hoaxy.utils.dt import utc_from_str
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.dialects.postgresql import insert
 import simplejson as json
+from cachetools import LRUCache
 import Queue
 import logging
 import threading
@@ -294,7 +297,7 @@ class Parser():
                 mentions_set.remove((retweeted_user_id, retweeted_screen_name))
             except KeyError as e:
                 logger.warning('Tweet %r: retweeted user not in mentions',
-                        tw_raw_id)
+                               tw_raw_id)
             logger.debug('2-1-a) Saving edges for retweet ...')
             self._save_edges(
                 url_map,
@@ -458,7 +461,10 @@ class Parser():
         if self.saved_tweet is False:
             for hashtag in hashtags_set:
                 mhashtag = get_or_create_m(
-                    self.session, Hashtag, data=dict(text=hashtag), fb_uk='text')
+                    self.session,
+                    Hashtag,
+                    data=dict(text=hashtag),
+                    fb_uk='text')
                 self.session.add(
                     AssTweetHashtag(tweet_id=tweet_id, hashtag_id=mhashtag.id))
                 try:
@@ -478,6 +484,374 @@ class Parser():
                     quoted_status_id=quoted_status_id,
                     in_reply_to_status_id=in_reply_to_status_id))
         logger.debug('Parsing one tweet, done.')
+
+
+class BulkParser():
+    """Parse tweet object into seperated buckets that store all associated tables.
+       And provide a function to save these buckets into tables.
+    """
+
+    def __init__(self,
+                 platform_id,
+                 save_none_url_tweet=True,
+                 file_save_null_byte_tweet=None):
+        """Constructor of Parser.
+
+        Parameters
+        ----------
+        platform_id : int
+            The id of platform (should be twitter platform object).
+        save_none_url_tweet : bool
+            Whether save the tweet if no URLs in the tweet.
+        """
+        self.platform_id = platform_id
+        self.save_none_url_tweet = save_none_url_tweet
+        if file_save_null_byte_tweet is not None:
+            self.fp = open(file_save_null_byte_tweet, 'w')
+        else:
+            self.fp = None
+
+    def _parse_entities(self,
+                        entities,
+                        label,
+                        l_urls=None,
+                        l_mentions=None,
+                        l_hashtags=None):
+        """Internal function to briefly parse the entities in a tweet object.
+
+        By default postgresql column is case-sensitive and URL itself may
+        be case sensitive, no need to convert case. However, for hashtags,
+        twitter use them as case-insensitive, so we need to convert them
+        into lower case.
+
+        Parameters
+        ----------
+        entities: JSON object
+            The entities field of a tweet object.
+        urls_set: set
+            A set to store all urls in one parsing process.
+        hashtags_set: set
+            A set to store all hashtags in one parsing process.
+        mentions_set: set
+            A set to store all mentions in one parsing process.
+        """
+        if l_urls is not None and 'urls' in entities:
+            for url in entities['urls']:
+                u = url.get('expanded_url')
+                if u:
+                    l_urls[label].add(u)
+                    l_urls['union'].add(u)
+        if l_mentions is not None and 'user_mentions' in entities:
+            for m in entities['user_mentions']:
+                user_raw_id = m.get('id')
+                screen_name = m.get('screen_name')
+                if user_raw_id and screen_name:
+                    l_mentions[label].add((user_raw_id, screen_name))
+                    l_mentions['union'].add((user_raw_id, screen_name))
+        # hashtag in twitter is case insensitive, shall be converted
+        if l_hashtags is not None and 'hashtags' in entities:
+            for h in entities['hashtags']:
+                htext = h.get('text')
+                if htext:
+                    htext = htext.lower()
+                    l_hashtags[label].add(htext)
+                    l_hashtags['union'].add(htext)
+
+    def _parse_l1(self, jd):
+        # this status
+        l_urls = dict(this=set(), quote=set(), retweet=set(), union=set())
+        l_mentions = dict(this=set(), quote=set(), retweet=set(), union=set())
+        l_hashtags = dict(this=set(), quote=set(), retweet=set(), union=set())
+        if 'entities' in jd:
+            self._parse_entities(jd['entities'], 'this', l_urls, l_mentions,
+                                 l_hashtags)
+        if 'retweeted_status' in jd and 'entities' in jd['retweeted_status']:
+            self._parse_entities(jd['retweeted_status']['entities'], 'retweet',
+                                 l_urls, l_mentions, l_hashtags)
+        if 'quoted_status' in jd and 'entities' in jd['quoted_status']:
+            self._parse_entities(jd['quoted_status']['entities'], 'quote',
+                                 l_urls, l_mentions, l_hashtags)
+        return l_urls, l_mentions, l_hashtags
+
+    def _parse_l2(self, jd, l_urls, l_mentions, g_urls_map, g_uusers_set,
+                  g_edges_set):
+        """
+        Main function is to build users set and edges set.
+        Should be called after tweet is saved, tweet_user is saved,
+        urls is saved,ass_tweet is saved, ass_tweet_url is saved.
+        """
+        tweet_raw_id = jd['id']
+        user_raw_id = jd['user']['id']
+        user_screen_name = jd['user']['screen_name']
+        quoted_status_id = None
+        retweeted_status_id = None
+        if 'quoted_status' in jd:
+            quoted_user_id = jd['quoted_status']['user']['id']
+            quoted_screen_name = jd['quoted_status']['user']['screen_name']
+            quoted_status_id = jd['quoted_status']['id']
+        if 'retweeted_status' in jd:
+            retweeted_user_id = jd['retweeted_status']['user']['id']
+            retweeted_screen_name = jd['retweeted_status']['user'][
+                'screen_name']
+            retweeted_status_id = jd['retweeted_status']['id']
+        in_reply_to_status_id = jd['in_reply_to_status_id']
+        in_reply_to_user_id = jd['in_reply_to_user_id']
+        in_reply_to_screen_name = jd['in_reply_to_screen_name']
+        logger.debug('Level 2 parsing, building users and edges set...')
+        logger.debug('Adding current_user into twitter_user_union  ...')
+        g_uusers_set.add((user_raw_id, user_screen_name))
+        # 2-1) retweet, focusing on retweeted_status
+        #               edge direction: from retweeted_user to current user
+        if retweeted_status_id is not None:
+            logger.debug(
+                '2-1-a) Adding retweeted_user into twitter_user_union ...')
+            g_uusers_set.add((retweeted_user_id, retweeted_screen_name))
+            logger.debug('2-1-a) building edges for retweet ...')
+            for u in l_urls['retweet']:
+                g_edges_set.add((tweet_raw_id, retweeted_user_id, user_raw_id,
+                                 g_urls_map[u], False, False, 'retweet'))
+        # 2-2) reply, focusing on current status
+        #             edges direction: from current user to mentions
+        if in_reply_to_status_id is not None:
+            logger.debug(
+                '2-1-b) Adding in_reply_to_user into twitter_user_union ...')
+            g_uusers_set.add((in_reply_to_user_id, in_reply_to_screen_name))
+            logger.debug('2-1-b) building edges for reply ...')
+            # in_reply_to_user, edge
+            for u in l_urls['this']:
+                g_edges_set.add((tweet_raw_id, user_raw_id, in_reply_to_user_id,
+                                 g_urls_map[u], False, False, 'reply'))
+            # mentions, edges
+            for mention_id, mention_screen_name in l_mentions['this']:
+                if mention_id != in_reply_to_user_id:
+                    for u in l_urls['this']:
+                        g_edges_set.add((tweet_raw_id, user_raw_id, mention_id,
+                                         g_urls_map[u], False, True, 'reply'))
+        # 2-3) quote
+        if quoted_status_id is not None:
+            logger.debug(
+                '2-1-c) Adding quoted_user into twitter_user_union ...')
+            g_uusers_set.add((quoted_user_id, quoted_screen_name))
+            # 2-3-1) retweeted quote, focusing on quoted_status
+            #                         treated as retweet edge
+            if retweeted_status_id is not None:
+                logger.debug(
+                    '2-1-c) building edges for the quoting part of a retweet ...'
+                )
+                for u in l_urls['quote']:
+                    g_edges_set.add(
+                        (tweet_raw_id, retweeted_user_id, user_raw_id,
+                         g_urls_map[u], True, False, 'retweet'))
+            # 2-3-2) replied quote, focusing on quoted_status
+            #                       treated as reply edge
+            elif in_reply_to_status_id is not None:
+                logger.debug(
+                    '2-1-c) building edges for the quoting part of a reply ...')
+                # in_reply_to_user, edges for quoted url
+                for u in l_urls['quote']:
+                    g_edges_set.add(
+                        (tweet_raw_id, user_raw_id, in_reply_to_user_id,
+                         g_urls_map[u], True, False, 'reply'))
+                # mentions, edges for quoted url
+                for mention_id, mention_screen_name in l_mentions['this']:
+                    if mention_id != in_reply_to_user_id:
+                        for u in l_urls['quote']:
+                            g_edges_set.add(
+                                (tweet_raw_id, user_raw_id, mention_id,
+                                 g_urls_map[u], True, True, 'reply'))
+            # 2-3-3) pure quote
+            else:
+                logger.debug(
+                    '2-1-c) Building edges for quote part of the pure quote ...'
+                )
+                for u in l_urls['quote']:
+                    g_edges_set.add((tweet_raw_id, quoted_user_id, user_raw_id,
+                                     g_urls_map[u], True, False, 'quote'))
+                logger.debug(
+                    '2-1-c) building edges for original part of the pure quote ...'
+                )
+                for mention_id, mention_screen_name in l_mentions['this']:
+                    for u in l_urls['this']:
+                        g_edges_set.add((tweet_raw_id, user_raw_id, mention_id,
+                                         g_urls_map[u], False, True, 'quote'))
+                    # for u in l_urls['quote']:
+                    #     g_edges_set.add((
+                    #         tweet_raw_id,
+                    #         user_raw_id,
+                    #         mention_id,
+                    #         g_urls_map[u],
+                    #         True,
+                    #         True,
+                    #         'quote'
+                    #     ))
+                    # 2-4) original tweet
+        if retweeted_status_id is None and in_reply_to_status_id is None\
+                and quoted_status_id is None:
+            logger.debug('2-1-d) building edges for original tweet ...')
+            for mention_id, mention_screen in l_mentions['this']:
+                for u in l_urls['this']:
+                    g_edges_set.add((tweet_raw_id, user_raw_id, mention_id,
+                                     g_urls_map[u], False, True, 'origin'))
+        # saving all mentions ...
+        logger.debug('Adding all mentions into twitter_user_union...')
+        # import pdb; pdb.set_trace()
+        for m in l_mentions['union']:
+            g_uusers_set.add(m)
+
+    def parse_existed_one(self, jd, g_urls_map, g_uusers_set, g_edges_set):
+        """The main parse function. This function will parse tweet into different
+        components corresponding to related table records.
+
+        Parameters
+        ---------
+        jd : json
+            Tweet json data.
+        tw_db_id : integer
+            If tweet has been saved, tw_db_id is the id of
+        """
+        logger.debug('Parsing tweet %r begin ...', jd['id'])
+        logger.debug('Level 1 parsing, roughly parse ...')
+        l_urls, l_mentions, l_hashtags = self._parse_l1(jd)
+        logger.debug('Level 2 parsing, deeply parse ...')
+        self._parse_l2(jd, l_urls, l_mentions, g_urls_map, g_uusers_set,
+                       g_edges_set)
+
+    def parse_new_one(self,
+                      jd,
+                      session,
+                      g_urls_map,
+                      g_uusers_set,
+                      g_edges_set,
+                      is_urls_cached=False):
+        # validate jd
+        jd = replace_null_byte(jd)
+        try:
+            tw_raw_id = jd['id']
+            created_at = utc_from_str(jd['created_at'])
+            user_raw_id = jd['user']['id']
+        except KeyError as e:
+            logger.error('Invalid tweet: %s', e)
+            return None
+        # parsing, level 1
+        l_urls, l_mentions, l_hashtags = self._parse_l1(jd)
+        if len(l_urls['union']) == 0 and self.save_none_url_tweet is False:
+            logger.warning('Ignore tweet %r with no urls!', tw_raw_id)
+            return None
+        # saving, level 1
+        logger.debug('Saving this user ...')
+        muser = get_or_create_m(
+            session, TwitterUser, data=dict(raw_id=user_raw_id), fb_uk='raw_id')
+        logger.debug('Saving this tweet ...')
+        muser_id = muser.id
+        mtweet = Tweet(
+            raw_id=tw_raw_id,
+            json_data=jd,
+            created_at=created_at,
+            user_id=muser_id)
+        session.add(mtweet)
+        try:
+            session.commit()
+            logger.debug('Inserted tweet %r', tw_raw_id)
+        except IntegrityError as e:
+            logger.warning('Tweet %s existed in db: %s', tw_raw_id, e)
+            session.rollback()
+            return None
+        mtweet_id = mtweet.id
+        logger.debug('Saving urls')
+        for u in l_urls['union']:
+            if is_urls_cached is True:
+                murl_id = g_urls_map[u]
+                if murl_id is None:
+                    murl_id = get_or_create_murl(
+                        session, data=dict(raw=u),
+                        platform_id=self.platform_id).id
+                    g_urls_map[u] = murl_id
+            else:
+                murl_id = get_or_create_murl(
+                    session, data=dict(raw=u), platform_id=self.platform_id).id
+                g_urls_map[u] = murl_id
+            # Saving AssTweetUrl
+            session.add(AssTweetUrl(tweet_id=mtweet_id, url_id=murl_id))
+            try:
+                session.commit()
+            except IntegrityError as e:
+                logger.error('ass_tweet_url IntegrityError, see: %s', e)
+                session.rollback()
+        # creating hashtags
+        logger.debug('creating hashtags')
+        for hashtag in l_hashtags['union']:
+            mhashtag = get_or_create_m(
+                session, Hashtag, data=dict(text=hashtag), fb_uk='text')
+            session.add(
+                AssTweetHashtag(tweet_id=mtweet.id, hashtag_id=mhashtag.id))
+            try:
+                session.commit()
+            except IntegrityError as e:
+                logger.error('ass_tweet_hashtag IntegrityError, see: %s', e)
+                session.rollback()
+        self._parse_l2(jd, l_urls, l_mentions, g_urls_map, g_uusers_set,
+                       g_edges_set)
+
+    def save_bulk(self, session, g_uusers_set, g_edges_set):
+        edges = [
+            dict(
+                tweet_raw_id=t0,
+                from_raw_id=t1,
+                to_raw_id=t2,
+                url_id=t3,
+                is_quoted_url=t4,
+                is_mention=t5,
+                tweet_type=t6) for t0, t1, t2, t3, t4, t5, t6 in g_edges_set
+        ]
+        uusers = [dict(raw_id=t1, screen_name=t2) for t1, t2 in g_uusers_set]
+        session.bulk_insert_mappings(TwitterNetworkEdge, edges)
+        session.commit()
+        stmt_do_nothing = insert(TwitterUserUnion).values(
+            uusers).on_conflict_do_nothing(index_elements=['raw_id'])
+        session.execute(stmt_do_nothing)
+        session.commit()
+
+    def bulk_parse_and_save(self,
+                            session,
+                            jds,
+                            existed_tweets=False,
+                            g_urls_map=None,
+                            is_urls_cached=False,
+                            urls_cache_size=1000):
+        g_uusers_set = set()
+        g_edges_set = set()
+        if existed_tweets is False:
+            if is_urls_cached is True:
+                if urls_cache_size < 10:
+                    logger.warning('Cache size is too small, use 10 instead')
+                    urls_cache_size = 10
+                g_urls_map = LRUCache(urls_cache_size)
+            else:
+                g_urls_map = dict()
+            for jd in jds:
+                self.parse_new_one(
+                    jd,
+                    session=session,
+                    g_urls_map=g_urls_map,
+                    is_urls_cached=is_urls_cached,
+                    g_uusers_set=g_uusers_set,
+                    g_edges_set=g_edges_set)
+        else:
+            if isinstance(jds, dict):
+                for jd_id, jd in jds.iteritems():
+                    self.parse_existed_one(
+                        jd,
+                        g_urls_map=g_urls_map,
+                        g_uusers_set=g_uusers_set,
+                        g_edges_set=g_edges_set)
+            else:
+                for jd in jds:
+                    self.parse_existed_one(
+                        jd,
+                        g_urls_map=g_urls_map,
+                        g_uusers_set=g_uusers_set,
+                        g_edges_set=g_edges_set)
+        self.save_bulk(session, g_uusers_set, g_edges_set)
 
 
 class QueueParser(object):
