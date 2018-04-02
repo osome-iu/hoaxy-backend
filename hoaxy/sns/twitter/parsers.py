@@ -746,8 +746,7 @@ class BulkParser():
                       session,
                       g_urls_map,
                       g_uusers_set,
-                      g_edges_set,
-                      is_urls_cached=False):
+                      g_edges_set):
         # validate jd
         jd = replace_null_byte(jd)
         try:
@@ -784,24 +783,19 @@ class BulkParser():
         mtweet_id = mtweet.id
         logger.debug('Saving urls')
         for u in l_urls['union']:
-            if is_urls_cached is True:
-                murl_id = g_urls_map[u]
-                if murl_id is None:
-                    murl_id = get_or_create_murl(
-                        session, data=dict(raw=u),
-                        platform_id=self.platform_id).id
-                    g_urls_map[u] = murl_id
+            if len(u) > URL_MAX_LEN:
+                murl_id = -1
             else:
                 murl_id = get_or_create_murl(
                     session, data=dict(raw=u), platform_id=self.platform_id).id
-                g_urls_map[u] = murl_id
-            # Saving AssTweetUrl
-            session.add(AssTweetUrl(tweet_id=mtweet_id, url_id=murl_id))
-            try:
-                session.commit()
-            except IntegrityError as e:
-                logger.error('ass_tweet_url IntegrityError, see: %s', e)
-                session.rollback()
+                # Saving AssTweetUrl
+                session.add(AssTweetUrl(tweet_id=mtweet_id, url_id=murl_id))
+                try:
+                    session.commit()
+                except IntegrityError as e:
+                    logger.error('ass_tweet_url IntegrityError, see: %s', e)
+                    session.rollback()
+            g_urls_map[u] = murl_id
         # creating hashtags
         logger.debug('creating hashtags')
         for hashtag in l_hashtags['union']:
@@ -842,24 +836,16 @@ class BulkParser():
                             jds,
                             existed_tweets=False,
                             g_urls_map=None,
-                            is_urls_cached=False,
                             urls_cache_size=1000):
         g_uusers_set = set()
         g_edges_set = set()
         if existed_tweets is False:
-            if is_urls_cached is True:
-                if urls_cache_size < 10:
-                    logger.warning('Cache size is too small, use 10 instead')
-                    urls_cache_size = 10
-                g_urls_map = LRUCache(urls_cache_size)
-            else:
-                g_urls_map = dict()
+            g_urls_map = dict()
             for jd in jds:
                 self.parse_new_one(
                     jd,
                     session=session,
                     g_urls_map=g_urls_map,
-                    is_urls_cached=is_urls_cached,
                     g_uusers_set=g_uusers_set,
                     g_edges_set=g_edges_set)
         else:

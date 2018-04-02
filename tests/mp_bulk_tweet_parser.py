@@ -14,6 +14,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.postgresql import insert
 
 from multiprocessing import Process, Manager
+from Queue import Empty
 logger = logging.getLogger(__name__)
 
 
@@ -47,15 +48,15 @@ def producer_queue(q1, min_id=None, max_id=None, window_size=10000):
             max_id = 0
             logger.error('No data in tweet table!')
             return None
+    logger.info('min_id=%s, max_id=%s, window_size=%s', min_id, max_id,
+                window_size)
     w_open_left = min_id
     w_close_right = min_id + window_size
     while True:
         if w_close_right > max_id:
             w_close_right = max_id
         if w_open_left >= max_id:
-            logger.info(
-                'All windows has been put into queue! Waiting for parsing and saving'
-            )
+            logger.info('Window edges have been put into q1.')
             q1.put('STOP')
             break
         q1.put((w_open_left, w_close_right))
@@ -80,12 +81,19 @@ def workers_queue(pid, q1, q2):
         file_save_null_byte_tweet='null_byte_tweet.txt')
 
     while True:
-        data = q1.get()
+        try:
+            data = q1.get(timeout=1)
+        except Empty:
+            logger.info('Worker process %s: queue is empty for 1 seconds', pid)
+            q2.put((pid, 'STOP', None))
+            break
         if data == 'STOP':
-            logger.info('Worker process %s: Task finished!', pid)
+            logger.info('Worker process %s: STOP sign received from q1!', pid)
             q1.put('STOP')
             q2.put((pid, 'STOP', None))
             break
+        else:
+            logger.info('Worker process %s: data=%s received', pid, data)
         w_open_left, w_close_right = data
         jds = dict()
         g_urls_map = dict()
@@ -126,8 +134,8 @@ def workers_queue(pid, q1, q2):
         session.bulk_insert_mappings(TwitterNetworkEdge, edges)
         session.commit()
         q2.put((pid, 'RUN', uusers))
-        logger.info('Worker process %s: Finish task for tweets from %s to %s',
-                    pid, w_open_left + 1, w_close_right)
+        logger.info('Worker process %s: tweets from %s to %s done', pid,
+                    w_open_left + 1, w_close_right)
 
 
 def saver_queue(q2, number_of_workers):
@@ -142,11 +150,16 @@ def saver_queue(q2, number_of_workers):
     while True:
         pid, status, uusers = q2.get()
         if status == 'STOP':
+            logger.info(
+                'Saver process: STOP sign of worker process %s received from q2',
+                pid)
             workers_status[pid] = 0
             if sum(workers_status) == 0:
+                logger.warning('All STOP signs received from q2.')
                 logger.warning('Data saving task done!')
                 break
         else:
+            logger.info('Saver process: size of uusers is %s', len(uusers))
             stmt_do_nothing = insert(TwitterUserUnion).values(
                 uusers).on_conflict_do_nothing(index_elements=['raw_id'])
             session.execute(stmt_do_nothing)
