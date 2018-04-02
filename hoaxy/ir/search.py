@@ -121,14 +121,10 @@ class Searcher():
     def fetch_one_doc(self, score_doc):
         """Fetch one document from the scored doc results."""
         doc = self.isearcher.doc(score_doc.doc)
-        return (
-            doc.getField("group_id").numericValue().intValue(),
-            doc.get("canonical_url"),
-            doc.get("title"),
-            doc.get("date_published"),
-            doc.get("domain"),
-            doc.get("site_type"),
-            score_doc.score,)
+        return (doc.getField("group_id").numericValue().intValue(),
+                doc.get("canonical_url"), doc.get("title"),
+                doc.get("date_published"), doc.get("domain"),
+                doc.get("site_type"), score_doc.score,)
 
     def search(self,
                query,
@@ -609,11 +605,11 @@ def limit_by_k_core(df, nodes_limit, edges_limit):
     return df.reset_index()
 
 
-def db_query_network(engine,
-                     ids,
-                     nodes_limit=1000,
-                     edges_limit=12500,
-                     include_user_mentions=True):
+def db_query_network_old(engine,
+                         ids,
+                         nodes_limit=1000,
+                         edges_limit=12500,
+                         include_user_mentions=True):
     """Query the diffusion network that shares articles with group_id as `ids`.
 
     Parameters
@@ -679,6 +675,69 @@ def db_query_network(engine,
     df2.rename(inplace=True, columns=dict(screen_name='from_user_screen_name'))
     df2 = pd.merge(df2, df3, how='left', left_on='to_user_id', right_index=True)
     df2.rename(inplace=True, columns=dict(screen_name='to_user_screen_name'))
+    df = pd.merge(df, df2, on='id', how='inner', sort=False)
+    df = df.sort_values('date_published', ascending=True)
+    return limit_by_k_core(df, nodes_limit, edges_limit)
+
+
+def db_query_network(engine,
+                     ids,
+                     nodes_limit=1000,
+                     edges_limit=12500,
+                     include_user_mentions=True):
+    """Query the diffusion network that shares articles with group_id as `ids`.
+
+    Parameters
+    ----------
+    engine : object
+        A SQLAlchemy connection, e.g., engine or session.
+    ids : list
+        A list of group_id.
+    nodes_limit : int
+        The maximum number of nodes to return.
+    edges_limit : int
+        The maximum number of edges to return.
+    include_user_mentions : bool
+        Whether include user mentions.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns of the dataframe are ['from_user_id',
+        'from_user_screen_name', 'to_user_id', 'to_user_screen_name',
+        'tweet_id', 'tweet_created_at', 'tweet_type', 'is_mention',
+        'id', 'title', 'domain', 'canonical_url', 'date_published',
+        'site_type', 'url_id']
+    """
+    df = db_query_article(engine, ids)
+    if len(df) == 0:
+        return df
+    q = """
+    SELECT DISTINCT t.group_id, CAST(tw.raw_id AS text), tw.created_at,
+                tne.from_raw_id, tne.to_raw_id,
+                tuu1.screen_name AS from_user_screen_name,
+                tuu2.screen_name AS to_user_screen_name,
+                tne.tweet_type, tne.is_mention, u.id AS url_id
+    FROM UNNEST(:gids) AS t(group_id)
+        JOIN article AS a ON a.group_id=t.group_id
+        JOIN url AS u ON u.article_id=a.id
+        JOIN ass_tweet_url AS atu ON atu.url_id=u.id
+        JOIN tweet AS tw ON tw.id=atu.tweet_id
+        JOIN twitter_network_edge AS tne ON tne.tweet_raw_id=tw.raw_id
+        JOIN twitter_user_union AS tuu1 ON tuu1.raw_id=tne.from_raw_id
+        JOIN twitter_user_union AS tuu2 ON tuu2.raw_id=tne.to_raw_id
+    """
+    rs = engine.execution_options(stream_results=True)\
+        .execute(text(q), gids=ids)
+    df2 = pd.DataFrame(
+        iter(rs),
+        columns=[
+            'id', 'tweet_id', 'tweet_created_at', 'from_user_id', 'to_user_id',
+            'from_user_screen_name', 'to_user_screen_name', 'is_mention',
+            'tweet_type', 'url_id'
+        ])
+    if len(df2) == 0:
+        return pd.DataFrame()
     df = pd.merge(df, df2, on='id', how='inner', sort=False)
     df = df.sort_values('date_published', ascending=True)
     return limit_by_k_core(df, nodes_limit, edges_limit)
