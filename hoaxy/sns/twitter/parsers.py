@@ -488,14 +488,11 @@ class Parser():
 
 
 class BulkParser():
-    """Parse tweet object into seperated buckets that store all associated tables.
+    """Parse tweet object into separated buckets that store all associated tables.
        And provide a function to save these buckets into tables.
     """
 
-    def __init__(self,
-                 platform_id=None,
-                 save_none_url_tweet=True,
-                 file_save_null_byte_tweet=None):
+    def __init__(self, platform_id=None, save_none_url_tweet=True):
         """Constructor of Parser.
 
         Parameters
@@ -507,10 +504,6 @@ class BulkParser():
         """
         self.platform_id = platform_id
         self.save_none_url_tweet = save_none_url_tweet
-        if file_save_null_byte_tweet is not None:
-            self.fp = open(file_save_null_byte_tweet, 'w')
-        else:
-            self.fp = None
 
     def _parse_entities(self,
                         entities,
@@ -529,12 +522,15 @@ class BulkParser():
         ----------
         entities: JSON object
             The entities field of a tweet object.
-        urls_set: set
-            A set to store all urls in one parsing process.
-        hashtags_set: set
-            A set to store all hashtags in one parsing process.
-        mentions_set: set
-            A set to store all mentions in one parsing process.
+        label: string
+            The label of the entities, e.g., 'this' for current tweet, 'retweet' for the
+            retweeted_status of current tweet.
+        l_urls: dict of set
+            A dict to store all urls in one parsing process.
+        l_mentions: dict
+            A dict to store all mentions in one parsing process.
+        l_hashtags: dict
+            A dict to store all hashtags in one parsing process.
         """
         if l_urls is not None and 'urls' in entities:
             for url in entities['urls']:
@@ -559,6 +555,18 @@ class BulkParser():
                     l_hashtags['union'].add(htext)
 
     def _parse_l1(self, jd):
+        """First level parsing, which collect and parse all associated entities.
+
+        Parameters
+        ----------
+        jd: JSON
+            A tweet JSON object.
+
+        Returns
+        ------
+        Tuple (l_urls, l_mentions, l_hashtags) representing associated URLs,
+        user_mentions and hashtags.
+        """
         # this status
         l_urls = dict(this=set(), quote=set(), retweet=set(), union=set())
         l_mentions = dict(this=set(), quote=set(), retweet=set(), union=set())
@@ -576,10 +584,30 @@ class BulkParser():
 
     def _parse_l2(self, jd, l_urls, l_mentions, g_urls_map, g_uusers_set,
                   g_edges_set):
-        """
-        Main function is to build users set and edges set.
-        Should be called after tweet is saved, tweet_user is saved,
-        urls is saved,ass_tweet is saved, ass_tweet_url is saved.
+        """Second Level parsing, to build users_union set and edges set.
+
+        This function should be called only after tweet, twitter_user,
+        urls, ass_tweet, ass_tweet_url are saved.
+
+        Parameters
+        ---------
+        jd: JSON
+            A tweet JSON object.
+        l_urls: dict
+            A dict storing all associated urls of this tweet.
+        l_mentions: dict
+            A dict storing all associated mentions of this tweet.
+        g_urls_map: dict
+            A dict map, where key is URL string and value is
+            the database index id of this URL. Keys should include
+            all URLs in `l_urls`. If url_id is set to -1 for the
+            unavailable URLs.
+        g_uusers_set: set
+            A set to store users_union. New user_unions should be
+            added into this set.
+        g_edges_set: set
+            A set to store edges. New edges should be added into
+            this set.
         """
         tweet_raw_id = jd['id']
         user_raw_id = jd['user']['id']
@@ -741,12 +769,7 @@ class BulkParser():
         self._parse_l2(jd, l_urls, l_mentions, g_urls_map, g_uusers_set,
                        g_edges_set)
 
-    def parse_new_one(self,
-                      jd,
-                      session,
-                      g_urls_map,
-                      g_uusers_set,
-                      g_edges_set):
+    def parse_new_one(self, jd, session, g_urls_map, g_uusers_set, g_edges_set):
         # validate jd
         jd = replace_null_byte(jd)
         try:
@@ -966,7 +989,7 @@ class QueueParser(object):
         # set expire_on_commit=False
         # to avoid re-fetch of these existed objects
         session = Session(expire_on_commit=False)
-        parser = Parser(session, self.platform_id, **self.p_kwargs)
+        parser = BulkParser(platform_id=self.platform_id, **self.p_kwargs)
         q = self.queue
         has_task_done = hasattr(q, 'task_done')
         while not self._stop.isSet():
@@ -991,7 +1014,14 @@ class QueueParser(object):
                 self._counter += 1
                 if self._counter % self._window_size == 0:
                     logger.info('qsize is %s', q.qsize())
-                parser.parse(jd)
+                parser.parse_new_one(
+                    jd,
+                    session,
+                    g_urls_map=dict(),
+                    g_uusers_set=set(),
+                    g_edges_set=set())
+                parser.save_bulk(session, g_uusers_set, g_edges_set)
+
                 if has_task_done:
                     q.task_done()
             except Queue.Empty:
