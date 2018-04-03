@@ -717,7 +717,7 @@ def db_query_network(engine,
                 tne.from_raw_id, tne.to_raw_id,
                 tuu1.screen_name AS from_user_screen_name,
                 tuu2.screen_name AS to_user_screen_name,
-                tne.tweet_type, tne.is_mention, u.id AS url_id
+                tne.is_mention, tne.tweet_type, u.id AS url_id
     FROM UNNEST(:gids) AS t(group_id)
         JOIN article AS a ON a.group_id=t.group_id
         JOIN url AS u ON u.article_id=a.id
