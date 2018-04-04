@@ -713,8 +713,8 @@ def db_query_network(engine,
     if len(df) == 0:
         return df
     q = """
-    SELECT DISTINCT t.group_id, CAST(tw.raw_id AS text), tw.created_at,
-                tne.from_raw_id, tne.to_raw_id,
+    SELECT DISTINCT t.group_id, tw.raw_id::text, tw.created_at,
+                tne.from_raw_id::text, tne.to_raw_id::text,
                 tuu1.screen_name AS from_user_screen_name,
                 tuu2.screen_name AS to_user_screen_name,
                 tne.is_mention, tne.tweet_type, u.id AS url_id
