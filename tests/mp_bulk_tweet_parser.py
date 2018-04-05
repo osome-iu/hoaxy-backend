@@ -75,9 +75,7 @@ def workers_queue(pid, q1, q2):
         client_encoding='utf8')
     Session = scoped_session(sessionmaker(bind=engine))
     session = Session()
-    parser = BulkParser(
-        platform_id=1,
-        save_none_url_tweet=True)
+    parser = BulkParser(platform_id=1, save_none_url_tweet=True)
 
     while True:
         try:
@@ -130,7 +128,13 @@ def workers_queue(pid, q1, q2):
             if t3 != -1
         ]
         uusers = [dict(raw_id=t1, screen_name=t2) for t1, t2 in g_uusers_set]
-        session.bulk_insert_mappings(TwitterNetworkEdge, edges)
+        # session.bulk_insert_mappings(TwitterNetworkEdge, edges)
+        stmt_do_nothing = insert(TwitterNetworkEdge).values(
+            edges).on_conflict_do_nothing(index_elements=[
+                'tweet_raw_id', 'from_raw_id', 'to_raw_id', 'url_id',
+                'is_quoted_url', 'is_mention', 'tweet_type'
+            ])
+        session.execute(stmt_do_nothing)
         session.commit()
         q2.put((pid, 'RUN', uusers))
         logger.info('Worker process %s: tweets from %s to %s done', pid,
@@ -237,7 +241,7 @@ if __name__ == '__main__':
     # add the handler to the root logger
     logging.getLogger().addHandler(console)
     mp_main_test(
-        min_id=None,
+        min_id=100140535,
         max_id=None,
         window_size=10000,
         number_of_workers=10,
