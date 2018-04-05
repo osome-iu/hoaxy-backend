@@ -703,15 +703,8 @@ class BulkParser():
                         g_edges_set.add((tweet_raw_id, user_raw_id, mention_id,
                                          g_urls_map[u], False, True, 'quote'))
                     for u in l_urls['quote']:
-                        g_edges_set.add((
-                            tweet_raw_id,
-                            user_raw_id,
-                            mention_id,
-                            g_urls_map[u],
-                            True,
-                            True,
-                            'quote'
-                        ))
+                        g_edges_set.add((tweet_raw_id, user_raw_id, mention_id,
+                                         g_urls_map[u], True, True, 'quote'))
         # 2-4) original tweet
         if retweeted_status_id is None and in_reply_to_status_id is None\
                 and quoted_status_id is None:
@@ -846,12 +839,14 @@ class BulkParser():
             if t3 != -1
         ]
         uusers = [dict(raw_id=t1, screen_name=t2) for t1, t2 in g_uusers_set]
-        session.bulk_insert_mappings(TwitterNetworkEdge, edges)
-        session.commit()
-        stmt_do_nothing = insert(TwitterUserUnion).values(
-            uusers).on_conflict_do_nothing(index_elements=['raw_id'])
-        session.execute(stmt_do_nothing)
-        session.commit()
+        if len(edges) > 0:
+            session.bulk_insert_mappings(TwitterNetworkEdge, edges)
+            session.commit()
+        if len(uusers) > 0:
+            stmt_do_nothing = insert(TwitterUserUnion).values(
+                uusers).on_conflict_do_nothing(index_elements=['raw_id'])
+            session.execute(stmt_do_nothing)
+            session.commit()
 
     def bulk_parse_and_save(self,
                             session,
