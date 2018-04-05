@@ -242,4 +242,4 @@ if __name__ == '__main__':
         max_id=None,
         window_size=10000,
         number_of_workers=10,
-        drop_first=True)
+        drop_first=False)

@@ -703,17 +703,17 @@ class BulkParser():
                     for u in l_urls['this']:
                         g_edges_set.add((tweet_raw_id, user_raw_id, mention_id,
                                          g_urls_map[u], False, True, 'quote'))
-                    # for u in l_urls['quote']:
-                    #     g_edges_set.add((
-                    #         tweet_raw_id,
-                    #         user_raw_id,
-                    #         mention_id,
-                    #         g_urls_map[u],
-                    #         True,
-                    #         True,
-                    #         'quote'
-                    #     ))
-                    # 2-4) original tweet
+                    for u in l_urls['quote']:
+                        g_edges_set.add((
+                            tweet_raw_id,
+                            user_raw_id,
+                            mention_id,
+                            g_urls_map[u],
+                            True,
+                            True,
+                            'quote'
+                        ))
+        # 2-4) original tweet
         if retweeted_status_id is None and in_reply_to_status_id is None\
                 and quoted_status_id is None:
             logger.debug('2-1-d) building edges for original tweet ...')
@@ -806,7 +806,7 @@ class BulkParser():
         mtweet_id = mtweet.id
         logger.debug('Saving urls')
         for u in l_urls['union']:
-            if len(u) > URL_MAX_LEN:
+            if len(u) > MAX_URL_LEN:
                 murl_id = -1
             else:
                 murl_id = get_or_create_murl(
@@ -1014,12 +1014,15 @@ class QueueParser(object):
                 self._counter += 1
                 if self._counter % self._window_size == 0:
                     logger.info('qsize is %s', q.qsize())
+                g_urls_map = dict()
+                g_uusers_set = set()
+                g_edges_set = set()
                 parser.parse_new_one(
                     jd,
                     session,
-                    g_urls_map=dict(),
-                    g_uusers_set=set(),
-                    g_edges_set=set())
+                    g_urls_map=g_urls_map,
+                    g_uusers_set=g_uusers_set,
+                    g_edges_set=g_edges_set)
                 parser.save_bulk(session, g_uusers_set, g_edges_set)
 
                 if has_task_done:
