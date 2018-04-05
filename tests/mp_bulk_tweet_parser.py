@@ -77,8 +77,7 @@ def workers_queue(pid, q1, q2):
     session = Session()
     parser = BulkParser(
         platform_id=1,
-        save_none_url_tweet=True,
-        file_save_null_byte_tweet='null_byte_tweet.txt')
+        save_none_url_tweet=True)
 
     while True:
         try:

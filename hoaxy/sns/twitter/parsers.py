@@ -24,7 +24,6 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.dialects.postgresql import insert
 import simplejson as json
-from cachetools import LRUCache
 import Queue
 import logging
 import threading
