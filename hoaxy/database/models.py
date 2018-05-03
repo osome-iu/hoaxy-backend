@@ -16,7 +16,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import deferred
 from sqlalchemy.orm import relationship
-from sqlalchemy.schema import UniqueConstraint
+from sqlalchemy.schema import UniqueConstraint, Index
 from sqlalchemy.types import SmallInteger, Integer, BigInteger, DateTime
 from sqlalchemy.types import String, Enum, Boolean, Text, Date
 import dateutil.parser
@@ -120,7 +120,8 @@ class AssTweetUrl(TableMixin, Base):
                     ForeignKey(
                         'url.id', ondelete='CASCADE', onupdate='CASCADE'))
     __table_args__ = (UniqueConstraint(
-        'tweet_id', 'url_id', name='tweet_url_uq'),)
+        'tweet_id', 'url_id', name='tweet_url_uq'), Index(
+            'url_tweet_idx', 'url_id', 'tweet_id'))
 
 
 class AssTweetHashtag(TableMixin, Base):
@@ -305,6 +306,7 @@ class Article(TableMixin, AuditColumns, Base):
                      ForeignKey(
                          'site.id', ondelete='CASCADE', onupdate='CASCADE'))
     group_id = Column(Integer)
+    __table_args__ = (Index('article_group_id', 'group_id'),)
 
 
 class Site(TableMixin, AuditColumns, Base):
