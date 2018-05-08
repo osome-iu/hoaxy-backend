@@ -592,7 +592,7 @@ def limit_by_k_core(df, nodes_limit, edges_limit):
     #
     # if there are no nodes in excess, do not execute
     excess_nodes = G.number_of_nodes() - nodes_limit
-    if nodes_limit and excess_nodes:
+    if nodes_limit and excess_nodes > 0:
         nodes_to_remove = nodes_list[:excess_nodes]
         nodes_list = nodes_list[excess_nodes:]
         G.remove_nodes_from(nodes_to_remove)
