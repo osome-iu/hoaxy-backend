@@ -583,21 +583,29 @@ def limit_by_k_core(df, nodes_limit, edges_limit):
     G = nx.from_pandas_dataframe(
         df, v_cols[0], v_cols[1], create_using=nx.DiGraph())
     G.remove_edges_from(G.selfloop_edges())
+    #
+    # sort nodes by ascending core number
     core = nx.core_number(G)
     nodes_list = sorted(core.items(), key=lambda k: k[1], reverse=False)
     nodes_list = list(zip(*nodes_list))[0]
     nodes_list = list(nodes_list)
-    s = 0
-    e = 0
-    step = 100
-    if nodes_limit is not None:
-        e = G.number_of_nodes() - nodes_limit
-        G.remove_nodes_from(nodes_list[s:e])
-    if edges_limit is not None:
-        while G.number_of_edges() > edges_limit:
-            s = e
-            e = s + step
-            G.remove_nodes_from(nodes_list[s:e])
+    #
+    # if there are no nodes in excess, do not execute
+    excess_nodes = G.number_of_nodes() - nodes_limit
+    if nodes_limit and excess_nodes:
+        nodes_to_remove = nodes_list[:excess_nodes]
+        nodes_list = nodes_list[excess_nodes:]
+        G.remove_nodes_from(nodes_to_remove)
+    #
+    # remove nodes in batches until the the number of edges is below the
+    # limit. Only execute if edges_limit argument is passed (not None) and
+    # is positive
+    if edges_limit:
+        batch_size = 10
+        while G.number_of_edges() > edges_limit :
+            nodes_to_remove = nodes_list[:batch_size]
+            nodes_list = nodes_list[batch_size:]
+            G.remove_nodes_from(nodes_to_remove)
     logger.debug('filtered nodes/edges = %s/%s',
                  G.number_of_nodes(), G.number_of_edges())
     df = df.set_index(['from_user_id', 'to_user_id'])
