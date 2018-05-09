@@ -902,4 +902,4 @@ def db_query_top_articles(engine, upper_day, most_recent=False,
     if exclude_tags:
         df = db_query_filter_tags(engine, df, exclude_tags)
     if len(df) > 0:
-        return df.drop(columns=['domain'])
+        return df.drop(['domain'], axis=1)
