@@ -250,7 +250,7 @@ def db_query_filter_disabled_site(engine, df):
     return df.loc[df.domain.isin([r[0] for r in rs])]
 
 
-def db_query_filter_tags(engine, df, tags):
+def db_query_filter_tags(engine, df, exclude_tags):
     """Filter out sites that with specified tags.
 
     Parameters
@@ -260,8 +260,8 @@ def db_query_filter_tags(engine, df, tags):
     df : pd.DataFrame
         A DataFrame that represents article information, specifically returned
         from Lucene search.
-    tags: list
-        A list of tags. The tag could be the name of string or tuple
+    exclude_tags: list
+        A list of excluded tags. The tag could be the name of string or tuple
         (source, name)
 
     Returns
@@ -270,7 +270,7 @@ def db_query_filter_tags(engine, df, tags):
     """
     if len(df) == 0:
         return df
-    tag_df = pd.DataFrame(tags)
+    tag_df = pd.DataFrame(exclude_tags)
     if len(tag_df.columns) == 1:
         q = """
 SELECT DISTINCT s.domain
@@ -279,7 +279,7 @@ FROM UNNEST(:tag_names) AS t(name)
     JOIN ass_site_site_tag AS ast ON ast.site_tag_id=st.id
     JOIN site AS s ON s.id=ast.site_id
 """
-        rs = engine.execute(text(q).bindparams( tag_names=tags))
+        rs = engine.execute(text(q).bindparams(tag_names=exclude_tags))
     elif len(tag_df.columns) == 2:
         tag_df.columns = ['tag_source', 'tag_name']
         q = """
@@ -289,10 +289,12 @@ FROM UNNEST(:tag_sources, :tag_names) AS t(source, name)
     JOIN ass_site_site_tag AS ast ON ast.site_tag_id=st.id
     JOIN site AS s ON s.id=ast.site_id
 """
-        rs = engine.execute(text(q).bindparams(tag_sources=tag_df.tag_source.tolist(),
-        tag_names=tag_df.tag_name.tolist()))
+        rs = engine.execute(
+            text(q).bindparams(
+                tag_sources=tag_df.tag_source.tolist(),
+                tag_names=tag_df.tag_name.tolist()))
     else:
-        raise TypeError('Invalid tags format!')
+        raise TypeError('Invalid excluded tags format!')
     return df.loc[~df.domain.isin([r[0] for r in rs])]
 
 
@@ -652,7 +654,7 @@ def limit_by_k_core(df, nodes_limit, edges_limit):
     # is positive
     if edges_limit:
         batch_size = 10
-        while G.number_of_edges() > edges_limit :
+        while G.number_of_edges() > edges_limit:
             nodes_to_remove = nodes_list[:batch_size]
             nodes_list = nodes_list[batch_size:]
             G.remove_nodes_from(nodes_to_remove)
@@ -856,7 +858,8 @@ def db_query_top_spreaders(engine, upper_day, most_recent=False):
     return df
 
 
-def db_query_top_articles(engine, upper_day, most_recent=False, tags=[]):
+def db_query_top_articles(engine, upper_day, most_recent=False,
+                          exclude_tags=[]):
     """Query top 20 articles in the 30 days window.
 
     Parameters
@@ -893,5 +896,5 @@ def db_query_top_articles(engine, upper_day, most_recent=False, tags=[]):
             q = text(q0).bindparams(upper_day=upper_day)
             rp = engine.execute(q)
             df = pd.DataFrame(iter(rp), columns=rp.keys())
-    if tags:
-        return db_query_filter_tags(engine, df, tags)
+    if exclude_tags:
+        return db_query_filter_tags(engine, df, exclude_tags)
