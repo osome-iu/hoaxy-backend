@@ -879,10 +879,13 @@ def db_query_top_articles(engine, upper_day, most_recent=False,
         'title', 'canonical_url', 'site_type', 'number_of_tweets'].
     """
     q0 = """
-    SELECT upper_day, date_captured, title, canonical_url, site_type,
-    number_of_tweets
-    FROM top20_article_monthly WHERE upper_day=:upper_day
-    ORDER BY site_type, number_of_tweets DESC
+    SELECT DISTINCT ta.upper_day, ta.date_captured, ta.title,
+        ta.canonical_url, ta.site_type, ta.number_of_tweets, s.domain
+    FROM top20_article_monthly AS ta
+        JOIN article AS a ON a.canonical_url=ta.canonical_url
+        JOIN site AS s ON s.id=a.site_id
+    WHERE upper_day=:upper_day
+    ORDER BY ta.site_type, ta.number_of_tweets DESC
     """
     q = text(q0).bindparams(upper_day=upper_day)
     rp = engine.execute(q)
@@ -897,4 +900,6 @@ def db_query_top_articles(engine, upper_day, most_recent=False,
             rp = engine.execute(q)
             df = pd.DataFrame(iter(rp), columns=rp.keys())
     if exclude_tags:
-        return db_query_filter_tags(engine, df, exclude_tags)
+        df = db_query_filter_tags(engine, df, exclude_tags)
+    if len(df) > 0:
+        return df.drop(columns=['domain'])
