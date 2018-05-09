@@ -564,7 +564,6 @@ def query_top_articles():
     lucene.getVMEnv().attachCurrentThread()
     yesterday = datetime.utcnow().date() - timedelta(days=1)
     yesterday = yesterday.strftime('%Y-%m-%d')
-
     q_top_article_schema = Schema({
         Optional('upper_day', default=yesterday):
         And(Regex('^\d{4}-\d{2}-\d{2}$'),
@@ -574,6 +573,8 @@ def query_top_articles():
         And(unicode,
             Use(lambda s: s.lower()), lambda s: s in ('true', 'false'),
             Use(lambda s: True if s == 'true' else False)),
+        Optional('tags', default=[]):
+        And(Use(eval), error='Invalid tags input format'),
     })
     q_kwargs = copy_req_args(request.args)
     try:
