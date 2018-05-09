@@ -573,7 +573,7 @@ def query_top_articles():
         And(unicode,
             Use(lambda s: s.lower()), lambda s: s in ('true', 'false'),
             Use(lambda s: True if s == 'true' else False)),
-        Optional('exclude_tags', default=[]):
+        Optional('exclude_tags', default=['satire']):
         And(Use(eval), error='Invalid exclude_tags input format'),
     })
     q_kwargs = copy_req_args(request.args)
