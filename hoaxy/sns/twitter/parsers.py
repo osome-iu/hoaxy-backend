@@ -806,6 +806,7 @@ class BulkParser():
         in_reply_to_status_id = jd['in_reply_to_status_id']
         session.add(
             AssTweet(
+                id=mtweet_id,
                 retweeted_status_id=retweeted_status_id,
                 quoted_status_id=quoted_status_id,
                 in_reply_to_status_id=in_reply_to_status_id))
