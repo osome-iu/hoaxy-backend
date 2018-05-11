@@ -796,7 +796,25 @@ class BulkParser():
             session.rollback()
             return None
         mtweet_id = mtweet.id
-        logger.debug('Saving urls')
+        logger.debug('Saving AssTweet ...')
+        retweeted_status_id = None
+        quoted_status_id = None
+        if 'quoted_status' in jd:
+            quoted_status_id = jd['quoted_status']['id']
+        if 'retweeted_status' in jd:
+            retweeted_status_id = jd['retweeted_status']['id']
+        in_reply_to_status_id = jd['in_reply_to_status_id']
+        session.add(
+            AssTweet(
+                retweeted_status_id=retweeted_status_id,
+                quoted_status_id=quoted_status_id,
+                in_reply_to_status_id=in_reply_to_status_id))
+        try:
+            session.commit()
+        except IntegrityError as e:
+            logger.warning(e)
+            session.rollback()
+        logger.debug('Saving urls ...')
         for u in l_urls['union']:
             if len(u) > MAX_URL_LEN:
                 murl_id = -1
@@ -812,7 +830,7 @@ class BulkParser():
                     session.rollback()
             g_urls_map[u] = murl_id
         # creating hashtags
-        logger.debug('creating hashtags')
+        logger.debug('creating hashtags ...')
         for hashtag in l_hashtags['union']:
             mhashtag = get_or_create_m(
                 session, Hashtag, data=dict(text=hashtag), fb_uk='text')
