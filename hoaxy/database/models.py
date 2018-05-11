@@ -426,9 +426,9 @@ class AssTweet(TableMixin, Base):
 
     Association tweet with its replies, quotes and retweets.
     """
-    retweeted_status_id = Column(BigInteger)
-    quoted_status_id = Column(BigInteger)
-    in_reply_to_status_id = Column(BigInteger)
+    retweeted_status_id = Column(BigInteger, index=True)
+    quoted_status_id = Column(BigInteger, index=True)
+    in_reply_to_status_id = Column(BigInteger, index=True)
 
 
 class TwitterUser(TableMixin, Base):
