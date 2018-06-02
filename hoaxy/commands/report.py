@@ -326,7 +326,8 @@ is working.
         upper_day : Date
             The right edge of 30 days window.
         """
-        df = db_query_top_articles(session, upper_day)
+        df = db_query_top_articles(session, upper_day, most_recent=False,
+                                   exclude_tags=[])
         if len(df) > 0:
             logger.warning('Top spreaders for upper_day %s, already exist!',
                            upper_day)
