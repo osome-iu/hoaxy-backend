@@ -833,8 +833,8 @@ def db_query_top_spreaders(engine, upper_day, most_recent=False):
     rp = engine.execute(q)
     df = pd.DataFrame(iter(rp), columns=rp.keys())
     if len(df) == 0 and most_recent is True:
-        session = Session()
-        upper_day = get_max(session, Top20SpreaderMonthly.upper_day)
+        q1 = 'SELECT MAX(upper_day) FROM top20_spreader_monthly'
+        upper_day = engine.execute(text(q1)).scalar()
         if upper_day is None:
             raise APINoResultError
         else:
@@ -891,8 +891,8 @@ def db_query_top_articles(engine, upper_day, most_recent=False,
     rp = engine.execute(q)
     df = pd.DataFrame(iter(rp), columns=rp.keys())
     if len(df) == 0 and most_recent is True:
-        session = Session()
-        upper_day = get_max(session, Top20ArticleMonthly.upper_day)
+        q1 = 'SELECT MAX(upper_day) FROM top20_article_monthly'
+        upper_day = engine.execute(text(q1)).scalar()
         if upper_day is None:
             raise APINoResultError
         else:
