@@ -108,7 +108,8 @@ is working.
     @classmethod
     def print_psql(cls, df):
         """Print pandas.DataFrame using tabulate psql format."""
-        print(tabulate(df, headers='keys', tablefmt='psql'))
+        s = tabulate(df, headers='keys', tablefmt='psql')
+        logger.info('\n%s', s)
 
     @classmethod
     def look_up_top_spreaders(cls, session, upper_day, most_recent):
