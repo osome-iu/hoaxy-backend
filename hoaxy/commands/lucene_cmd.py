@@ -54,10 +54,11 @@ Examples:
         '--query':
         Or(None, lambda s: len(s) > 0),
         '--mode':
-        Or(None,
-           And(
-               Use(str.lower),
-               lambda s: s in ('create_or_append', 'create', 'append'))),
+        Or(
+            None,
+            And(
+                Use(str.lower),
+                lambda s: s in ('create_or_append', 'create', 'append'))),
         '--top':
         Or(None, And(Use(int), lambda x: x > 0)),
         object:
@@ -124,7 +125,8 @@ Examples:
         lucene.initVM()
         lucene.getVMEnv().attachCurrentThread()
         if args['--index'] is True:
-            configure_logging('lucene.index', console_level='INFO')
+            configure_logging(
+                'lucene.index', console_level=args['--console-log-level'])
             mgid = get_or_create_m(
                 session,
                 MetaInfo,
@@ -153,7 +155,8 @@ Examples:
                 sqlalchemy.text(q).bindparams(gid=mgid.get_value()))
             cls.index(session, args['--mode'], articles_iter, mgid)
         elif args['--search'] is True:
-            configure_logging('lucene.search', console_level='INFO')
+            configure_logging(
+                'lucene.search', console_level=args['--console-log-level'])
             cls.search(args['--query'], args['--top'])
         else:
             print("Unrecognized command!")

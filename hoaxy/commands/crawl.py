@@ -229,7 +229,8 @@ Examples (`||` represents continue of commands, you can ignore when using):
             ArticleParserSpider,
             session=session,
             url_tuples=url_tuples,
-            api_key=cls.conf['crawl']['article_parser']['webparser_api_key'],)
+            api_key=cls.conf['crawl']['article_parser']['webparser_api_key'],
+        )
         process.start()
 
     @classmethod
@@ -248,7 +249,9 @@ Examples (`||` represents continue of commands, you can ignore when using):
         # --fetch-url
         if args['--fetch-url'] is True:
             configure_logging(
-                'crawl.fetch-url', console_level='DEBUG', file_level='WARNING')
+                'crawl.fetch-url',
+                console_level=args['--console-log-level'],
+                file_level='WARNING')
             purpose = 'update' if args['--update'] is True else 'archive'
             if where_expr is None:
                 where_expr = [text(DEFAULT_WHERE_EXPR_FETCH_URL)]
@@ -269,7 +272,9 @@ Examples (`||` represents continue of commands, you can ignore when using):
             cls.fetch_url(session, msites, platform_id, purpose)
         elif args['--fetch-html'] is True:
             configure_logging(
-                'crawl.fetch-html', console_level='DEBUG', file_level='WARNING')
+                'crawl.fetch-html',
+                console_level=args['--console-log-level'],
+                file_level='WARNING')
             if not session.query(Site.id).count() > 0:
                 raise SystemExit('Your site table is empty!')
             q = session.query(Url.id, Url.raw)
@@ -293,7 +298,7 @@ Examples (`||` represents continue of commands, you can ignore when using):
         elif args['--parse-article'] is True:
             configure_logging(
                 'crawl.parse-article',
-                console_level='DEBUG',
+                console_level=args['--console-log-level'],
                 file_level='WARNING')
             q = session.query(Url.id, Url.created_at, Url.date_published,
                               Url.canonical, Url.site_id)

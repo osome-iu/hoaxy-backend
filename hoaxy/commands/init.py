@@ -67,7 +67,6 @@ Examples:
              ignore_inactive=False,
              force_inactive=False,
              ignore_redirected=False):
-        configure_logging('init', console_level='INFO', file_level='WARNING')
         dt_before = datetime.utcnow()
         logging.info('Creating database tables:')
         if force_drop is True:
@@ -118,14 +117,18 @@ Examples:
             logging.info('Site file %s not found', site_file)
         sites = session.query(
             Site.domain, Site.site_type, Site.base_url).filter(
-                or_(Site.created_at > dt_before, Site.updated_at >
-                    dt_before)).order_by(Site.id).all()
+                or_(Site.created_at > dt_before,
+                    Site.updated_at > dt_before)).order_by(Site.id).all()
         logger.info("Added or updated sites are:\n %s", pprint.pformat(sites))
         logger.info("Done.")
 
     @classmethod
     def run(cls, args):
         """Overriding method as the entry point of this command."""
+        configure_logging(
+            'init',
+            console_level=args['--console-log-level'],
+            file_level='WARNING')
         session = Session()
         cls.init(
             session,

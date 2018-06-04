@@ -94,7 +94,8 @@ is working.
                 except (TweepError, NoTimelineError) as e:
                     err_msg = '{}: {}'.format(
                         type(e).__name__,
-                        getattr(e, 'msg', '') or getattr(e, 'reason', ''),)
+                        getattr(e, 'msg', '') or getattr(e, 'reason', ''),
+                    )
                     result = {'error': err_msg}
                 except (Timeout, ConnectionError) as e:
                     if num_retries >= max_retries:
@@ -327,8 +328,8 @@ is working.
         upper_day : Date
             The right edge of 30 days window.
         """
-        df = db_query_top_articles(session, upper_day, most_recent=False,
-                                   exclude_tags=[])
+        df = db_query_top_articles(
+            session, upper_day, most_recent=False, exclude_tags=[])
         if len(df) > 0:
             logger.warning('Top spreaders for upper_day %s, already exist!',
                            upper_day)
@@ -403,22 +404,24 @@ is working.
         session = Session()
         if args['--volume'] is True:
             configure_logging(
-                'report.volume', console_level='INFO', file_level='WARNING')
+                'report.volume',
+                console_level=args['--console-log-level'],
+                file_level='WARNING')
             table_names = ['tweet', 'url', 'article']
             table = args['--table']
             if table not in table_names:
-                logger.error('Available tables are: %s' % table_names)
+                logger.critical('Available tables are: %s', table_names)
                 sys.exit(2)
             interval_names = [
                 'minute', 'hour', 'day', 'week', 'month', 'quarter', 'year'
             ]
             interval = args['--interval']
             if interval not in interval_names:
-                logger.error('Available intervals are: %s' % interval_names)
+                logger.critical('Available intervals are: %s', interval_names)
                 sys.exit(2)
             limit = args['--limit']
             if int(limit) <= 0:
-                logger.error('%r should larger than 0' % limit)
+                logger.critical('%r should larger than 0', limit)
                 sys.exit(2)
             sql = """
             SELECT count(id) as agg_num,
@@ -439,13 +442,15 @@ is working.
                     print('{0:^20s} | {1:8d}'.format(t.strftime(strf), v))
                 print('-' * 35)
         elif args['--status']:
-            configure_logging('report.streaming-status', console_level='INFO')
+            configure_logging(
+                'report.streaming-status',
+                console_level=args['--console-log-level'])
             table_name = None
             if args['--status'] == 'twitter':
                 table_name = 'tweet'
             if table_name is None:
-                logger.error(
-                    'SNS %s not exists in database!' % args['--status'])
+                logger.critical('SNS %r has not been implemented!',
+                                args['--status'])
                 sys.exit(2)
             sql = 'SELECT created_at FROM {} ORDER BY id DESC LIMIT 1'.format(
                 'tweet')
@@ -455,16 +460,17 @@ is working.
                 delta = timedelta(minutes=delta_minutes)
                 current_utc = datetime.utcnow()
                 if current_utc - most_recent > delta:
-                    logger.error(
+                    logger.critical(
                         'No %s streaming update in the past %s minutes!',
                         args['--status'], delta_minutes)
                 else:
                     logger.info('Most recent %s streaming update is %s',
-                                args['--status'], str(most_recent) + ' (UTC)')
+                                args['--status'],
+                                str(most_recent) + ' (UTC)')
         elif args['--top-spreader'] is True:
             configure_logging(
                 'report.top-spreaders',
-                console_level='INFO',
+                console_level=args['--console-log-level'],
                 file_level='WARNING')
             # try to create table
             if (Top20SpreaderMonthly.__table__.exists(bind=ENGINE)) is False:
@@ -479,8 +485,9 @@ is working.
                 except Exception:
                     raise ValueError('Invalid date: %s', args['--upper-day'])
             if args['--generate'] is True:
-                logger.warning('Generating top spreaders for uppder_day=%r ...',
-                               upper_day)
+                logger.warning(
+                    'Generating top spreaders for uppder_day=%r ...',
+                    upper_day)
                 cls.generate_top_spreaders(session, upper_day)
             elif args['--look-up'] is True:
                 cls.look_up_top_spreaders(session, upper_day,
@@ -488,7 +495,7 @@ is working.
         elif args['--top-article'] is True:
             configure_logging(
                 'report.top-article',
-                console_level='INFO',
+                console_level=args['--console-log-level'],
                 file_level='WARNING')
             # try to create table
             if (Top20ArticleMonthly.__table__.exists(bind=ENGINE)) is False:

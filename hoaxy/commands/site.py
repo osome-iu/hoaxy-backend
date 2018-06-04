@@ -429,18 +429,20 @@ or Use --ignore-inactive or --force-inactive  to handle inactive domains""")
             if ignore_inactive is True:
                 logger.warning('Domain %s is inactive now, ignored', domain)
             else:
-                logger.error("""Domain %r is inactive now, cannot determine \
+                logger.error(
+                    """Domain %r is inactive now, cannot determine \
 the base URL. Try `--force-inactive` to force insert.""", domain)
                 error_flag = True
         elif status == 'redirected':
             if 'ignore_redirected' is True:
-                logger.warning('Domain %r is redirected to %s, ignored', domain,
-                               site['base_url'])
+                logger.warning('Domain %r is redirected to %s, ignored',
+                               domain, site['base_url'])
             else:
                 error_flag = True
-                logger.error("""Domain %r is redirected to %r \
+                logger.error(
+                    """Domain %r is redirected to %r \
 Use the redirected domain as primary domain and add %r as secondary domain""",
-                             domain, site['base_url'], domain)
+                    domain, site['base_url'], domain)
         else:
             site_tags = [dict(source=tag_source, name=t) for t in site_tags]
             get_or_create_msite(
@@ -539,7 +541,8 @@ Use the redirected domain as primary domain and add %r as secondary domain""",
         else:
             msite.is_enabled = True
             session.commit()
-            logger.warning("""Site %r is enabled. \
+            logger.warning(
+                """Site %r is enabled. \
 You need to restart your tracking process!""", msite.name)
 
     @classmethod
@@ -551,7 +554,8 @@ You need to restart your tracking process!""", msite.name)
         else:
             msite.is_enabled = False
             session.commit()
-            logger.warning("""Site %r is disabled. \
+            logger.warning(
+                """Site %r is disabled. \
 You need to restart your tracking process!""", msite.name)
 
     @classmethod
@@ -646,7 +650,9 @@ You need to restart your tracking process!""", msite.name)
         # --load-domains commands
         if args['--load-domains'] is True:
             configure_logging(
-                'site.load-domains', console_level='INFO', file_level='WARNING')
+                'site.load-domains',
+                console_level=args['--console-log-level'],
+                file_level='WARNING')
             fn = args.get('<file>', join(HOAXY_HOME, 'domains.txt'))
             logger.info('Loading data from file %r', fn)
             cls.load_domains(
@@ -659,7 +665,9 @@ You need to restart your tracking process!""", msite.name)
         # --load-sites commands
         elif args['--load-sites'] is True:
             configure_logging(
-                'site.load-sites', console_level='INFO', file_level='WARNING')
+                'site.load-sites',
+                console_level=args['--console-log-level'],
+                file_level='WARNING')
             fn = args.get('<file>', join(HOAXY_HOME, 'sites.yaml'))
             logger.info('Loading data from file %r', fn)
             cls.load_sites(
@@ -671,7 +679,9 @@ You need to restart your tracking process!""", msite.name)
         # --add commands
         elif args['--add'] is True:
             configure_logging(
-                'site.add', console_level='INFO', file_level='WARNING')
+                'site.add',
+                console_level=args['--console-log-level'],
+                file_level='WARNING')
             msite = qquery_msite(session, domain=args['--domain'])
             if msite is not None:
                 logger.warning('Site %s already exists!', args['--domain'])
@@ -691,7 +701,7 @@ You need to restart your tracking process!""", msite.name)
         elif args['--add-site-tags'] is True:
             configure_logging(
                 'site.add-site-tags',
-                console_level='INFO',
+                console_level=args['--console-log-level'],
                 file_level='WARNING')
             if args['--name'] is not None:
                 site_identity = args['--name']
@@ -708,7 +718,7 @@ You need to restart your tracking process!""", msite.name)
         elif args['--replace-site-tags'] is True:
             configure_logging(
                 'site.repalce-site-tags',
-                console_level='INFO',
+                console_level=args['--console-log-level'],
                 file_level='WARNING')
             if args['--name'] is not None:
                 site_identity = args['--name']
@@ -725,7 +735,7 @@ You need to restart your tracking process!""", msite.name)
         elif args['--add-alternate-domains'] is True:
             configure_logging(
                 'site.add-alternate-domains',
-                console_level='INFO',
+                console_level=args['--console-log-level'],
                 file_level='WARNING')
             if args['--name'] is not None:
                 site_identity = args['--name']
@@ -742,7 +752,7 @@ You need to restart your tracking process!""", msite.name)
         elif args['--replace-alternate-domains'] is True:
             configure_logging(
                 'site.replace-alternate-domains',
-                console_level='INFO',
+                console_level=args['--console-log-level'],
                 file_level='WARNING')
             if args['--name'] is not None:
                 site_identity = args['--name']
@@ -757,7 +767,9 @@ You need to restart your tracking process!""", msite.name)
                                               args['--alternate-domain'])
         elif args['--disable'] is True:
             configure_logging(
-                'site.disable', console_level='INFO', file_level='WARNING')
+                'site.disable',
+                console_level=args['--console-log-level'],
+                file_level='WARNING')
             if args['--name'] is not None:
                 site_identity = args['--name']
             else:
@@ -770,7 +782,9 @@ You need to restart your tracking process!""", msite.name)
                 cls.disable_site(session, msite)
         elif args['--enable'] is True:
             configure_logging(
-                'site.enable', console_level='INFO', file_level='WARNING')
+                'site.enable',
+                console_level=args['--console-log-level'],
+                file_level='WARNING')
             if args['--name'] is not None:
                 site_identity = args['--name']
             else:
@@ -784,7 +798,9 @@ You need to restart your tracking process!""", msite.name)
         # --status
         elif args['--status'] is True:
             configure_logging(
-                'site.status', console_level='INFO', file_level='WARNING')
+                'site.status',
+                console_level=args['--console-log-level'],
+                file_level='WARNING')
             if args['--include-disabled'] is True:
                 cls.site_status(session, True)
             else:
@@ -792,7 +808,9 @@ You need to restart your tracking process!""", msite.name)
         # --dump
         elif args['--dump'] is True:
             configure_logging(
-                'site.status', console_level='INFO', file_level='INFO')
+                'site.status',
+                console_level=args['--console-log-level'],
+                file_level='INFO')
             cls.dump(session, args['<file>'])
 
         session.close()

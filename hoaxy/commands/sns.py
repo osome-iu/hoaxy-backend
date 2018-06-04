@@ -70,7 +70,8 @@ Examples:
 
         retries = 0
         q = Queue.Queue()
-        consumer = QueueParser(q, platform_id, w_size, save_none_url_tweet=snut)
+        consumer = QueueParser(
+            q, platform_id, w_size, save_none_url_tweet=snut)
         qhandler = QueueHandler(q)
         consumer.start()
         stall_time = retry_stall
@@ -116,5 +117,6 @@ Examples:
         """Overriding method as the entry point of this command."""
         session = Session(expire_on_commit=False)
         if args['--twitter-streaming'] is True:
-            configure_logging('twitter.streaming')
+            configure_logging(
+                'twitter.streaming', console_level=args['--console-log-level'])
             cls.twitter_stream(session, args)

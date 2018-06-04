@@ -19,11 +19,12 @@ from hoaxy.commands import HoaxyCommand
 from hoaxy.utils import list_cls_under_mod
 import os.path
 import sys
-
+from schema import Schema, And, Use
+from schema import SchemaError
 # Usage message of hoaxy
 HOAXY_USAGE = """\
 Usage:
-  hoaxy <command> [<args>...] [--help]
+  hoaxy [options] <command> [<args>...]
   hoaxy -h | --help
   hoaxy -v | --version
 
@@ -32,6 +33,11 @@ Subcommands are:
 
 For subcommands, use `hoaxy <command> --help` to get the usage of the
 subcommand <command>!
+
+Global options are:
+  --help                        Show help for this subcommand.
+  --console-log-level=<cll>     Set logging level for console output.
+                                [default: debug]
 """
 
 
@@ -97,9 +103,22 @@ Currently, hoaxy uses default settings and may not work properly.
         version=VERSION,
         options_first=True,
         argv=argv or sys.argv[1:])
+    args_schema = Schema({
+        '--console-log-level':
+        And(Use(str.upper),
+            lambda s: s in ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'),
+            error='Invalid value for --console-log-level!'),
+        object:
+        object
+    })
+    try:
+        args = args_schema.validate(args)
+    except SchemaError as se:
+        raise SystemExit(str(se))
     argv = [args['<command>']] + args['<args>']
     if args['<command>'] in cmds_cls:
         sub_args = docopt(cmds_cls[args['<command>']].__doc__, argv)
+        sub_args['--console-log-level'] = args['--console-log-level']
         cmds_cls[args['<command>']].run(sub_args)
     else:
         raise SystemExit("""Invalid subcommand! Try 'hoaxy -h' to list \
