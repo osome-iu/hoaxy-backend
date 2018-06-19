@@ -72,12 +72,23 @@ U_WP_ERROR_DATA_INVALID = 81
 # WHEN PARSING ARTICLE, UNKONW ERROR
 U_WP_ERROR_UNKNOWN = 82
 
+# default parsing status
+A_DEFAULT = 0
+# article parsed, success
+A_P_SUCCESS = 80
+# Invalided data returned from web parser
+A_WP_ERROR_DATA_INVALID = 81
+# WHEN PARSING ARTICLE, UNKONW ERROR
+A_WP_ERROR_UNKNOWN = 82
+# WHEN CLOSING THE SPIDER WITH reason='finished', THOSE NO RETURNED REQUEST
+# WILL BE MARKED WITH
+A_WP_ERROR_NO_SCRAPY_RESPONSE = 86
+
 # SQL expressions
 DEFAULT_WHERE_EXPR_FETCH_URL = """site.is_enabled is TRUE AND \
 site.is_alive is TRUE"""
 DEFAULT_WHERE_EXPR_FETCH_HTML = 'url.status_code={}'.format(U_DEFAULT)
-DEFAULT_WHERE_EXPR_PARSE_ARTICLE = """\
-url.site_id IS NOT NULL AND url.status_code={}""".format(U_HTML_SUCCESS)
+DEFAULT_WHERE_EXPR_PARSE_ARTICLE = "status_code={}".format(A_P_SUCCESS)
 
 
 class TableMixin(object):
@@ -113,57 +124,48 @@ class AuditColumns(object):
 
 class AssTweetUrl(TableMixin, Base):
     """Association table to connect table `tweet` and `url`."""
-    tweet_id = Column(Integer,
-                      ForeignKey(
-                          'tweet.id', ondelete='CASCADE', onupdate='CASCADE'))
-    url_id = Column(Integer,
-                    ForeignKey(
-                        'url.id', ondelete='CASCADE', onupdate='CASCADE'))
+    tweet_id = Column(
+        Integer, ForeignKey(
+            'tweet.id', ondelete='CASCADE', onupdate='CASCADE'))
+    url_id = Column(
+        Integer, ForeignKey('url.id', ondelete='CASCADE', onupdate='CASCADE'))
     __table_args__ = (UniqueConstraint(
-        'tweet_id', 'url_id', name='tweet_url_uq'), Index(
-            'url_tweet_idx', 'url_id', 'tweet_id'))
+        'tweet_id', 'url_id', name='tweet_url_uq'),
+                      Index('url_tweet_idx', 'url_id', 'tweet_id'))
 
 
 class AssTweetHashtag(TableMixin, Base):
     """Association table to connect table `tweet` and `hashtag`."""
-    tweet_id = Column(Integer,
-                      ForeignKey(
-                          'tweet.id', ondelete='CASCADE', onupdate='CASCADE'))
-    hashtag_id = Column(Integer,
-                        ForeignKey(
-                            'hashtag.id',
-                            ondelete='CASCADE',
-                            onupdate='CASCADE'))
+    tweet_id = Column(
+        Integer, ForeignKey(
+            'tweet.id', ondelete='CASCADE', onupdate='CASCADE'))
+    hashtag_id = Column(
+        Integer,
+        ForeignKey('hashtag.id', ondelete='CASCADE', onupdate='CASCADE'))
     __table_args__ = (UniqueConstraint(
-        'tweet_id', 'hashtag_id', name='tweet_hashtag_uq'),)
+        'tweet_id', 'hashtag_id', name='tweet_hashtag_uq'), )
 
 
 class AssUrlPlatform(TableMixin, Base):
     """Association table to connect table `url` and `platform`."""
-    url_id = Column(Integer,
-                    ForeignKey(
-                        'url.id', ondelete='CASCADE', onupdate='CASCADE'))
-    platform_id = Column(Integer,
-                         ForeignKey(
-                             'platform.id',
-                             ondelete='CASCADE',
-                             onupdate='CASCADE'))
+    url_id = Column(
+        Integer, ForeignKey('url.id', ondelete='CASCADE', onupdate='CASCADE'))
+    platform_id = Column(
+        Integer,
+        ForeignKey('platform.id', ondelete='CASCADE', onupdate='CASCADE'))
     __table_args__ = (UniqueConstraint(
-        'url_id', 'platform_id', name='url_platform_uq'),)
+        'url_id', 'platform_id', name='url_platform_uq'), )
 
 
 class AssSiteSiteTag(TableMixin, Base):
     """Association table to connect table `site` and `site_tag`."""
-    site_id = Column(Integer,
-                     ForeignKey(
-                         'site.id', ondelete='CASCADE', onupdate='CASCADE'))
-    site_tag_id = Column(Integer,
-                         ForeignKey(
-                             'site_tag.id',
-                             ondelete='CASCADE',
-                             onupdate='CASCADE'))
+    site_id = Column(
+        Integer, ForeignKey('site.id', ondelete='CASCADE', onupdate='CASCADE'))
+    site_tag_id = Column(
+        Integer,
+        ForeignKey('site_tag.id', ondelete='CASCADE', onupdate='CASCADE'))
     __table_args__ = (UniqueConstraint(
-        'site_id', 'site_tag_id', name='site_site_tag_id'),)
+        'site_id', 'site_tag_id', name='site_site_tag_id'), )
 
 
 class Platform(TableMixin, AuditColumns, Base):
@@ -223,9 +225,10 @@ class Url(TableMixin, AuditColumns, Base):
     U_HTML_ERROR_NO_SCRAPY
     _RESPONSE                | 46    | No scrapy response received
     null                     | >200  | Fetch HTML failed, HTTP code
-    U_WP_SUCCESS             | 80    | Article web parse sucessfully
-    U_WP_ERROR_DATA_INVALID  | 81    | Invalid data from web parser, e.g., Null
-    U_WP_ERROR_UNKNOWN       | 82    | Unknown error when parsing article
+    ################### HTML COLUMN PLACED TO ARTICLE TABLE ################
+    # U_WP_SUCCESS           | 80    | Article web parse sucessfully
+    # U_WP_ERROR_DATA_INVALID| 81    | Invalid data from web parser, e.g., Null
+    # U_WP_ERROR_UNKNOWN     | 82    | Unknown error when parsing article
     ---------------------------------------------------------------------------
     """
     raw = Column(String(MAX_URL_LEN), unique=True, nullable=False)
@@ -238,14 +241,11 @@ class Url(TableMixin, AuditColumns, Base):
         SmallInteger, default=U_DEFAULT, server_default=str(U_DEFAULT))
 
     # foreign keys
-    article_id = Column(Integer,
-                        ForeignKey(
-                            'article.id',
-                            ondelete='CASCADE',
-                            onupdate='CASCADE'))
-    site_id = Column(Integer,
-                     ForeignKey(
-                         'site.id', ondelete='CASCADE', onupdate='CASCADE'))
+    article_id = Column(
+        Integer,
+        ForeignKey('article.id', ondelete='CASCADE', onupdate='CASCADE'))
+    site_id = Column(
+        Integer, ForeignKey('site.id', ondelete='CASCADE', onupdate='CASCADE'))
     # relationship attributes
     platforms = relationship(
         'Platform',
@@ -284,7 +284,7 @@ class UrlMatch(TableMixin, AuditColumns, Base):
     __table_args__ = (UniqueConstraint(
         'claim_canonical',
         'fact_checking_canonical',
-        name='claim_fact_checking_uq'),)
+        name='claim_fact_checking_uq'), )
 
 
 class Article(TableMixin, AuditColumns, Base):
@@ -295,6 +295,18 @@ class Article(TableMixin, AuditColumns, Base):
     article <-- ONE TO MANY --> url
     article <-- MANY TO ONE --> site
     article <-- ONE TO MANY --> article_version
+
+
+    status_code : integer
+        The status of this record.
+    ---------------------------------------------------------------------------
+    CONSTANT                 | VALUE |     DESCRIPTION
+    ---------------------------------------------------------------------------
+    A_DEFAULT                | 0     | Default, when inserting by URL spiders
+    A_P_SUCCESS              | 20    | Article parse sucessfully
+    A_WP_ERROR_DATA_INVALID  | 81    | Invalid data from web parser, e.g., Null
+    A_WP_ERROR_UNKNOWN       | 82    | Unknown error when parsing article
+    ---------------------------------------------------------------------------
     """
     canonical_url = Column(String(MAX_URL_LEN), unique=True, nullable=False)
     title = Column(String(255), nullable=False)
@@ -302,11 +314,13 @@ class Article(TableMixin, AuditColumns, Base):
     content = deferred(Column(Text, nullable=False))
     date_published = Column(DateTime)
     date_captured = Column(DateTime, nullable=False)
-    site_id = Column(Integer,
-                     ForeignKey(
-                         'site.id', ondelete='CASCADE', onupdate='CASCADE'))
+    html = deferred(Column(Text))
     group_id = Column(Integer)
-    __table_args__ = (Index('article_group_id', 'group_id'),)
+    status_code = Column(
+        SmallInteger, default=A_DEFAULT, server_default=str(A_DEFAULT))
+    site_id = Column(
+        Integer, ForeignKey('site.id', ondelete='CASCADE', onupdate='CASCADE'))
+    __table_args__ = (Index('article_group_id', 'group_id'), )
 
 
 class Site(TableMixin, AuditColumns, Base):
@@ -342,9 +356,8 @@ class AlternateDomain(TableMixin, AuditColumns, Base):
     """Table `alternate_domain`."""
     name = Column(String(255), unique=True, nullable=False)
     is_alive = Column(Boolean, default=True)
-    site_id = Column(Integer,
-                     ForeignKey(
-                         'site.id', ondelete='CASCADE', onupdate='CASCADE'))
+    site_id = Column(
+        Integer, ForeignKey('site.id', ondelete='CASCADE', onupdate='CASCADE'))
     site = relationship("Site", back_populates='alternate_domains')
 
 
@@ -357,7 +370,7 @@ class SiteTag(TableMixin, AuditColumns, Base):
         passive_deletes=True,
         secondary='ass_site_site_tag',
         back_populates='site_tags')
-    __table_args__ = (UniqueConstraint('name', 'source', name='name_source'),)
+    __table_args__ = (UniqueConstraint('name', 'source', name='name_source'), )
 
 
 class SiteActivity(TableMixin, Base):
@@ -368,9 +381,8 @@ class SiteActivity(TableMixin, Base):
     event = Column(String(31))
     description = Column(String(255))
     timestamp = Column(DateTime, default=datetime.now)
-    site_id = Column(Integer,
-                     ForeignKey(
-                         'site.id', ondelete='CASCADE', onupdate='CASCADE'))
+    site_id = Column(
+        Integer, ForeignKey('site.id', ondelete='CASCADE', onupdate='CASCADE'))
 
 
 class Hashtag(TableMixin, AuditColumns, Base):
@@ -402,11 +414,9 @@ class Tweet(TableMixin, AuditColumns, Base):
     json_data = deferred(Column(postgresql.JSON, nullable=False))
 
     # foreign keys
-    user_id = Column(Integer,
-                     ForeignKey(
-                         'twitter_user.id',
-                         ondelete='CASCADE',
-                         onupdate='CASCADE'))
+    user_id = Column(
+        Integer,
+        ForeignKey('twitter_user.id', ondelete='CASCADE', onupdate='CASCADE'))
     # relationship attributes
     urls = relationship(
         'Url',
@@ -486,7 +496,7 @@ class TwitterNetworkEdge(TableMixin, Base):
         'is_quoted_url',
         'is_mention',
         'tweet_type',
-        name='uq_edge'),)
+        name='uq_edge'), )
 
 
 class MetaInfo(TableMixin, AuditColumns, Base):
@@ -541,7 +551,7 @@ class Top20SpreaderMonthly(TableMixin, Base):
         'user_id',
         'site_type',
         'spreading_type',
-        name='spreading_uq'),)
+        name='spreading_uq'), )
 
 
 class Top20ArticleMonthly(TableMixin, Base):
@@ -553,4 +563,4 @@ class Top20ArticleMonthly(TableMixin, Base):
     site_type = Column(String(255), nullable=False)
     number_of_tweets = Column(Integer, nullable=False)
     __table_args__ = (UniqueConstraint(
-        'upper_day', 'canonical_url', name='top20_article_uq'),)
+        'upper_day', 'canonical_url', name='top20_article_uq'), )

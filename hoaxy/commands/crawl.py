@@ -182,14 +182,14 @@ Examples (`||` represents continue of commands, you can ignore when using):
         process.start()
 
     @classmethod
-    def fetch_html(cls, session, url_tuples):
+    def fetch_html(cls, session, nt_urls):
         """Actual method to do fetch html action.
 
         Parameters
         ----------
             session : object
                 a SQLAlchemy session object.
-            url_tuples : list
+            nt_urls : list
                 a list of url tuple (id, raw, status_code).
         """
         settings = Settings(cls.conf['crawl']['scrapy'])
@@ -198,11 +198,11 @@ Examples (`||` represents continue of commands, you can ignore when using):
         process = CrawlerProcess(settings)
         sll = cls.conf['logging']['loggers']['scrapy']['level']
         logging.getLogger('scrapy').setLevel(logging.getLevelName(sll))
-        logger.warning('Number of url to fetch html is: %s', len(url_tuples))
+        logger.warning('Number of url to fetch html is: %s', len(nt_urls))
         process.crawl(
             HtmlSpider,
             session=session,
-            url_tuples=url_tuples,
+            nt_urls=nt_urls,
             excluded_domains=cls.conf['crawl']['excluded_domains'])
         process.start()
 

@@ -11,8 +11,10 @@ There are three phrase when processing URLs.
     (3) if failed, set status_code and set expanded=raw
     (4) if success, set status_code and set expanded=response.url
     (5) determine site_id
+    (6) save to table article where 'site_id is not null and
+        status_code=U_HTML_SUCCESS'
 3. Webparser to get parsed article:
-    (1) only select 'site_id is not null and status_code=U_HTML_SUCCESS'
+    (1) For record in article table, do article parsing
 
 There exists one pipeline for each phase.
 
@@ -20,22 +22,20 @@ There exists one pipeline for each phase.
 #
 # written by Chengcheng Shao <sccotte@gmail.com>
 
-from hoaxy.database.functions import get_or_create_murl
-from hoaxy.database.functions import get_site_tuples
-from hoaxy.database.models import MAX_URL_LEN
-from hoaxy.database.models import U_HTML_ERROR_EXCLUDED_DOMAIN
-from hoaxy.database.models import U_HTML_ERROR_INVALID_URL
-from hoaxy.database.models import U_WP_SUCCESS
-from hoaxy.database.models import Url, Article
-from hoaxy.utils.url import belongs_to_domain
-from hoaxy.utils.url import belongs_to_site
-from hoaxy.utils.url import canonicalize
-from hoaxy.utils.url import get_parsed_url
-from scrapy.exceptions import DropItem
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import load_only
-from sqlalchemy.sql import func
 import logging
+
+from scrapy.exceptions import DropItem
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.sql import func
+
+from hoaxy.crawl.items import ArticleItem
+from hoaxy.database.functions import get_or_create_murl, get_site_tuples
+from hoaxy.database.models import (MAX_URL_LEN,
+                                   U_HTML_ERROR_EXCLUDED_DOMAIN,
+                                   U_HTML_ERROR_INVALID_URL, U_HTML_SUCCESS,
+                                   Article, Url,)
+from hoaxy.utils.url import (belongs_to_domain, belongs_to_site, canonicalize,
+                             get_parsed_url,)
 
 logger = logging.getLogger(__name__)
 
@@ -72,12 +72,29 @@ class UrlPipeline(object):
 
 
 class HtmlPipeline(object):
-    """This Pipeline is used to update the html document and status_code
-    of an existed url record in the DB."""
+    """This Pipeline is used to (1) update status_code of existed url records,
+    and (2) insert a new article with html into article if not exist.
+    """
 
     def open_spider(self, spider):
         """Get sites when opening the spider."""
         self.site_tuples = get_site_tuples(spider.session)
+
+    def get_or_create_marticle(self, session, article_data):
+        mquery = session.query(Article).filter_by(
+            canonical_url=article_data['canonical_url'])
+        marticle = mquery.one_or_none()
+        if marticle is None:
+            session.add(Article(**article_data))
+        else:
+            if marticle.date_captured > article_data['date_captured']:
+                marticle.date_captured = article_data['date_captured']
+        try:
+            session.commit()
+            return marticle
+        except IntegrityError as e:
+            logger.error('Concurrent error: %s', e)
+            return mquery.one()
 
     def process_item(self, item, spider):
         """Main function that process URL item (second phase)."""
@@ -105,13 +122,29 @@ class HtmlPipeline(object):
                                                       self.site_tuples)
             else:
                 item['status_code'] = U_HTML_ERROR_INVALID_URL
-        # remove potential NUL byte \x00 in the HTML
-        if 'html' in item:
-            item['html'] = item['html'].replace(b'\x00', '')
+        # if status_code==U_HTML_SUCCESS AND site_id IS NOT NULL
+        # create a new article record
+        if item['status_code'] == U_HTML_SUCCESS\
+                and item['site_id'] is not None:
+            # remove potential NUL byte \x00 in the HTML
+            html = item.pop('html')
+            article_data = ArticleItem()
+            article_data['html'] = html
+            article_data['site_id'] = item['site_id']
+            article_data['date_captured'] = item['created_at']
+            # created or update article table
+            try:
+                marticle = self.get_or_create_marticle(spider.session,
+                                                       article_data)
+                item['article_id'] = marticle.id
+            except SQLAlchemyError as e:
+                logger.error(e)
+                spider.session.rollback()
+                raise DropItem('Fail to update database of url: %s', item)
         try:
             # update database of url table
             spider.session.query(Url).filter_by(id=item['id'])\
-                .update(dict(item), synchronize_session=False)
+                .update(dict(item))
             spider.session.commit()
             logger.debug('Fetched html of url %r with status %i', item['raw'],
                          item['status_code'])
@@ -166,45 +199,15 @@ class ArticlePipeline(object):
 
     def process_item(self, item, spider):
         """Main function that process Article item (third phase)."""
-        url_id = item.pop('url_id')
-        marticle = spider.session.query(Article)\
-            .filter_by(canonical_url=item['canonical_url'])\
-            .options(load_only('id', 'date_published', 'date_captured'))\
-            .one_or_none()
-        # marticle exists
-        # update datetime of this article
-        if marticle:
-            # marticle.date_published is None
-            if marticle.date_published is None:
-                marticle.date_published = item['date_published']
-            # marticle.date_captured > article['date_captured']
-            if marticle.date_captured > item['date_captured']:
-                marticle.date_captured = item['date_captured']
-        # new article
-        else:
-            if item['site_id'] is not None:
-                item['group_id'] = self.get_or_next_group_id(
-                    spider.session, item['title'], item['site_id'])
-            # create this article
-            marticle = Article(**item)
-            spider.session.add(marticle)
-        # commit changes
+        article_id = item.pop('id')
+        item['group_id'] = self.get_or_next_group_id(
+            spider.session, item['title'], item['site_id'])
+        # update changes
+        spider.session.query(Article).filter_by(id=article_id).update(item)
         try:
             spider.session.commit()
+            return item
         except SQLAlchemyError as e:
-            logger.error('Error when inserting article: %s', e)
+            logger.error('Error when updating article: %s', e)
             spider.session.rollback()
             raise DropItem()
-        try:
-            # finally update url status and article_id
-            spider.session.query(Url).filter_by(id=url_id)\
-                .update(dict(status_code=U_WP_SUCCESS,
-                             article_id=marticle.id))
-            spider.session.commit()
-        except SQLAlchemyError as e:
-            logger.error('Error when update url: %s', e)
-            spider.session.rollback()
-            raise DropItem()
-        item['url_id'] = url_id
-        item['id'] = marticle.id
-        return item

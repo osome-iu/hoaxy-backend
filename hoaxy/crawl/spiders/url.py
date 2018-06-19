@@ -4,17 +4,20 @@
 #
 # written by Chengcheng Shao <sccotte@gmail.com>
 
+import copy
+import logging
+import pprint
+import urlparse
+from datetime import datetime
+
+import scrapy
+from scrapy.linkextractors import LinkExtractor
+from scrapy.spiders import Rule
+
 from hoaxy.crawl.items import UrlItem
 from hoaxy.database.models import U_HTML_SUCCESS
 from hoaxy.utils.dt import utc_from_str
 from hoaxy.utils.url import canonicalize
-from scrapy.linkextractors import LinkExtractor
-from scrapy.spiders import Rule
-import copy
-import logging
-import pprint
-import scrapy
-import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -227,7 +230,7 @@ class SiteSpider(scrapy.spiders.CrawlSpider):
                 restrict_xpaths=self.href_xpaths,
                 unique=True),
             callback="parse_item",
-            follow=True),)
+            follow=True), )
 
         super(SiteSpider, self).__init__(*args, **kwargs)
 
@@ -236,17 +239,21 @@ class SiteSpider(scrapy.spiders.CrawlSpider):
         item['raw'] = response.url
         item['expanded'] = response.url
         item['canonical'] = canonicalize(item['expanded'])
+        # set the created_at as current utc timestamp
+        item['created_at'] = datetime.utcnow()
         try:
             text = response.body
             code = response.encoding
             html = unicode(text.decode(code, 'ignore'))\
                 .encode('utf-8', 'ignore')
+            html = html.replace(b'\x00', '')
             item['html'] = html
-            # We already have HTML, set the status_code to second phrase sucess
             item['status_code'] = U_HTML_SUCCESS
+            yield item
         except Exception as e:
-            logger.error(e)
-        yield item
+            logger.error('Invalidate html docs: %s, %s, %s', item['raw'], e,
+                         text)
+            # does not collect this item, if exception happens
 
     def close(self, reason):
         """Called when closing spider."""
@@ -320,12 +327,13 @@ class PageTemplateSpider(scrapy.spiders.Spider):
         """
         for page in self.page_templates:
             url = page.format(p_num=self.p_kw['start'])
-            meta = dict(archive_meta=dict(
-                last_urls=dict(),
-                p_num=self.p_kw['start'],
-                next_tries=0,
-                max_next_tries=self.p_kw['max_next_tries'],
-                page=page))
+            meta = dict(
+                archive_meta=dict(
+                    last_urls=dict(),
+                    p_num=self.p_kw['start'],
+                    next_tries=0,
+                    max_next_tries=self.p_kw['max_next_tries'],
+                    page=page))
             logger.debug('Page format meta info:\n%s', pprint.pformat(meta))
             yield scrapy.Request(url, callback=self.parse, meta=meta)
 
@@ -355,7 +363,7 @@ class PageTemplateSpider(scrapy.spiders.Spider):
         del response.meta['archive_meta']
         urls = set()
         if len(self.href_xpaths) == 0:
-            self.href_xpaths = ('/html/body',)
+            self.href_xpaths = ('/html/body', )
         for xp in self.href_xpaths:
             for href in response.xpath(xp).xpath('.//a/@href').extract():
                 url = urlparse.urljoin(response.url, href)
