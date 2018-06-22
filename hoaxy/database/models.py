@@ -64,13 +64,9 @@ U_HTML_ERROR_INVALID_HTML = 45
 # URL, when closing the spider and the reason is finished
 # then set all sended url with unchanged status_code to this value
 # indicate that we never recevied their scrapy response
-U_HTML_ERROR_NO_SCRAPY_RESPONSE = 46
-
-# URL, article web parser, success
-U_WP_SUCCESS = 80
-U_WP_ERROR_DATA_INVALID = 81
-# WHEN PARSING ARTICLE, UNKONW ERROR
-U_WP_ERROR_UNKNOWN = 82
+U_HTML_ERROR_DROPPED = 46
+# unknown error
+U_HTML_ERROR_UNKNOWN = 49
 
 # default parsing status
 A_DEFAULT = 0
@@ -78,17 +74,20 @@ A_DEFAULT = 0
 A_P_SUCCESS = 80
 # Invalided data returned from web parser
 A_WP_ERROR_DATA_INVALID = 81
-# WHEN PARSING ARTICLE, UNKONW ERROR
-A_WP_ERROR_UNKNOWN = 82
+# URL, fetch html, When sending request, non-http error happens,
+# e.g., domain resolve failed
+A_WP_ERROR_NONHTTP = 44
 # WHEN CLOSING THE SPIDER WITH reason='finished', THOSE NO RETURNED REQUEST
 # WILL BE MARKED WITH
-A_WP_ERROR_NO_SCRAPY_RESPONSE = 86
+A_WP_ERROR_DROPPED = 86
+# WHEN PARSING ARTICLE, UNKONW ERROR
+A_WP_ERROR_UNKNOWN = 89
 
 # SQL expressions
 DEFAULT_WHERE_EXPR_FETCH_URL = """site.is_enabled is TRUE AND \
 site.is_alive is TRUE"""
 DEFAULT_WHERE_EXPR_FETCH_HTML = 'url.status_code={}'.format(U_DEFAULT)
-DEFAULT_WHERE_EXPR_PARSE_ARTICLE = "status_code={}".format(A_P_SUCCESS)
+DEFAULT_WHERE_EXPR_PARSE_ARTICLE = "status_code={}".format(A_DEFAULT)
 
 
 class TableMixin(object):
@@ -222,8 +221,7 @@ class Url(TableMixin, AuditColumns, Base):
     U_HTML_ERROR_NONHTTP     | 44    | Fetch HTML failed, non-http error
                                        e.g., domain resolve failed
     U_HTML_ERROR_INVALID_HTML| 45    | Invalid HTML, e.g., image
-    U_HTML_ERROR_NO_SCRAPY
-    _RESPONSE                | 46    | No scrapy response received
+    U_HTML_ERROR_DROPPED     | 46    | No scrapy response received
     null                     | >200  | Fetch HTML failed, HTTP code
     ################### HTML COLUMN PLACED TO ARTICLE TABLE ################
     # U_WP_SUCCESS           | 80    | Article web parse sucessfully
@@ -290,6 +288,13 @@ class UrlMatch(TableMixin, AuditColumns, Base):
 class Article(TableMixin, AuditColumns, Base):
     """Table `article` to record article from news site.
 
+    This table has three stages:
+    1) s1: (canonical_url, html, date_captured, site_id) is known, inserted
+    from URL spiders, status_code=0.
+    2) s2: article is parsed, so that title, meta and content are known, the
+    status_code of these good records are A_P_SUCCESS.
+    3) s3: article is indexed, indicated by meta_info table.
+
     Relations
     ---------
     article <-- ONE TO MANY --> url
@@ -309,9 +314,9 @@ class Article(TableMixin, AuditColumns, Base):
     ---------------------------------------------------------------------------
     """
     canonical_url = Column(String(MAX_URL_LEN), unique=True, nullable=False)
-    title = Column(String(255), nullable=False)
-    meta = Column(postgresql.JSON, nullable=False)
-    content = deferred(Column(Text, nullable=False))
+    title = Column(String(255))
+    meta = Column(postgresql.JSON)
+    content = deferred(Column(Text))
     date_published = Column(DateTime)
     date_captured = Column(DateTime, nullable=False)
     html = deferred(Column(Text))
@@ -319,7 +324,9 @@ class Article(TableMixin, AuditColumns, Base):
     status_code = Column(
         SmallInteger, default=A_DEFAULT, server_default=str(A_DEFAULT))
     site_id = Column(
-        Integer, ForeignKey('site.id', ondelete='CASCADE', onupdate='CASCADE'))
+        Integer,
+        ForeignKey('site.id', ondelete='CASCADE', onupdate='CASCADE'),
+        nullable=False)
     __table_args__ = (Index('article_group_id', 'group_id'), )
 
 

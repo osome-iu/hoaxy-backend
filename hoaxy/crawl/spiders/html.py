@@ -17,7 +17,7 @@ from hoaxy.database.models import (
     U_HTML_ERROR_HOME_URL,
     U_HTML_ERROR_INVALID_HTML,
     U_HTML_ERROR_INVALID_URL,
-    U_HTML_ERROR_NO_SCRAPY_RESPONSE,
+    U_HTML_ERROR_DROPPED,
     U_HTML_ERROR_NONHTTP,
     U_HTML_SUCCESS,
     Url,
@@ -68,9 +68,9 @@ class HtmlSpider(scrapy.spiders.Spider):
         request = failure.request
         item = UrlItem()
         nt_url = request.meta['nt_url']
-        item['id'] = nt_url['id']
-        item['raw'] = nt_url['raw']
-        item['created_at'] = nt_url['created_at']
+        item['id'] = nt_url.id
+        item['raw'] = nt_url.raw
+        item['created_at'] = nt_url.created_at
         if failure.check(HttpError):
             # these exceptions come from HttpError spider middleware
             # you can get the non-200 response
@@ -88,33 +88,33 @@ class HtmlSpider(scrapy.spiders.Spider):
 
     def start_requests(self):
         for nt_url in self.nt_urls:
-            purl = get_parsed_url(nt_url['raw'])
+            purl = get_parsed_url(nt_url.raw)
             status_code = None
             if purl is None or purl.hostname is None:
                 status_code = U_HTML_ERROR_INVALID_URL
-                logger.debug('Invalide url %r', nt_url['raw'])
+                logger.debug('Invalide url %r', nt_url.raw)
             elif is_home_url(purl.path) is True:
                 status_code = U_HTML_ERROR_HOME_URL
-                logger.debug('Ignore home kind url %r', nt_url['raw'])
+                logger.debug('Ignore home kind url %r', nt_url.raw)
             elif belongs_to_domain(purl.hostname,
                                    self.excluded_domains) is not None:
                 status_code = U_HTML_ERROR_EXCLUDED_DOMAIN
-                logger.debug('Ignore excluded domain %r', nt_url['raw'])
+                logger.debug('Ignore excluded domain %r', nt_url.raw)
             else:
                 try:
                     yield scrapy.Request(
-                        nt_url['raw'],
+                        nt_url.raw,
                         callback=self.parse,
                         meta=dict(nt_url=nt_url),
                         errback=self.errback_request)
                 except Exception as e:
                     logger.error('Error when sending request %r: %s',
-                                 nt_url['raw'], e)
+                                 nt_url.raw, e)
                     status_code = U_HTML_ERROR_INVALID_URL
             # when error happends, update url status_code
             if status_code is not None:
                 try:
-                    self.session.query(Url).filter_by(id=nt_url['id'])\
+                    self.session.query(Url).filter_by(id=nt_url.id)\
                         .update(dict(status_code=status_code),
                                 synchronize_session=False)
                     self.session.commit()
@@ -126,9 +126,9 @@ class HtmlSpider(scrapy.spiders.Spider):
         # handle only HTTP=200
         item = UrlItem()
         nt_url = response.meta['nt_url']
-        item['id'] = nt_url['id']
-        item['raw'] = nt_url['raw']
-        item['created_at'] = nt_url['created_at']
+        item['id'] = nt_url.id
+        item['raw'] = nt_url.raw
+        item['created_at'] = nt_url.created_at
         item['expanded'] = response.url
         try:
             text = response.body
@@ -157,8 +157,8 @@ with reason='finished""")
             try:
                 self.session.query(Url)\
                     .filter_by(status_code=U_DEFAULT)\
-                    .filter(Url.id.in_([x['id'] for x in self.nt_urls]))\
-                    .update(dict(status_code=U_HTML_ERROR_NO_SCRAPY_RESPONSE),
+                    .filter(Url.id.in_([x.id for x in self.nt_urls]))\
+                    .update(dict(status_code=U_HTML_ERROR_DROPPED),
                             synchronize_session=False)
                 self.session.commit()
             except SQLAlchemyError as e:

@@ -81,11 +81,16 @@ class HtmlPipeline(object):
         self.site_tuples = get_site_tuples(spider.session)
 
     def get_or_create_marticle(self, session, article_data):
+        """ Try to fetch an article model, if not exist, then create it;
+            if exist, then update columns if needed.
+        """
         mquery = session.query(Article).filter_by(
             canonical_url=article_data['canonical_url'])
         marticle = mquery.one_or_none()
         if marticle is None:
-            session.add(Article(**article_data))
+            marticle = Article(**article_data)
+            session.add(marticle)
+        # update marticle
         else:
             if marticle.date_captured > article_data['date_captured']:
                 marticle.date_captured = article_data['date_captured']
@@ -93,7 +98,8 @@ class HtmlPipeline(object):
             session.commit()
             return marticle
         except IntegrityError as e:
-            logger.error('Concurrent error: %s', e)
+            logger.error('IntegrityError: %s', e)
+            session.rollback()
             return mquery.one()
 
     def process_item(self, item, spider):
@@ -129,6 +135,7 @@ class HtmlPipeline(object):
             # remove potential NUL byte \x00 in the HTML
             html = item.pop('html')
             article_data = ArticleItem()
+            article_data['canonical_url'] = item['canonical']
             article_data['html'] = html
             article_data['site_id'] = item['site_id']
             article_data['date_captured'] = item['created_at']

@@ -7,28 +7,32 @@ All crawl processes is called by this commands. See CrawlCmd class.
 #
 # written by Chengcheng Shao <sccotte@gmail.com>
 
+import logging
+import re
+import sys
+
+from schema import Or, Schema, SchemaError, Use
+from scrapy.crawler import CrawlerProcess
+from scrapy.settings import Settings
+from sqlalchemy import text
+
 from hoaxy.commands import HoaxyCommand
+from hoaxy.crawl.items import NTArticle, NTUrl
 from hoaxy.crawl.spiders import build_spiders_iter
 from hoaxy.crawl.spiders.article import ArticleParserSpider
 from hoaxy.crawl.spiders.html import HtmlSpider
 from hoaxy.database import Session
-from hoaxy.database.functions import get_msites
-from hoaxy.database.functions import get_platform_id
-from hoaxy.database.models import DEFAULT_WHERE_EXPR_FETCH_HTML
-from hoaxy.database.models import DEFAULT_WHERE_EXPR_FETCH_URL
-from hoaxy.database.models import DEFAULT_WHERE_EXPR_PARSE_ARTICLE
-from hoaxy.database.models import N_PLATFORM_WEB
-from hoaxy.database.models import Site
-from hoaxy.database.models import Url
+from hoaxy.database.functions import get_msites, get_platform_id
+from hoaxy.database.models import (
+    DEFAULT_WHERE_EXPR_FETCH_HTML,
+    DEFAULT_WHERE_EXPR_FETCH_URL,
+    DEFAULT_WHERE_EXPR_PARSE_ARTICLE,
+    N_PLATFORM_WEB,
+    Article,
+    Site,
+    Url,
+)
 from hoaxy.utils.log import configure_logging
-from schema import Schema, Use, Or
-from schema import SchemaError
-from scrapy.crawler import CrawlerProcess
-from scrapy.settings import Settings
-from sqlalchemy import text
-import logging
-import re
-import sys
 
 logger = logging.getLogger(__name__)
 HTTP_TIMEOUT = 30  # HTTP REQUEST TIMEOUT, IN SECONDS
@@ -100,8 +104,8 @@ For --fetch-url, the default raw SQL query is on table `site`:
     site.is_enabled is True and site.is_alive is True
 For --fetch-html the default raw SQL query is on table `url`
     url.status_code=U_DEFAULT
-For --parse-article the default raw SQL query is on table `url`
-    url.status_code=U_HTML_SUCCESS AND url.site_id IS NOT NULL
+For --parse-article the default raw SQL query is on table `article`
+    article.status_code=A_DEFAULT
 
 Please check database.models to see detail.
 
@@ -190,11 +194,15 @@ Examples (`||` represents continue of commands, you can ignore when using):
             session : object
                 a SQLAlchemy session object.
             nt_urls : list
-                a list of url tuple (id, raw, status_code).
+                a list of namedtuple (id, raw, status_code).
         """
         settings = Settings(cls.conf['crawl']['scrapy'])
+        # important, set HtmlPipeline to handle fetched items
         settings.set('ITEM_PIPELINES',
                      {'hoaxy.crawl.pipelines.HtmlPipeline': 300})
+        # important, when fetching html, we will always use BaseDupeFilter to
+        # avoid the default duplication filter
+        settings.set('DUPEFILTER_CLASS', 'scrapy.dupefilters.BaseDupeFilter')
         process = CrawlerProcess(settings)
         sll = cls.conf['logging']['loggers']['scrapy']['level']
         logging.getLogger('scrapy').setLevel(logging.getLevelName(sll))
@@ -207,7 +215,7 @@ Examples (`||` represents continue of commands, you can ignore when using):
         process.start()
 
     @classmethod
-    def parse_article(cls, session, url_tuples):
+    def parse_article(cls, session, nt_articles):
         """Actual method to do parse to article action.
 
         Parameters
@@ -215,20 +223,22 @@ Examples (`||` represents continue of commands, you can ignore when using):
             session : object
                 a SQLAlchemy session object.
             url_tuples : list
-                a list of url tuple (id, created_at, date_published,
-                canonical, site_id)
+                a list of namedtuple (id, canonical_url, date_published)
         """
         settings = Settings(cls.conf['crawl']['scrapy'])
         settings.set('ITEM_PIPELINES',
                      {'hoaxy.crawl.pipelines.ArticlePipeline': 300})
+        # important, when using web parser, we will always use BaseDupeFilter
+        # to avoid the default duplication filter
+        settings.set('DUPEFILTER_CLASS', 'scrapy.dupefilters.BaseDupeFilter')
         process = CrawlerProcess(settings)
         sll = cls.conf['logging']['loggers']['scrapy']['level']
         logging.getLogger('scrapy').setLevel(logging.getLevelName(sll))
-        logger.info('Number of url to parse is: %s', len(url_tuples))
+        logger.info('Number of url to parse is: %s', len(nt_articles))
         process.crawl(
             ArticleParserSpider,
             session=session,
-            url_tuples=url_tuples,
+            nt_articles=nt_articles,
             api_key=cls.conf['crawl']['article_parser']['webparser_api_key'],
         )
         process.start()
@@ -277,7 +287,9 @@ Examples (`||` represents continue of commands, you can ignore when using):
                 file_level='WARNING')
             if not session.query(Site.id).count() > 0:
                 raise SystemExit('Your site table is empty!')
-            q = session.query(Url.id, Url.raw)
+            # Columns should be the same as namedtuple NTUrl
+            # namedtuple('NTUrl', ['id', 'raw', 'created_at'])
+            q = session.query(Url.id, Url.raw, Url.created_at)
             if where_expr is None:
                 where_expr = [text(DEFAULT_WHERE_EXPR_FETCH_HTML)]
             else:
@@ -288,34 +300,38 @@ Examples (`||` represents continue of commands, you can ignore when using):
                 q = q.limit(limit)
             logger.info(
                 q.statement.compile(compile_kwargs={"literal_binds": True}))
-            url_tuples = q.all()
-            if not url_tuples:
+            nt_urls = [NTUrl(*row) for row in q]
+            if not nt_urls:
                 logger.warning('No such URLs in DB!')
                 raise SystemExit(2)
             logger.warning('Staring crawling process to fetch HTML ...')
-            cls.fetch_html(session, url_tuples)
+            cls.fetch_html(session, nt_urls)
         # --parse-article
         elif args['--parse-article'] is True:
             configure_logging(
                 'crawl.parse-article',
                 console_level=args['--console-log-level'],
                 file_level='WARNING')
-            q = session.query(Url.id, Url.created_at, Url.date_published,
-                              Url.canonical, Url.site_id)
+            # Should be the same as namedtuple NTArticle
+            # namedtuple('NTArticle',
+            #            ['id', 'canonical_url', 'date_published'])
+            q = session.query(Article.id, Article.canonical_url,
+                              Article.date_published)
             if where_expr is None:
                 where_expr = [text(DEFAULT_WHERE_EXPR_PARSE_ARTICLE)]
             else:
                 where_expr = [text(where_expr)]
-            ob_expr = Url.id.asc() if ob_expr == 'asc' else Url.id.desc()
+            ob_expr = Article.id.asc(
+            ) if ob_expr == 'asc' else Article.id.desc()
             q = q.filter(*where_expr).order_by(ob_expr)
             if limit is not None:
                 q = q.limit(limit)
             logger.info(
                 q.statement.compile(compile_kwargs={"literal_binds": True}))
-            url_tuples = q.all()
-            if not url_tuples:
+            nt_articles = [NTArticle(*row) for row in q]
+            if not nt_articles:
                 logger.warning('No URLs found from DB!')
                 raise SystemExit(2)
             logger.warning('Starting crawling process to parse article ...')
-            cls.parse_article(session, url_tuples)
+            cls.parse_article(session, nt_articles)
         session.close()

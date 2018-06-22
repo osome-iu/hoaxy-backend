@@ -12,14 +12,15 @@ import logging
 
 import lxml.html
 import scrapy
+from scrapy.spidermiddlewares.httperror import HttpError
 from sqlalchemy.exc import SQLAlchemyError
 
 from hoaxy.database.models import (
     A_DEFAULT,
     A_P_SUCCESS,
     A_WP_ERROR_DATA_INVALID,
-    A_WP_ERROR_NO_SCRAPY_RESPONSE,
-    A_WP_ERROR_UNKNOWN,
+    A_WP_ERROR_DROPPED,
+    A_WP_ERROR_NONHTTP,
     Article,
 )
 
@@ -61,7 +62,7 @@ class ArticleParserSpider(scrapy.spiders.Spider):
     def start_requests(self):
         for nt_article in self.nt_articles:
             url = "https://mercury.postlight.com/parser?url={}".format(
-                nt_article['canonical_url'].encode('utf-8', errors='ignore'))
+                nt_article.canonical_url.encode('utf-8', errors='ignore'))
             yield scrapy.Request(
                 url,
                 callback=self.parse_item,
@@ -77,10 +78,19 @@ class ArticleParserSpider(scrapy.spiders.Spider):
         request = failure.request
         nt_article = request.meta['nt_article']
         logger.error('Fail to do web parsing request for %s',
-                     nt_article['canonical_url'])
+                     nt_article.canonical_url)
+        if failure.check(HttpError):
+            # these exceptions come from HttpError spider middleware
+            # you can get the non-200 response
+            response = failure.value.response
+            status_code = response.status
+            logger.error('HTTP ERROR %r of web parser %r', status_code,
+                         request.url)
+        else:
+            status_code = A_WP_ERROR_NONHTTP
         try:
-            self.session.query(Article).filter_by(id=nt_article['id'])\
-                .update(dict(status_code=A_WP_ERROR_UNKNOWN))
+            self.session.query(Article).filter_by(id=nt_article.id)\
+                .update(dict(status_code=status_code))
             self.session.commit()
         except SQLAlchemyError as e:
             logger.error(e)
@@ -129,7 +139,7 @@ class ArticleParserSpider(scrapy.spiders.Spider):
             if self.html_mode == HTML_KEEP_FAILURE:
                 article_data['html'] = None
         try:
-            self.session.query(Article).filter_by(id=nt_article['id'])\
+            self.session.query(Article).filter_by(id=nt_article.id)\
                 .update(article_data)
             self.session.commit()
         except SQLAlchemyError as e:
@@ -146,13 +156,13 @@ class ArticleParserSpider(scrapy.spiders.Spider):
         if reason == 'finished':
             logger.warning("""Update unreceived record when closing spider \
 with reason='finished""")
-            article_data = dict(status_code=A_WP_ERROR_NO_SCRAPY_RESPONSE)
+            article_data = dict(status_code=A_WP_ERROR_DROPPED)
             if self.html_mode == HTML_KEEP_NONE:
                 article_data['html'] = None
             try:
                 self.session.query(Article)\
                     .filter_by(status_code=A_DEFAULT)\
-                    .filter(Article.id.in_([x['id'] for x in self.nt_articles])
+                    .filter(Article.id.in_([x.id for x in self.nt_articles])
                             ).update(article_data, synchronize_session=False)
                 self.session.commit()
             except SQLAlchemyError as e:
