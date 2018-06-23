@@ -31,6 +31,7 @@ from sqlalchemy.sql import func
 from hoaxy.crawl.items import ArticleItem
 from hoaxy.database.functions import get_or_create_murl, get_site_tuples
 from hoaxy.database.models import (MAX_URL_LEN,
+                                   A_P_SUCCESS,
                                    U_HTML_ERROR_EXCLUDED_DOMAIN,
                                    U_HTML_ERROR_INVALID_URL, U_HTML_SUCCESS,
                                    Article, Url,)
@@ -162,53 +163,61 @@ class HtmlPipeline(object):
         return item
 
 
+def get_max_group_id(session):
+    """Return the maximumn group_id of table `article`.
+
+    Parameters
+    ----------
+    session : object
+        A SQLAlchemy Session instance.
+
+    Returns
+    -------
+    int
+        The maximum group_id of table `article`.
+    """
+    group_id = session.query(func.max(Article.group_id)).scalar()
+    return group_id if group_id is not None else 0
+
+
+def get_or_next_group_id(session, title, site_id):
+    """Get the next group_id by checking the duplication of tuple
+    (title, site_id)
+
+    Parameters
+    ----------
+    session : object
+        A instance of SQLAlchemy Session.
+    title : string
+        The title of an article.
+    site_id : int
+        The site_id of an article.
+
+    Returns
+    -------
+    int
+        The next group_id.
+    """
+    group_id = session.query(Article.group_id).filter_by(
+        title=title, site_id=site_id).limit(1).scalar()
+    return group_id if group_id is not None \
+        else get_max_group_id(session) + 1
+
+
 class ArticlePipeline(object):
-    """The class is used to save parsed article into table."""
+    """The class is used to save parsed article into table.
 
-    def get_max_group_id(self, session):
-        """Return the maximumn group_id of table `article`.
-
-        Parameters
-        ----------
-        session : object
-            A SQLAlchemy Session instance.
-
-        Returns
-        -------
-        int
-            The maximum group_id of table `article`.
-
-        """
-        group_id = session.query(func.max(Article.group_id)).scalar()
-        return group_id if group_id is not None else 0
-
-    def get_or_next_group_id(self, session, title, site_id):
-        """Get the next group_id when trying to insert a new article.
-
-        Parameters
-        ----------
-        session : object
-            A instance of SQLAlchemy Session.
-        title : string
-            The title of an article.
-        site_id : int
-            The site_id of an article.
-
-        Returns
-        -------
-        int
-            The next group_id.
-        """
-        group_id = session.query(Article.group_id).filter_by(
-            title=title, site_id=site_id).limit(1).scalar()
-        return group_id if group_id is not None \
-            else self.get_max_group_id(session) + 1
-
+    This pipeline class is aimed for spider class
+    hoaxy.crawl.spiders.article.ArticleParserSpider. The pipeline receives
+    parsed article item and store it into database (by UPDATE).
+    """
     def process_item(self, item, spider):
-        """Main function that process Article item (third phase)."""
+        """Main function that store the parsed article"""
         article_id = item.pop('id')
-        item['group_id'] = self.get_or_next_group_id(
-            spider.session, item['title'], item['site_id'])
+        if item['status_code'] == A_P_SUCCESS:
+            site_id = item.pop('site_id')
+            item['group_id'] = get_or_next_group_id(
+                spider.session, item['title'], site_id)
         # update changes
         spider.session.query(Article).filter_by(id=article_id).update(item)
         try:

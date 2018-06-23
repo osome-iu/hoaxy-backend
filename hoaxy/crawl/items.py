@@ -14,7 +14,7 @@ database table.
 #
 # written by Chengcheng Shao <sccotte@gmail.com>
 
-import collections
+from collections import namedtuple
 
 import scrapy
 
@@ -38,7 +38,6 @@ class UrlItem(scrapy.Item):
 class ArticleItem(scrapy.Item):
     """Article entry, see Article table model."""
     id = scrapy.Field()
-    url_id = scrapy.Field()
     canonical_url = scrapy.Field()
     site_id = scrapy.Field()
     group_id = scrapy.Field()
@@ -47,12 +46,30 @@ class ArticleItem(scrapy.Item):
     meta = scrapy.Field()
     date_published = scrapy.Field()
     date_captured = scrapy.Field()
+    status_code = scrapy.Field()
     # copied from urlitem
     html = scrapy.Field()
 
 
-# Url namedtuples, when fetching html
-NTUrl = collections.namedtuple('NTUrl', ['id', 'raw', 'created_at'])
-# Article named tuples, when parsing article
-NTArticle = collections.namedtuple('NTArticle',
-                                   ['id', 'canonical_url', 'date_published'])
+class NTUrl(namedtuple('NTUrl', ['id', 'raw', 'created_at'])):
+    """ Url namedtuples, used as input when fetching html.
+
+    Necessary fields are:
+        `id`, to identify url in the database;
+        `raw`, used as input for scrapy request;
+        `created_at`, used as article.date_published.
+    """
+    pass
+
+
+class NTArticle(namedtuple('NTArticle', ['id', 'canonical_url', 'site_id'])):
+    """Article named tuples, used as input when parsing article.
+
+    Necessary fields are:
+        `id`, to identify article in the database;
+        `canonical_url`, input for scrapy request, sepcifically, web parser
+            service;
+        `site_id`: used to generate `article.group_id`, combined with 'title'
+            that is from web parser.
+    """
+    pass

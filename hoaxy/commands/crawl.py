@@ -11,10 +11,11 @@ import logging
 import re
 import sys
 
-from schema import Or, Schema, SchemaError, Use
+from schema import And, Or, Schema, SchemaError, Use
 from scrapy.crawler import CrawlerProcess
 from scrapy.settings import Settings
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from hoaxy.commands import HoaxyCommand
 from hoaxy.crawl.items import NTArticle, NTUrl
@@ -24,6 +25,7 @@ from hoaxy.crawl.spiders.html import HtmlSpider
 from hoaxy.database import Session
 from hoaxy.database.functions import get_msites, get_platform_id
 from hoaxy.database.models import (
+    A_P_SUCCESS,
     DEFAULT_WHERE_EXPR_FETCH_HTML,
     DEFAULT_WHERE_EXPR_FETCH_URL,
     DEFAULT_WHERE_EXPR_PARSE_ARTICLE,
@@ -73,6 +75,7 @@ Usage:
               [--where-expr=<w> --order-by=<o> --limit=<l>]
   hoaxy crawl --fetch-html [--where-expr=<w> --order-by=<o> --limit=<l>]
   hoaxy crawl --parse-article [--where-expr=<w> --order-by=<o> --limit=<l>]
+              [--keep-html=<kh>]
 
 This command provides crawling functions, including fetching URLs from sites,
 fetching HTMLs of URLs, and parsing HTML pages into structured article data.
@@ -90,6 +93,17 @@ When fetching URL, you can specify which kind of URLs to fetch by option:
 --updated               Fetch news update (the newest articles).
 --archive               Fetch news archive (the whole site articles). Be
                           careful to use this option, it is time consuming.
+
+When parsing HTML into structured article, we offer the `--html-mode` option
+to deal with existed HTMLs.
+--keep-html=<kh>        Three values (case insenstive) are accepted:
+                        'all', 'none' and 'failure'.
+                          'all': the html column would not be touched so that
+                             html of all records are kept;
+                          'none': the html column would be set to NULL;
+                          'failure': the html column would be set to NULL only
+                             for those failed parsed records.
+                        [default: all]
 
 The inputs for crawling processes (domains or URLs) are queried from DB. By
 default you do not need to consider the internal SQL query. However,
@@ -149,12 +163,19 @@ Examples (`||` represents continue of commands, you can ignore when using):
     short_description = 'Crawl news sites'
     args_schema = Schema({
         '--order-by':
-        Or(None,
-           Use(str.lower),
-           lambda s: s in ('asc', 'desc'),
-           error='must be asc or desc'),
+        Or(
+            None,
+            And(Use(str.lower),
+                lambda s: s in ('asc', 'desc'),
+                error="`--order-by` should be 'asc' or 'desc'")),
         '--limit':
         Or(None, Use(int)),
+        '--keep-html':
+        Or(
+            None,
+            And(Use(str.lower),
+                lambda s: s in ('all', 'none', 'failure'),
+                error="`--keep-html` should be 'all', 'none', or 'failure'")),
         object:
         object
     })
@@ -316,7 +337,7 @@ Examples (`||` represents continue of commands, you can ignore when using):
             # namedtuple('NTArticle',
             #            ['id', 'canonical_url', 'date_published'])
             q = session.query(Article.id, Article.canonical_url,
-                              Article.date_published)
+                              Article.site_id)
             if where_expr is None:
                 where_expr = [text(DEFAULT_WHERE_EXPR_PARSE_ARTICLE)]
             else:
@@ -334,4 +355,25 @@ Examples (`||` represents continue of commands, you can ignore when using):
                 raise SystemExit(2)
             logger.warning('Starting crawling process to parse article ...')
             cls.parse_article(session, nt_articles)
+            logger.info('Handling HTML with mode `--keep-html=%r`',
+                        args['--keep-html'])
+            if args['--keep-html'] == 'none':
+                try:
+                    session.query(Article)\
+                        .filter(Article.id.in_([x.id for x in nt_articles]))\
+                        .update(dict(html=None), synchronize_session=False)
+                    session.commit()
+                except SQLAlchemyError as e:
+                    logger.error(e)
+                    session.rollback()
+            elif args['--keep-html'] == 'failure':
+                try:
+                    session.query(Article)\
+                        .filter(Article.status_code != A_P_SUCCESS)\
+                        .filter(Article.id.in_([x.id for x in nt_articles]))\
+                        .update(dict(html=None), synchronize_session=False)
+                    session.commit()
+                except SQLAlchemyError as e:
+                    logger.error(e)
+                    session.rollback()
         session.close()

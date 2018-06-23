@@ -23,12 +23,9 @@ from hoaxy.database.models import (
     A_WP_ERROR_NONHTTP,
     Article,
 )
+from hoaxy.crawl.items import ArticleItem
 
 logger = logging.getLogger(__name__)
-
-HTML_KEEP_ALL = 0
-HTML_KEEP_FAILURE = 1
-HTML_KEEP_NONE = 2
 
 
 class ArticleParserSpider(scrapy.spiders.Spider):
@@ -37,6 +34,9 @@ class ArticleParserSpider(scrapy.spiders.Spider):
     The web parser service is provided by https://mercury.postlight.com/.
     This spider build requests, and send them to the service and parse the data
     and insert into our article table.
+
+    This spider class should work with pipeline
+    hoaxy.crawl.piplines.ArticlePipeline.
     """
     name = 'article_parser.spider'
 
@@ -49,17 +49,18 @@ class ArticleParserSpider(scrapy.spiders.Spider):
             A SQLAlchemy session instance.
         nt_articles : list
             A list of namedtuples, hoaxy.crawling.items.NTArticle
-            (id, canonical_url)
+            (id, canonical_url, site_id)
         api_key : string
             The API key to use the service.
         """
         self.session = session
         self.nt_articles = nt_articles
         self.api_key = api_key
-        self.html_mode = kwargs.pop('html_mode', HTML_KEEP_ALL)
         super(ArticleParserSpider, self).__init__(*args, **kwargs)
 
     def start_requests(self):
+        """ Override the start_requests function
+        """
         for nt_article in self.nt_articles:
             url = "https://mercury.postlight.com/parser?url={}".format(
                 nt_article.canonical_url.encode('utf-8', errors='ignore'))
@@ -97,10 +98,12 @@ class ArticleParserSpider(scrapy.spiders.Spider):
             self.session.rollback()
 
     def parse_item(self, response):
-        """Parse the response into an ArticleItem."""
+        """Parse the response into an ArticleItem, and pass to the pipeline"""
         nt_article = response.meta['nt_article']
-        article_data = dict()
         status_code = A_P_SUCCESS
+        article_item = ArticleItem()
+        article_item['id'] = nt_article.id
+        article_item['site_id'] = nt_article.site_id
         # load json data
         try:
             data = json.loads(response.text)
@@ -114,37 +117,25 @@ class ArticleParserSpider(scrapy.spiders.Spider):
         else:
             # fill item with data
             try:
-                article_data['title'] = data['title']
-                article_data['content'] = lxml.html.fromstring(
+                article_item['title'] = data['title']
+                article_item['content'] = lxml.html.fromstring(
                     html=data['content']).text_content()
-                article_data['meta'] = dict(
+                article_item['meta'] = dict(
                     dek=data['dek'],
                     excerpt=data['excerpt'],
                     author=data['author'])
                 if data['date_published'] is not None:
-                    article_data['date_published'] = data['date_published']
-                article_data['status_code'] = A_P_SUCCESS
+                    article_item['date_published'] = data['date_published']
+                article_item['status_code'] = A_P_SUCCESS
             except Exception as e:
                 logger.error('Error when parsing data from webparser %r: %s',
                              data, e)
                 status_code = A_WP_ERROR_DATA_INVALID
-        # Update article
         if status_code != A_P_SUCCESS:
-            article_data = dict(status_code=status_code)
-            # clean html if necessary
-            if self.html_mode == HTML_KEEP_NONE:
-                article_data['html'] = None
-        else:
-            # clean html if necessary
-            if self.html_mode == HTML_KEEP_FAILURE:
-                article_data['html'] = None
-        try:
-            self.session.query(Article).filter_by(id=nt_article.id)\
-                .update(article_data)
-            self.session.commit()
-        except SQLAlchemyError as e:
-            logger.error(e)
-            self.session.rollback()
+            article_item = ArticleItem(status_code=status_code,
+                                       id=nt_article.id)
+        # pass to pipeline
+        yield article_item
 
     def close(self, reason):
         """Called when closing this spider.
@@ -157,13 +148,11 @@ class ArticleParserSpider(scrapy.spiders.Spider):
             logger.warning("""Update unreceived record when closing spider \
 with reason='finished""")
             article_data = dict(status_code=A_WP_ERROR_DROPPED)
-            if self.html_mode == HTML_KEEP_NONE:
-                article_data['html'] = None
             try:
                 self.session.query(Article)\
                     .filter_by(status_code=A_DEFAULT)\
-                    .filter(Article.id.in_([x.id for x in self.nt_articles])
-                            ).update(article_data, synchronize_session=False)
+                    .filter(Article.id.in_([x.id for x in self.nt_articles]))\
+                    .update(article_data, synchronize_session=False)
                 self.session.commit()
             except SQLAlchemyError as e:
                 logger.error(e)
