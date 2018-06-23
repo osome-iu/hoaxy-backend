@@ -7,27 +7,30 @@ data collection.
 #
 # written by Chengcheng Shao <sccotte@gmail.com>
 
-from botometer import NoTimelineError
-from datetime import datetime
-from datetime import timedelta
+import logging
+import sys
+import time
+from datetime import datetime, timedelta
+
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
-from hoaxy.commands import HoaxyCommand
-from hoaxy.database import ENGINE
-from hoaxy.database import Session
-from hoaxy.database.models import Top20ArticleMonthly
-from hoaxy.database.models import Top20SpreaderMonthly
-from hoaxy.ir.search import db_query_top_spreaders, db_query_top_articles
-from hoaxy.utils.log import configure_logging
 from requests import ConnectionError, Timeout
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from tabulate import tabulate
 from tweepy import TweepError
+
 import botometer
-import logging
-import sys
-import time
+from botometer import NoTimelineError
+from hoaxy.commands import HoaxyCommand
+from hoaxy.database import ENGINE, Session
+from hoaxy.database.models import (
+    A_P_SUCCESS,
+    Top20ArticleMonthly,
+    Top20SpreaderMonthly,
+)
+from hoaxy.ir.search import db_query_top_articles, db_query_top_spreaders
+from hoaxy.utils.log import configure_logging
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +176,8 @@ is working.
                     JOIN url AS u ON u.id=atu.url_id
                     JOIN site AS s ON s.id=u.site_id
                 WHERE tw1.created_at BETWEEN :lower_day AND :upper_day
-                    AND site_type LIKE 'fact_checking'
+                    AND s.site_type LIKE 'fact_checking'
+                    AND s.is_enabled IS TRUE
                 GROUP BY tw1.user_id
                 ORDER BY number_of_tweets DESC LIMIT 20
             ) AS t
@@ -201,7 +205,8 @@ is working.
                     JOIN url AS u ON u.id=atu.url_id
                     JOIN site AS s ON s.id=u.site_id
                 WHERE tw1.created_at BETWEEN :lower_day AND :upper_day
-                    AND site_type LIKE 'claim'
+                    AND s.site_type LIKE 'claim'
+                    AND s.is_enabled IS TRUE
                 GROUP BY tw1.user_id
                 ORDER BY number_of_tweets DESC LIMIT 20
             ) AS t
@@ -232,6 +237,7 @@ is working.
                 JOIN site AS s ON s.id=u.site_id
             WHERE tw.created_at BETWEEN :lower_day AND :upper_day
                 AND s.site_type LIKE 'fact_checking'
+                AND s.is_enabled IS TRUE
             GROUP BY tu.id
             ORDER BY number_of_retweets DESC LIMIT 20
             ) AS t
@@ -262,6 +268,7 @@ is working.
                 JOIN site AS s ON s.id=u.site_id
             WHERE tw.created_at BETWEEN :lower_day AND :upper_day
                 AND s.site_type LIKE 'claim'
+                AND s.is_enabled IS TRUE
             GROUP BY tu.id
             ORDER BY number_of_retweets DESC LIMIT 20
             ) AS t
@@ -355,10 +362,12 @@ is working.
         WHERE a.date_captured BETWEEN :lower_day AND :upper_day
                 AND tw.created_at BETWEEN :lower_day AND :upper_day
                 AND s.site_type LIKE 'fact_checking'
+                AND s.is_enabled IS TRUE
+                AND a.status_code={a_p_success}
         GROUP BY a.date_captured, a.title, a.canonical_url
         ORDER BY number_of_tweets DESC
         LIMIT 20
-        """
+        """.format(a_p_success=A_P_SUCCESS)
         # top 20 most sharing articles for 'claim'
         q2 = """
         INSERT INTO top20_article_monthly (upper_day, date_captured, title,
@@ -377,10 +386,12 @@ is working.
         WHERE a.date_captured BETWEEN :lower_day AND :upper_day
                 AND tw.created_at BETWEEN :lower_day AND :upper_day
                 AND s.site_type LIKE 'claim'
+                AND s.is_enabled IS TRUE
+                AND a.status_code={a_p_success}
         GROUP BY a.date_captured, a.title, a.canonical_url
         ORDER BY number_of_tweets DESC
         LIMIT 20
-        """
+        """.format(a_p_success=A_P_SUCCESS)
         session.execute(
             text(q1).bindparams(lower_day=lower_day, upper_day=upper_day))
         session.execute(

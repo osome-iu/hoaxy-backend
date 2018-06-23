@@ -1,17 +1,18 @@
+import logging
+import pprint
+import sys
+
+import lucene
+import sqlalchemy
+from schema import And, Or, Schema, SchemaError, Use
+
 from hoaxy.commands import HoaxyCommand
 from hoaxy.database import Session
 from hoaxy.database.functions import get_or_create_m
-from hoaxy.database.models import MetaInfo
-from hoaxy.utils.log import configure_logging
+from hoaxy.database.models import A_P_SUCCESS, MetaInfo
 from hoaxy.ir.index import Indexer
 from hoaxy.ir.search import Searcher
-from schema import Schema, And, Use, Or
-from schema import SchemaError
-import lucene
-import logging
-import sys
-import sqlalchemy
-import pprint
+from hoaxy.utils.log import configure_logging
 
 logger = logging.getLogger(__name__)
 
@@ -86,18 +87,40 @@ Examples:
 
     @classmethod
     def index(cls, session, mode, articles_iter, mgid):
+        """Main function of lucene index.
+
+        Paramters
+        ---------
+        session: Session object
+
+        mode: string
+            Lucene index mode
+
+        articles_iter: iterator
+            article results
+
+        mgid: meta_info model object
+            group_id in meta_info table
+
+        Returns
+        -------
+        None
+        """
         lucene.initVM()
         index_dir = cls.conf['lucene']['index_dir']
         indexer = Indexer(
             index_dir, mode, date_format=cls.conf['lucene']['date_format'])
         article = None
-        for i, data in enumerate(articles_iter):
+        counter = 0
+        for data in articles_iter:
             article = cls.prepare_article(data)
             indexer.index_one(article)
-            if i % cls.conf['window_size'] == 1:
-                logger.info('Indexed %s articles', i)
+            counter += 1
+            if counter % cls.conf['window_size'] == 1:
+                logger.info('Number of indexed articles is: %s', counter)
         indexer.close()
         if article is not None:
+            logger.info('Final number of indexed articles is: %s', counter)
             mgid.value = str(article['group_id'])
             session.commit()
             logger.info('Indexed article pointer updated!')
@@ -149,10 +172,12 @@ Examples:
                 JOIN site AS s ON s.id=a.site_id
             WHERE a.site_id IS NOT NULL AND s.is_enabled IS TRUE
                 AND a.group_id>:gid
+                AND a.status_code={}
             ORDER BY group_id, pd ASC
-            """
-            articles_iter = session.execute(
-                sqlalchemy.text(q).bindparams(gid=mgid.get_value()))
+            """.format(A_P_SUCCESS)
+            stmt = sqlalchemy.text(q).bindparams(gid=mgid.get_value())
+            articles_iter = session.execute(stmt)
+            logger.info(stmt.compile(compile_kwargs={"literal_binds": True}))
             cls.index(session, args['--mode'], articles_iter, mgid)
         elif args['--search'] is True:
             configure_logging(

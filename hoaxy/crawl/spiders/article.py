@@ -132,8 +132,10 @@ class ArticleParserSpider(scrapy.spiders.Spider):
                              data, e)
                 status_code = A_WP_ERROR_DATA_INVALID
         if status_code != A_P_SUCCESS:
-            article_item = ArticleItem(status_code=status_code,
-                                       id=nt_article.id)
+            article_item = ArticleItem(
+                status_code=status_code, id=nt_article.id)
+        logger.debug('Parsed article %r with status_code %s',
+                     nt_article.canonical_url, status_code)
         # pass to pipeline
         yield article_item
 
