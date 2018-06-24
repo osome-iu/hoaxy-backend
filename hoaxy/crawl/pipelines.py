@@ -24,19 +24,29 @@ There exists one pipeline for each phase.
 
 import logging
 
-from scrapy.exceptions import DropItem
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.sql import func
 
 from hoaxy.crawl.items import ArticleItem
 from hoaxy.database.functions import get_or_create_murl, get_site_tuples
-from hoaxy.database.models import (MAX_URL_LEN,
-                                   A_P_SUCCESS,
-                                   U_HTML_ERROR_EXCLUDED_DOMAIN,
-                                   U_HTML_ERROR_INVALID_URL, U_HTML_SUCCESS,
-                                   Article, Url,)
-from hoaxy.utils.url import (belongs_to_domain, belongs_to_site, canonicalize,
-                             get_parsed_url,)
+from hoaxy.database.models import (
+    A_P_SUCCESS,
+    MAX_URL_LEN,
+    U_HTML_ERROR_EXCLUDED_DOMAIN,
+    U_HTML_ERROR_HOME_URL,
+    U_HTML_ERROR_INVALID_URL,
+    U_HTML_SUCCESS,
+    Article,
+    Url,
+)
+from hoaxy.utils.url import (
+    belongs_to_domain,
+    belongs_to_site,
+    canonicalize,
+    get_parsed_url,
+    is_home_url,
+)
+from scrapy.exceptions import DropItem
 
 logger = logging.getLogger(__name__)
 
@@ -114,21 +124,23 @@ class HtmlPipeline(object):
         item['canonical'] = canonicalize(item['expanded'])
         if item['canonical'] is None:
             item['status_code'] = U_HTML_ERROR_INVALID_URL
-
-        # if url could be canonicalized and if site_id is not determined
-        # we infer it from the expanded url
-        if item['status_code'] != U_HTML_ERROR_INVALID_URL\
-                and item.get('site_id', None) is None:
-            purl = get_parsed_url(item['expanded'])
-            if purl is not None and purl.hostname is not None:
-                if belongs_to_domain(purl.hostname, spider.excluded_domains)\
-                        is not None:
-                    item['status_code'] = U_HTML_ERROR_EXCLUDED_DOMAIN
+        # canonicalied url
+        else:
+            purl = get_parsed_url(item['canonical'])
+            # home url?
+            if is_home_url(purl.path) is True:
+                item['status_code'] = U_HTML_ERROR_HOME_URL
+            # site_id is not determined yet?
+            elif item.get('site_id', None) is None:
+                if purl is not None and purl.hostname is not None:
+                    if belongs_to_domain(purl.hostname,
+                                         spider.excluded_domains) is not None:
+                        item['status_code'] = U_HTML_ERROR_EXCLUDED_DOMAIN
+                    else:
+                        item['site_id'] = belongs_to_site(
+                            purl.hostname, self.site_tuples)
                 else:
-                    item['site_id'] = belongs_to_site(purl.hostname,
-                                                      self.site_tuples)
-            else:
-                item['status_code'] = U_HTML_ERROR_INVALID_URL
+                    item['status_code'] = U_HTML_ERROR_INVALID_URL
         # html is the column of article table, not url table
         # we need to pop it from url item
         html = item.pop('html', None)
@@ -212,13 +224,14 @@ class ArticlePipeline(object):
     hoaxy.crawl.spiders.article.ArticleParserSpider. The pipeline receives
     parsed article item and store it into database (by UPDATE).
     """
+
     def process_item(self, item, spider):
         """Main function that store the parsed article"""
         article_id = item.pop('id')
         if item['status_code'] == A_P_SUCCESS:
             site_id = item.pop('site_id')
-            item['group_id'] = get_or_next_group_id(
-                spider.session, item['title'], site_id)
+            item['group_id'] = get_or_next_group_id(spider.session,
+                                                    item['title'], site_id)
         # update changes
         spider.session.query(Article).filter_by(id=article_id).update(item)
         try:
