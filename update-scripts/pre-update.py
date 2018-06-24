@@ -9,11 +9,27 @@ from hoaxy.database.models import A_DEFAULT, A_P_SUCCESS
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
+
+    # Update url.article_id=NULL for these deleted records
+    logging.info('Update url table to avoid cascading delete!')
+    q = """UPDATE url SET article_id=NULL FROM article
+           WHERE article.id=url.article_id
+                AND article.site_id IS NULL
+        """
+    try:
+        engine.execute(text(q))
+        logging.info('Table url updated!')
+    except SQLAlchemyError as e:
+        logging.error(e)
+
     # Delete unnecessary records in table article
     logging.info('Deleting table `article` where `site_id` is null')
     q = "DELETE FROM article WHERE site_id IS NULL"
-    engine.execute(text(q))
-    logging.info('Table deleted!')
+    try:
+        engine.execute(text(q))
+        logging.info('Table deleted!')
+    except SQLAlchemyError as e:
+        logging.error(e)
 
     # DROP NULL CONSTRAINS
     logging.info(
