@@ -129,12 +129,13 @@ class HtmlPipeline(object):
                                                       self.site_tuples)
             else:
                 item['status_code'] = U_HTML_ERROR_INVALID_URL
+        # html is the column of article table, not url table
+        # we need to pop it from url item
+        html = item.pop('html', None)
         # if status_code==U_HTML_SUCCESS AND site_id IS NOT NULL
         # create a new article record
         if item['status_code'] == U_HTML_SUCCESS\
                 and item['site_id'] is not None:
-            # remove potential NUL byte \x00 in the HTML
-            html = item.pop('html')
             article_data = ArticleItem()
             article_data['canonical_url'] = item['canonical']
             article_data['html'] = html
