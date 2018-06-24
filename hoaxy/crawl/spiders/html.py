@@ -140,7 +140,7 @@ class HtmlSpider(scrapy.spiders.Spider):
             item['status_code'] = U_HTML_SUCCESS
         except Exception as e:
             logger.error('Invalidate html docs: %s, %s, %s', item['raw'], e,
-                         text)
+                         text.decode('utf-8', 'ignore'))
             item['status_code'] = U_HTML_ERROR_INVALID_HTML
         yield item
 
