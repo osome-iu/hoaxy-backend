@@ -161,3 +161,54 @@ SET html=pri_url.html
 FROM pri_url
 WHERE pri_url.article_id=article.id
 ;
+
+-------------------------------------------------------------------------------
+-- DROP TABLE COLUMN url.html
+-------------------------------------------------------------------------------
+ALTER TABLE url DROP COLUMN html;
+
+-------------------------------------------------------------------------------
+-- UPDATE url.status_code
+-------------------------------------------------------------------------------
+-- TESTS
+-------------------------------------------------------------------------------
+
+-- SELECT COUNT(*)
+-- FROM url
+-- WHERE status_code>80 AND status_code<90;
+
+--  count
+-- -------
+--  58547
+-- (1 row)
+
+-- hoaxy crawl --fetch-html --where-expr='url.status_code>80 AND url.status_code<90'
+-------------------------------------------------------------------------------
+
+-- SELECT COUNT(*)
+-- FROM url
+-- WHERE status_code=80;
+--   count
+-- ---------
+--  3922087
+-------------------------------------------------------------------------------
+
+UPDATE url
+SET status_code=40
+WHERE status_code=80;
+
+-------------------------------------------------------------------------------
+-- SELECT COUNT(*)
+-- FROM url
+-- WHERE status_code=46;
+-- 
+--  count
+-- --------
+--  237845
+-- (1 row)
+--
+-- EXECUTE THIS COMMAND MONTHS LATER, AS WE DO NOT WANT TO AFFECT THE
+-- ANALYSIS DATA OF PAPERS.
+-- hoaxy crawl --fetch-html --where-expr='url.status_code=46'
+-------------------------------------------------------------------------------
+
