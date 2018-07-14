@@ -4,30 +4,24 @@
 #
 # written by Chengcheng Shao <sccotte@gmail.com>
 
-from hoaxy.database import Session
-from hoaxy.database.functions import get_or_create_m
-from hoaxy.database.functions import get_or_create_murl
-from hoaxy.database.functions import create_or_update_muser
-from hoaxy.database.functions import create_m
-from hoaxy.database.models import AssTweetHashtag
-from hoaxy.database.models import AssTweetUrl
-from hoaxy.database.models import Hashtag
-from hoaxy.database.models import Tweet
-from hoaxy.database.models import TwitterUser
-from hoaxy.database.models import TwitterUserUnion
-from hoaxy.database.models import TwitterNetworkEdge
-from hoaxy.database.models import AssTweet
-from hoaxy.database.models import MAX_URL_LEN
-from hoaxy.utils.dt import utc_from_str
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.exc import OperationalError
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.dialects.postgresql import insert
-import simplejson as json
-import Queue
 import logging
+import Queue
 import threading
 import time
+
+# on conflict do nothing or update statement require postgresql >= 9.5
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
+
+import simplejson as json
+from hoaxy.database import Session
+from hoaxy.database.functions import (create_m, create_or_update_muser,
+                                      get_or_create_m, get_or_create_murl,)
+from hoaxy.database.models import (MAX_URL_LEN, AssTweet, AssTweetHashtag,
+                                   AssTweetUrl, Hashtag, Tweet,
+                                   TwitterNetworkEdge, TwitterUser,
+                                   TwitterUserUnion,)
+from hoaxy.utils.dt import utc_from_str
 
 logger = logging.getLogger(__name__)
 
@@ -535,8 +529,11 @@ class BulkParser():
             for url in entities['urls']:
                 u = url.get('expanded_url')
                 if u:
-                    l_urls[label].add(u)
-                    l_urls['union'].add(u)
+                    if len(u) > MAX_URL_LEN:
+                        logger.warning('URL %r is too long, ignore', u)
+                    else:
+                        l_urls[label].add(u)
+                        l_urls['union'].add(u)
         if l_mentions is not None and 'user_mentions' in entities:
             for m in entities['user_mentions']:
                 user_raw_id = m.get('id')
@@ -897,6 +894,475 @@ class BulkParser():
             else:
                 raise TypeError('Input jds should be dict!')
         self.save_bulk(session, g_uusers_set, g_edges_set)
+
+
+    def _parse_to_tuples_l2(self, jd, l_urls, l_mentions):
+        """Second Level parsing. In this level parsing, we collect all users
+        appeared in the tweet and build the network edges (information flow) if
+        exist.
+        
+        Parameters
+        ----------
+        jd: JSON
+            A tweet JSON object.
+        l_urls: dict
+            Parsed URLs result during paring level 1.
+        l_mentions: dict
+            Parsed mentions result during parsing level 1.
+
+        Returns
+        -------
+        A dict contains returned items:
+        #######################################################################
+        # items to return
+        #######################################################################
+        ## twitter_user_union, a set of tuples,
+        # each tuple is
+        # (
+        #   twitter_user_union.raw_id,
+        #   twitter_user_union.screen_name
+        # )
+        r_tuu = set()
+        ## twitter_network_edge, set of tuples,
+        # each tuple is
+        # (
+        #   twitter_network_edge.tweet_raw_id,
+        #   twitter_network_edge.from_raw_id,
+        #   twitter_network_edge.to_raw_id,
+        #   url.raw, # mapping to url.id
+        #   twitter_network_edge.is_quoted_url,
+        #   twitter_network_edge.is_mention,
+        #   twitter_network_edge.tweet_type
+        # )
+        r_tne = set()
+        """
+        #######################################################################
+        # items to return
+        #######################################################################
+        ## twitter_user_union, a set of tuples,
+        # each tuple is
+        # (
+        #   twitter_user_union.raw_id,
+        #   twitter_user_union.screen_name
+        # )
+        r_tuu = set()
+        ## twitter_network_edge, set of tuples,
+        # each tuple is
+        # (
+        #   twitter_network_edge.tweet_raw_id,
+        #   twitter_network_edge.from_raw_id,
+        #   twitter_network_edge.to_raw_id,
+        #   url.raw, # mapping to url.id
+        #   twitter_network_edge.is_quoted_url,
+        #   twitter_network_edge.is_mention,
+        #   twitter_network_edge.tweet_type
+        # )
+        r_tne = set()
+
+        # general information
+        tweet_raw_id = jd['id']
+        user_raw_id = jd['user']['id']
+        user_screen_name = jd['user']['screen_name']
+        quoted_status_id = None
+        retweeted_status_id = None
+        if 'quoted_status' in jd:
+            quoted_user_id = jd['quoted_status']['user']['id']
+            quoted_screen_name = jd['quoted_status']['user']['screen_name']
+            quoted_status_id = jd['quoted_status']['id']
+        if 'retweeted_status' in jd:
+            retweeted_user_id = jd['retweeted_status']['user']['id']
+            retweeted_screen_name = jd['retweeted_status']['user'][
+                'screen_name']
+            retweeted_status_id = jd['retweeted_status']['id']
+        in_reply_to_status_id = jd['in_reply_to_status_id']
+        in_reply_to_user_id = jd['in_reply_to_user_id']
+        in_reply_to_screen_name = jd['in_reply_to_screen_name']
+        # add current user into twitter_user_union
+        r_tuu.add((user_raw_id, user_screen_name))
+        # 2-1) retweet, focusing on retweeted_status
+        #               edge direction: from retweeted_user to current user
+        if retweeted_status_id is not None:
+            # add retweeted user into twitter_user_union
+            r_tuu.add((retweeted_user_id, retweeted_screen_name))
+            # edges for this retweet
+            logger.debug('2-1-a) building edges for retweet ...')
+            for u in l_urls['retweet']:
+                r_tne.add((tweet_raw_id, retweeted_user_id, user_raw_id,
+                                 u, False, False, 'retweet'))
+        # 2-2) reply, focusing on current status
+        #             edges direction: from current user to mentions
+        if in_reply_to_status_id is not None:
+            # add replied user into twitter_user_union
+            r_tuu.add((in_reply_to_user_id, in_reply_to_screen_name))
+            # edges for the replied user
+            logger.debug('2-1-b) building edges for reply ...')
+            for u in l_urls['this']:
+                r_tne.add((tweet_raw_id, user_raw_id, in_reply_to_user_id,
+                                 u, False, False, 'reply'))
+            # edges for the mentioned user
+            for mention_id, mention_screen_name in l_mentions['this']:
+                if mention_id != in_reply_to_user_id:
+                    for u in l_urls['this']:
+                        r_tne.add((tweet_raw_id, user_raw_id, mention_id,
+                                         u, False, True, 'reply'))
+        # 2-3) quote
+        if quoted_status_id is not None:
+            # add quoted user into twitter_user_union
+            r_tuu.add((quoted_user_id, quoted_screen_name))
+            # 2-3-1) retweeted quote, focusing on quoted_status
+            #                         treated as retweet edge
+            if retweeted_status_id is not None:
+                logger.debug(
+                    '2-1-c) building edges for the quoting part of a retweet ...'
+                )
+                for u in l_urls['quote']:
+                    r_tne.add(
+                        (tweet_raw_id, retweeted_user_id, user_raw_id,
+                         u, True, False, 'retweet'))
+            # 2-3-2) replied quote, focusing on quoted_status
+            #                       treated as reply edge
+            elif in_reply_to_status_id is not None:
+                logger.debug(
+                    '2-1-c) building edges for the quoting part of a reply ...')
+                # in_reply_to_user, edges for quoted url
+                for u in l_urls['quote']:
+                    r_tne.add(
+                        (tweet_raw_id, user_raw_id, in_reply_to_user_id,
+                         u, True, False, 'reply'))
+                # mentions, edges for quoted url
+                for mention_id, mention_screen_name in l_mentions['this']:
+                    if mention_id != in_reply_to_user_id:
+                        for u in l_urls['quote']:
+                            r_tne.add(
+                                (tweet_raw_id, user_raw_id, mention_id,
+                                 u, True, True, 'reply'))
+            # 2-3-3) pure quote
+            else:
+                logger.debug(
+                    '2-1-c) Building edges for quote part of the pure quote ...'
+                )
+                for u in l_urls['quote']:
+                    r_tne.add((tweet_raw_id, quoted_user_id, user_raw_id,
+                                     u, True, False, 'quote'))
+                logger.debug(
+                    '2-1-c) building edges for original part of the pure quote ...'
+                )
+                for mention_id, mention_screen_name in l_mentions['this']:
+                    for u in l_urls['this']:
+                        r_tne.add((tweet_raw_id, user_raw_id, mention_id,
+                                         u, False, True, 'quote'))
+                    for u in l_urls['quote']:
+                        r_tne.add((tweet_raw_id, user_raw_id, mention_id,
+                                         u, True, True, 'quote'))
+        # 2-4) original tweet
+        if retweeted_status_id is None and in_reply_to_status_id is None\
+                and quoted_status_id is None:
+            logger.debug('2-1-d) building edges for original tweet ...')
+            for mention_id, mention_screen in l_mentions['this']:
+                for u in l_urls['this']:
+                    r_tne.add((tweet_raw_id, user_raw_id, mention_id,
+                                     u, False, True, 'origin'))
+        # Adding all mentions into twitter_user_union
+        for m in l_mentions['union']:
+            r_tuu.add(m)
+        # return items
+        return dict(r_tuu=r_tuu, r_tne=r_tne)
+
+
+    def _parse(self, jd, validate_json=False):
+        """ This function parse a tweet (in JSON) into several parts of
+        structure data in corresponding to the table schemas.
+
+        Please note that this function has no interaction with the database,
+        all it does is to prepare neccessary data to be inserted into database.
+        For tables that require foreign keys, the prepared data should contain
+        unique column that can obtain the foreign key after the inserting of
+        the depending table. For example, here a returned tweet record is
+        represented as (tweet.raw_id, twitter_user.raw_id), while the tweet
+        insert operation require the knowledge of `twitter_user.id`, which is
+        unknown until after we insert it. To insert a tweet record, we need
+        first insert the returned twitter_user first, then fetch the `id` of
+        the inserted user and mapping it with `twitter_user.raw_id`, so that
+        we can insert the tweet record.
+
+        Thus to use the returned items, you need to insert tables without
+        dependences, then fetch the foreign key `id` for the depending tables
+        and maps them and finally insert these tables with dependeces.
+
+        Parameters:
+        -------------------------
+        jd: JSON
+            tweet
+        validate_json: BOOLEAN
+            indicating whether we need to validate the JSON data. Currently,
+            if True, we will remove the null_bytes
+       
+        Returns:
+        -------------------------
+        A dict contains:
+        #######################################################################
+        # returned items
+        #######################################################################
+        ## tweet, a tuple that is
+        # (
+        #   tweet.raw_id,
+        #   tweet.created_at,
+        #   twitter_user.raw_id # mapping to twitter_user.id
+        # )
+        r_tw = None
+        ## ass_tweet, a tuple that is
+        # (tweet.raw_id, # mapping to tweet.id
+        #  ass_tweet.retweeted_status_id,
+        #  ass_tweet.quoted_status_id,
+        #  ass_tweet.in_reply_to_status_id)
+        r_atw = None
+        ## twitter_user, a scalar, twitter_user.raw_id
+        r_tu = None
+        ## url, a set of url.raw
+        r_url = set()
+        ## ass_tweet_url, a set of tuples
+        # each tuple is
+        # (
+        #   tweet.raw_id, # mapping to tweet.id
+        #   url.raw, # mapping to url.id
+        # )
+        r_atu = set()
+        ## hashtag, a set of hashtag.text
+        r_h = set()
+        ## ass_tweet_hashtags, a set of tuples
+        # each tuple is
+        # (
+        #   tweet.raw_id, # mapping to tweet.id
+        #   hashtag.text, # mapping to hashtag.id
+        # )
+        r_ath = set()
+        ## twitter_user_union, a set of tuples,
+        # each tuple is
+        # (
+        #   twitter_user_union.raw_id,
+        #   twitter_user_union.screen_name
+        # )
+        # from l2
+        # r_tuu = set()
+        ## twitter_network_edge, set of tuples,
+        # each tuple is
+        # (
+        #   twitter_network_edge.tweet_raw_id,
+        #   twitter_network_edge.from_raw_id,
+        #   twitter_network_edge.to_raw_id,
+        #   url.raw, # mapping to url.id
+        #   twitter_network_edge.is_quoted_url,
+        #   twitter_network_edge.is_mention,
+        #   twitter_network_edge.tweet_type
+        # )
+        # from l2
+        # r_tne = set()
+        ## twitter_user_union, a set of tuples
+        # each one is tuple(twitter_user_union.raw_id,
+        # twitter_user_union.screen_name)
+        # from l2
+        # r_tuu = []
+        # twitter_network_edge, a set of tuples,
+        # from l2
+        # r_tne = []
+        #######################################################################
+        """
+        #######################################################################
+        # returned items
+        #######################################################################
+        ## tweet, a tuple that is
+        # (
+        #   tweet.raw_id,
+        #   tweet.created_at,
+        #   twitter_user.raw_id # mapping to twitter_user.id
+        # )
+        r_tw = None
+        ## ass_tweet, a tuple that is
+        # (tweet.raw_id, # mapping to tweet.id
+        #  ass_tweet.retweeted_status_id,
+        #  ass_tweet.quoted_status_id,
+        #  ass_tweet.in_reply_to_status_id)
+        r_atw = None
+        ## twitter_user, a scalar, twitter_user.raw_id
+        r_tu = None
+        ## url, a set of url.raw
+        r_url = set()
+        ## ass_tweet_url, a set of tuples
+        # each tuple is
+        # (
+        #   tweet.raw_id, # mapping to tweet.id
+        #   url.raw, # mapping to url.id
+        # )
+        r_atu = set()
+        ## hashtag, a set of hashtag.text
+        r_h = set()
+        ## ass_tweet_hashtags, a set of tuples
+        # each tuple is
+        # (
+        #   tweet.raw_id, # mapping to tweet.id
+        #   hashtag.text, # mapping to hashtag.id
+        # )
+        r_ath = set()
+        ## twitter_user_union, a set of tuples,
+        # each tuple is
+        # (
+        #   twitter_user_union.raw_id,
+        #   twitter_user_union.screen_name
+        # )
+        # from l2
+        # r_tuu = set()
+        ## twitter_network_edge, set of tuples,
+        # each tuple is
+        # (
+        #   twitter_network_edge.tweet_raw_id,
+        #   twitter_network_edge.from_raw_id,
+        #   twitter_network_edge.to_raw_id,
+        #   url.raw, # mapping to url.id
+        #   twitter_network_edge.is_quoted_url,
+        #   twitter_network_edge.is_mention,
+        #   twitter_network_edge.tweet_type
+        # )
+        # from l2
+        # r_tne = set()
+        ## twitter_user_union, a set of tuples
+        # each one is tuple(twitter_user_union.raw_id,
+        # twitter_user_union.screen_name)
+        # from l2
+        # r_tuu = []
+        # twitter_network_edge, a set of tuples,
+        # from l2
+        # r_tne = []
+        #######################################################################
+        # validate the JSON
+        if validate_json is True:
+            # validate jd
+            jd = replace_null_byte(jd)
+            try:
+                tw_raw_id = jd['id']
+                created_at = utc_from_str(jd['created_at'])
+                user_raw_id = jd['user']['id']
+            except KeyError as e:
+                logger.error('Invalid tweet: %s', e)
+                return None
+        # tweet
+        r_tw = (tw_raw_id, created_at, user_raw_id)
+        #######################################################################
+        # parsing, level 1
+        #######################################################################
+        l_urls, l_mentions, l_hashtags = self._parse_l1(jd)
+        if len(l_urls['union']) == 0 and self.save_none_url_tweet is False:
+            logger.warning('Ignore tweet %r with no urls!', tw_raw_id)
+            return None
+        # user
+        r_tu = user_raw_id
+        retweeted_status_id = None
+        quoted_status_id = None
+        if 'quoted_status' in jd:
+            quoted_status_id = jd['quoted_status']['id']
+        if 'retweeted_status' in jd:
+            retweeted_status_id = jd['retweeted_status']['id']
+        in_reply_to_status_id = jd['in_reply_to_status_id']
+        r_atw = (tw_raw_id, retweeted_status_id, quoted_status_id, in_reply_to_status_id)
+        r_url = set(l_urls['union'])
+        r_atu = set((tw_raw_id, u) for u in l_urls['union'])
+        r_hashtag = set(l_hashtags['union'])
+        r_ath = set((tw_raw_id, h) for h in l_hashtags['union'])
+        #######################################################################
+        # parsing, level 2
+        #######################################################################
+        r_l2 = self._parse_to_tuples_l2(jd, l_urls, l_mentions)
+        if r_l2 is not None:
+            return dict(
+                r_tw=r_tw,
+                r_atw=r_atw,
+                r_tu=r_tu,
+                r_url=r_url,
+                r_atu=r_atu,
+                r_h=r_h,
+                r_ath=r_ath,
+                r_tuu=r_l2['r_tuu'],
+                r_tne=r_l2['r_tne']
+            )
+        else:
+            return None
+    
+    def _save(self, session, parsed):
+        """
+        """
+        #######################################################################
+        # Table with no foreign key dependences
+        # insert and build primary key map
+        #######################################################################
+        ## insert twitter_user
+        tu_values = [dict(raw_id=raw_id) for raw_id in parsed['r_tu']]
+        stmt = insert(TwitterUser).values(tu_values).on_conflict_do_nothing(index_elements=['raw_id'])
+        session.execute(stmt)
+        plain_q = """
+            SELECT tu.id, tu.raw_id
+            FROM UNNEST(:user_raw_ids) AS t(raw_id)
+                JOIN twitter_user AS tu ON tu.raw_id=t.raw_id
+            """
+        m_tu = dict()
+        for tu_id, tu_raw_id in session.execute(plain_q, user_raw_ids=list(parsed['r_tu'])):
+            m_tu[tu_raw_id] = tu_id
+        ## insert url
+        url_values = [dict(raw=u) for u in parsed['r_url']]
+        ## not empty
+        if url_values: 
+            stmt = insert(Url).values(url_values).on_conflict_do_nothing(index_elements=['raw'])
+            session.execute(stmt)
+            plain_q = """
+                SELECT u.id, u.raw
+                FROM UNNEST(:url_raws) AS t(raw)
+                    JOIN url AS u ON u.raw=t.raw
+                """
+            m_url = dict()
+            for url_id, url_raw in session.execute(plain_q, url_raws=list(parsed['r_url'])):
+                m_tu[url_raw] = url_id
+        ## insert hashtag
+        h_values = [dict(text=h) for h in parsed['r_h']]
+        if h_values:
+            stmt = insert(Hashtag).values(h_values).on_conflict_do_nothing(index_elements=['text'])
+            session.execute(stmt)
+            plain_q = """
+                SELECT h.id, h.text
+                FROM UNNEST(:h_texts) AS t(text)
+                    JOIN hashtag AS h ON h.text=t.text
+                """
+            m_h = dict()
+            for h_id, h_text in session.execute(plain_q, url_raws=list(parsed['r_h'])):
+                m_tu[h_text] = h_id
+        ## insert twitter_user_union
+        tuu_values = [dict(raw_id=raw_id, screen_name=screen_name) for raw_id, screen_name in parsed['r_tuu']]
+        if tuu_values:
+            stmt = insert(TwitterUserUnion).values(tuu_values).on_conflict_do_nothing(index_elements=['raw_id'])
+            session.execute(stmt)
+        #######################################################################
+        # Table with dependences
+        #######################################################################
+        # mapping and insert tweet
+        tw_values = [dict(raw_id=raw_id, created_at=created_at, user_id=m_tu['user_raw_id'])
+                     for tw_raw_id, created_at, user_raw_id in parsed['r_tw']]
+        stmt = insert(Tweet).values(tw_values).on_conflict_do_nothing(index_elements=['raw_id'])
+        session.execute(stmt)
+        plain_q = """
+            SELECT tw.id, tw.raw_id
+            FROM UNNEST(:tw_raw_ids) AS t(raw_id)
+                JOIN tweet AS tw ON tw.raw_id=t.raw_id
+            """
+        m_tw = dict()
+        for tw_id, tw_raw_id in session.execute(plain_q, tw_raw_ids=list(parsed[''])):
+            m_tu[tw_raw_id] = tw_id
+
+
+        # mapping and insert ass_tweet
+
+        # mapping and insert ass_tweet_url
+
+        # mapping and insert ass_tweet_hashtag
+
+        # mapping and insert twitter_network_edge
+
 
 
 class QueueParser(object):
