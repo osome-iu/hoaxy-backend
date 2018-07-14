@@ -224,24 +224,21 @@ class Url(TableMixin, AuditColumns, Base):
     U_HTML_ERROR_DROPPED     | 46    | No scrapy response received
     null                     | >200  | Fetch HTML failed, HTTP code
     ################### HTML COLUMN PLACED TO ARTICLE TABLE ################
-    # U_WP_SUCCESS           | 80    | Article web parse sucessfully
-    # U_WP_ERROR_DATA_INVALID| 81    | Invalid data from web parser, e.g., Null
-    # U_WP_ERROR_UNKNOWN     | 82    | Unknown error when parsing article
     ---------------------------------------------------------------------------
     """
     raw = Column(String(MAX_URL_LEN), unique=True, nullable=False)
     expanded = Column(String(MAX_URL_LEN))
     aliased = Column(String(MAX_URL_LEN))
     canonical = Column(String(MAX_URL_LEN))
-    html = deferred(Column(Text))
     date_published = Column(DateTime)
     status_code = Column(
         SmallInteger, default=U_DEFAULT, server_default=str(U_DEFAULT))
-
-    # foreign keys
+    # foreign keys ############################################################
+    # To delete article, first set url.article_id to NULL, then delete article
     article_id = Column(
         Integer,
         ForeignKey('article.id', ondelete='CASCADE', onupdate='CASCADE'))
+    # site_id should be on delete cascade
     site_id = Column(
         Integer, ForeignKey('site.id', ondelete='CASCADE', onupdate='CASCADE'))
     # relationship attributes
