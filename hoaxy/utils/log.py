@@ -46,9 +46,9 @@ class PrettyLogFormatter(LogFormatter):
         if item:
             for k in item.fields:
                 if item.get(k) is not None:
-                    if isinstance(item[k], (int, long, float, complex)):
+                    if isinstance(item[k], (int, float, complex)):
                         truncated_item[k] = item[k]
-                    elif isinstance(item[k], basestring):
+                    elif isinstance(item[k], str):
                         truncated_item[k] = item[k][:self.truncated_len]
                         if len(item[k]) > self.truncated_len:
                             truncated_item[k] += ' ... (truncated)'
@@ -72,9 +72,9 @@ class PrettyLogFormatter(LogFormatter):
         if item:
             for k in item.fields:
                 if item.get(k) is not None:
-                    if isinstance(item[k], (int, long, float, complex)):
+                    if isinstance(item[k], (int, float, complex)):
                         truncated_item[k] = item[k]
-                    elif isinstance(item[k], basestring):
+                    elif isinstance(item[k], str):
                         truncated_item[k] = item[k][:self.truncated_len]
                         if len(item[k]) > self.truncated_len:
                             truncated_item[k] += ' ... (truncated)'

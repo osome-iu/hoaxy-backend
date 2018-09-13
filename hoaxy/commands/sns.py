@@ -17,7 +17,7 @@ from hoaxy.sns.twitter.parsers import QueueParser
 from hoaxy.sns.twitter.stream import TwitterStream
 from hoaxy.utils import get_track_keywords
 from hoaxy.utils.log import configure_logging
-import Queue
+import queue
 import logging
 import smtplib
 import time
@@ -69,7 +69,7 @@ Examples:
         snut = cls.conf['sns']['twitter']['save_none_url_tweet']
 
         retries = 0
-        q = Queue.Queue()
+        q = queue.Queue()
         consumer = QueueParser(
             q, platform_id, w_size, save_none_url_tweet=snut)
         qhandler = QueueHandler(q)

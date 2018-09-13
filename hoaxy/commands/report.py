@@ -434,13 +434,13 @@ is working.
             strf = '%Y-%m-%d %H:%M:%S'
             with ENGINE.connect() as conn:
                 result = conn.execute(stmt).fetchall()
-                print('-' * 35)
-                print('{0:^20s} | {1:12s}'.format('Timeline (%s)' % interval,
-                                                  'Aggregation'))
-                print('-' * 35)
+                print(('-' * 35))
+                print(('{0:^20s} | {1:12s}'.format('Timeline (%s)' % interval,
+                                                  'Aggregation')))
+                print(('-' * 35))
                 for v, t in result:
-                    print('{0:^20s} | {1:8d}'.format(t.strftime(strf), v))
-                print('-' * 35)
+                    print(('{0:^20s} | {1:8d}'.format(t.strftime(strf), v)))
+                print(('-' * 35))
         elif args['--status']:
             configure_logging(
                 'report.streaming-status',

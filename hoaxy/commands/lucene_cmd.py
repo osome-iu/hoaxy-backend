@@ -78,10 +78,10 @@ Examples:
             date_published=date_published,
             domain=domain,
             site_type=site_type)
-        article['meta'] = unicode(meta)
-        article['uq_id_str'] = unicode(group_id) + title
+        article['meta'] = str(meta)
+        article['uq_id_str'] = str(group_id) + title
         if article['content'] is None:
-            article['content'] = u'NULL'
+            article['content'] = 'NULL'
         return article
 
     @classmethod

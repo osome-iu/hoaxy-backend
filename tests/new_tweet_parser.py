@@ -226,7 +226,7 @@ def main_mulprocessing(min_id=None,
     except (KeyboardInterrupt, SystemExit):
         logger.info('interrupt signal received')
         sys.exit(1)
-    except Exception, e:
+    except Exception as e:
         raise e
 
 

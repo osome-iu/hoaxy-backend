@@ -4,7 +4,7 @@
 # written by Chengcheng Shao <sccotte@gmail.com>
 
 from hoaxy import CONF
-from urlparse import urlparse
+from urllib.parse import urlparse
 from w3lib.url import canonicalize_url
 from w3lib.url import url_query_cleaner
 import logging

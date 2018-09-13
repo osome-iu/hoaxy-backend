@@ -16,6 +16,8 @@ This document describes how to set up the hoaxy backend on your system.
 
 Hoaxy has been developed using Python 2.7 under Ubuntu. These instructions have been tested only under that environment. Therefore, to run Hoaxy, we recommend to stick to Python 2.7. Other Python 2 versions may or may not work. Do let us know if you manage to make it work on a different 2.X version. And pull requests are always welcome, too. Please also note that Python 3 is not supported at this time. In summary, use a different environment at your own risk.
 
+We are beginning tests for Python 3.6.
+
 The recommended installation method is to use a virtual environment. We recommend [anaconda](https://www.continuum.io/downloads) to setup a virtual environment. You *could* directly use the setuptools script by running `python setup.py install`, but that is not recommended if you are not an expert Linux user, as some dependencies (e.g. NumPy) need to be compiled and could result in compilation errors.
 
 Anaconda provides already compiled packages for all dependencies needed to install Hoaxy. In the following, our instructions assume that you are using Anaconda. Here is an example of how to create and use python environment by conda.

@@ -84,7 +84,7 @@ Also please edit and rename samples to make Hoaxy work with them.
         if not os.path.exists(hoaxy_home):
             try:
                 org_umask = os.umask(0)
-                os.makedirs(hoaxy_home, 0755)
+                os.makedirs(hoaxy_home, 0o755)
             finally:
                 os.umask(org_umask)
         samples = resource_listdir('hoaxy.data', 'samples')
@@ -93,5 +93,5 @@ Also please edit and rename samples to make Hoaxy work with them.
                 sample = resource_filename('hoaxy.data.samples', sample)
                 shutil.copy(sample, hoaxy_home)
                 os.chmod(
-                    os.path.join(hoaxy_home, os.path.basename(sample)), 0644)
+                    os.path.join(hoaxy_home, os.path.basename(sample)), 0o644)
         print(msg)

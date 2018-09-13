@@ -77,7 +77,7 @@ def utc_from_seconds(seconds):
 
 def to_utc_strformat(str_or_seconds, strf='%Y-%m-%d %H:%M:%S'):
     """Convert datetime string or unix timestamp to another datetime string."""
-    if isinstance(str_or_seconds, basestring):
+    if isinstance(str_or_seconds, str):
         dt = utc_from_str(str_or_seconds)
     else:
         dt = utc_from_seconds(str_or_seconds)

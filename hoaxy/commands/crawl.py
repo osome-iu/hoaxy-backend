@@ -49,16 +49,16 @@ def build_order_by_expr(ob_cls, ob_kw):
     if ob_kw is None or len(ob_kw) == 0:
         return None
     elif len(ob_kw) == 1:
-        for k, v in ob_kw.iteritems():
+        for k, v in ob_kw.items():
             if v.lower() == 'asc':
                 return getattr(ob_cls, k).asc()
             elif v.lower() == 'desc':
                 return getattr(ob_cls, k).desc()
             else:
-                print('Invalidate order keyword: %s', ob_kw)
+                print(('Invalidate order keyword: %s', ob_kw))
                 sys.exit(2)
     else:
-        print('Support one column order by only: %s', ob_kw)
+        print(('Support one column order by only: %s', ob_kw))
         sys.exit(2)
 
 

@@ -14,7 +14,7 @@ import copy
 import logging
 import pprint
 import scrapy
-import urlparse
+import urllib.parse
 
 logger = logging.getLogger(__name__)
 
@@ -239,7 +239,7 @@ class SiteSpider(scrapy.spiders.CrawlSpider):
         try:
             text = response.body
             code = response.encoding
-            html = unicode(text.decode(code, 'ignore'))\
+            html = str(text.decode(code, 'ignore'))\
                 .encode('utf-8', 'ignore')
             item['html'] = html
             # We already have HTML, set the status_code to second phrase sucess
@@ -358,12 +358,12 @@ class PageTemplateSpider(scrapy.spiders.Spider):
             self.href_xpaths = ('/html/body',)
         for xp in self.href_xpaths:
             for href in response.xpath(xp).xpath('.//a/@href').extract():
-                url = urlparse.urljoin(response.url, href)
+                url = urllib.parse.urljoin(response.url, href)
                 urls.add(url)
                 if url not in meta['last_urls']:
                     found_new_url = True
                     item = UrlItem()
-                    item['raw'] = urlparse.urljoin(response.url, url.strip())
+                    item['raw'] = urllib.parse.urljoin(response.url, url.strip())
                     yield item
         meta['last_urls'] = urls
         meta['p_num'] += 1

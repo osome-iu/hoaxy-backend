@@ -91,7 +91,7 @@ class Searcher():
         self.analyzer = StandardAnalyzer()
         self.dup_filter = DuplicateFilter(unique_field)
         self.boost_map = HashMap()
-        for k, v in boost.iteritems():
+        for k, v in boost.items():
             self.boost_map.put(k, Float(v))
         self.mul_parser = MultiFieldQueryParser(search_fields, self.analyzer,
                                                 self.boost_map)
@@ -167,7 +167,7 @@ class Searcher():
             dt2 = datetime.utcnow()
             if isinstance(min_date_published, datetime):
                 dt1 = min_date_published
-            elif isinstance(min_date_published, basestring):
+            elif isinstance(min_date_published, str):
                 dt1 = utc_from_str(min_date_published)
             sf = self.prepare_chained_filter(dt1, dt2)
         else:
@@ -315,7 +315,7 @@ def attach_site_tags(engine, df):
     """
     rs = engine.execute(text(q).\
                         bindparams(domains=df.domain.unique().tolist()))
-    df2 = pd.DataFrame(iter(rs), columns=rs.keys())
+    df2 = pd.DataFrame(iter(rs), columns=list(rs.keys()))
     df = pd.merge(df, df2, how='left', on='domain')
     return df
 
@@ -350,7 +350,7 @@ def db_query_twitter_shares(engine, df):
     """
     rs = engine.execution_options(stream_results=True)\
         .execute(text(q), ids=df['id'].tolist())
-    df1 = pd.DataFrame(iter(rs), columns=rs.keys())
+    df1 = pd.DataFrame(iter(rs), columns=list(rs.keys()))
     df = pd.merge(df, df1, on='id', how='inner', sort=False)
     return df
 
@@ -386,7 +386,7 @@ def db_query_article(engine, ids):
     """
     rs = engine.execution_options(stream_results=True)\
         .execute(text(q), gids=ids)
-    return pd.DataFrame(iter(rs), columns=rs.keys())
+    return pd.DataFrame(iter(rs), columns=list(rs.keys()))
 
 
 def db_query_latest_articles(engine,
@@ -487,7 +487,7 @@ def db_query_latest_articles(engine,
         q = text(q2.format(where_condition=where_condition))
     q = q.bindparams(latest=latest)
     rs = engine.execute(q)
-    df = pd.DataFrame(iter(rs), columns=rs.keys())
+    df = pd.DataFrame(iter(rs), columns=list(rs.keys()))
     return attach_site_tags(engine, df)
 
 
@@ -523,7 +523,7 @@ def db_query_tweets(engine, ids):
     """
     rs = engine.execution_options(stream_results=True)\
         .execute(text(q), gids=ids)
-    df2 = pd.DataFrame(iter(rs), columns=rs.keys())
+    df2 = pd.DataFrame(iter(rs), columns=list(rs.keys()))
     df = pd.merge(df, df2, on='id', how='inner', sort=False)
     df = df.sort_values('date_published', ascending=True)
     return df
@@ -638,7 +638,7 @@ def limit_by_k_core(df, nodes_limit, edges_limit):
     #
     # sort nodes by ascending core number
     core = nx.core_number(G)
-    nodes_list = sorted(core.items(), key=lambda k: k[1], reverse=False)
+    nodes_list = sorted(list(core.items()), key=lambda k: k[1], reverse=False)
     nodes_list = list(zip(*nodes_list))[0]
     nodes_list = list(nodes_list)
     #
@@ -831,7 +831,7 @@ def db_query_top_spreaders(engine, upper_day, most_recent=False):
     """
     q = text(q0).bindparams(upper_day=upper_day)
     rp = engine.execute(q)
-    df = pd.DataFrame(iter(rp), columns=rp.keys())
+    df = pd.DataFrame(iter(rp), columns=list(rp.keys()))
     if len(df) == 0 and most_recent is True:
         q1 = 'SELECT MAX(upper_day) FROM top20_spreader_monthly'
         upper_day = engine.execute(text(q1)).scalar()
@@ -840,7 +840,7 @@ def db_query_top_spreaders(engine, upper_day, most_recent=False):
         else:
             q = text(q0).bindparams(upper_day=upper_day)
             rp = engine.execute(q)
-            df = pd.DataFrame(iter(rp), columns=rp.keys())
+            df = pd.DataFrame(iter(rp), columns=list(rp.keys()))
     df['user_raw_id'] = df.user_raw_id.astype(str)
 
     def get_bot_score(bon):
@@ -889,7 +889,7 @@ def db_query_top_articles(engine, upper_day, most_recent=False,
     """
     q = text(q0).bindparams(upper_day=upper_day)
     rp = engine.execute(q)
-    df = pd.DataFrame(iter(rp), columns=rp.keys())
+    df = pd.DataFrame(iter(rp), columns=list(rp.keys()))
     if len(df) == 0 and most_recent is True:
         q1 = 'SELECT MAX(upper_day) FROM top20_article_monthly'
         upper_day = engine.execute(text(q1)).scalar()
@@ -898,7 +898,7 @@ def db_query_top_articles(engine, upper_day, most_recent=False,
         else:
             q = text(q0).bindparams(upper_day=upper_day)
             rp = engine.execute(q)
-            df = pd.DataFrame(iter(rp), columns=rp.keys())
+            df = pd.DataFrame(iter(rp), columns=list(rp.keys()))
     if exclude_tags:
         df = db_query_filter_tags(engine, df, exclude_tags)
     if len(df) > 0:

@@ -88,7 +88,7 @@ def copy_req_args(req_args):
         A replication of `req_args`.
     """
     q_kwargs = dict()
-    for k, v in req_args.iteritems():
+    for k, v in req_args.items():
         q_kwargs[k] = v
     return q_kwargs
 
@@ -191,9 +191,9 @@ def query_articles():
         'query':
         lambda s: len(s) > 0,
         Optional('sort_by', default='relevant'):
-        And(unicode, lambda s: s in ('relevant', 'recent')),
+        And(str, lambda s: s in ('relevant', 'recent')),
         Optional('use_lucene_syntax', default=True):
-        And(unicode,
+        And(str,
             Use(lambda s: s.lower()), lambda s: s in ('true', 'false'),
             Use(lambda s: True if s == 'true' else False)),
     })
@@ -456,7 +456,7 @@ def query_network():
         Optional('edges_limit', default=12500):
         And(Use(int), lambda i: i > 0),
         Optional('include_user_mentions', default=True):
-        And(unicode,
+        And(str,
             Use(lambda s: s.lower()), lambda s: s in ('true', 'false'),
             Use(lambda s: True if s == 'true' else False)),
     })
@@ -515,7 +515,7 @@ def query_top_spreaders():
             Use(dateutil.parser.parse),
             error='Invalid date, should be yyyy-mm-dd format'),
         Optional('most_recent', default=True):
-        And(unicode,
+        And(str,
             Use(lambda s: s.lower()), lambda s: s in ('true', 'false'),
             Use(lambda s: True if s == 'true' else False)),
     })
@@ -570,7 +570,7 @@ def query_top_articles():
             Use(dateutil.parser.parse),
             error='Invalid date, shoul be yyyy-mm-dd format'),
         Optional('most_recent', default=True):
-        And(unicode,
+        And(str,
             Use(lambda s: s.lower()), lambda s: s in ('true', 'false'),
             Use(lambda s: True if s == 'true' else False)),
         Optional('exclude_tags', default=[]):
