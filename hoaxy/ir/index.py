@@ -7,7 +7,8 @@
 from java.io import File
 from org.apache.lucene.analysis.standard import StandardAnalyzer
 from org.apache.lucene.document import Document
-from org.apache.lucene.document import Field, StringField, TextField, IntField
+from org.apache.lucene.document import Field, StringField, TextField, \
+    StoredField
 from org.apache.lucene.index import IndexWriter, IndexWriterConfig
 from org.apache.lucene.store import FSDirectory
 from org.apache.lucene.util import Version
@@ -62,8 +63,8 @@ class Indexer():
                            article['canonical_url'], e)
             return
         doc = Document()
-        doc.add(IntField('group_id', article['group_id'], Field.Store.YES))
-        doc.add(IntField('article_id', article['article_id'], Field.Store.YES))
+        doc.add(StoredField('group_id', article['group_id']))
+        doc.add(StoredField('article_id', article['article_id']))
         doc.add(
             StringField('date_published', date_published_str, Field.Store.YES))
         doc.add(StringField('domain', article['domain'], Field.Store.YES))
@@ -74,7 +75,7 @@ class Indexer():
         doc.add(TextField('title', article['title'], Field.Store.YES))
         doc.add(TextField('meta', article['meta'], Field.Store.NO))
         doc.add(TextField('content', article['content'], Field.Store.NO))
-        doc.add(StringField('uq_id_str', article['uq_id_str'], Field.Store.YES))
+        doc.add(StoredField('uq_id_str', article['uq_id_str']))
         self.writer.addDocument(doc)
 
     def close(self):
