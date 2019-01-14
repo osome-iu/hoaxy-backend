@@ -14,7 +14,7 @@ import yaml
 version_file = resource_filename('hoaxy', 'VERSION')
 
 with open(version_file, 'r') as f:
-    VERSION = f.read().decode('ascii').strip()
+    VERSION = f.read().strip()
 DEFAULT_HOAXY_HOME = join(expanduser('~'), '.hoaxy/')
 DEFAULT_HOAXY_CONF = join(DEFAULT_HOAXY_HOME, 'conf.yaml')
 HOAXY_HOME = getenv('HOAXY_HOME')

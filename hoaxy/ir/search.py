@@ -25,13 +25,16 @@ from java.lang import Float
 from java.util import HashMap
 from org.apache.lucene.analysis.standard import StandardAnalyzer
 from org.apache.lucene.index import DirectoryReader
-from org.apache.lucene.queries import ChainedFilter
+# from org.apache.lucene.queries import ChainedFilter
 from org.apache.lucene.queryparser.classic import MultiFieldQueryParser
-from org.apache.lucene.sandbox.queries import DuplicateFilter
+# from org.apache.lucene.sandbox.queries import DuplicateFilter
 from org.apache.lucene.search import IndexSearcher
+from org.apache.lucene.search import BooleanQuery
+from org.apache.lucene.search import BooleanClause
 from org.apache.lucene.search import Sort
 from org.apache.lucene.search import SortField
-from org.apache.lucene.search import TermRangeFilter
+# from org.apache.lucene.search import TermRangeFilter
+from org.apache.lucene.search import TermRangeQuery
 from org.apache.lucene.store import FSDirectory
 from org.apache.lucene.util import BytesRef
 from sqlalchemy import text
@@ -89,7 +92,7 @@ class Searcher():
         self.reader = DirectoryReader.open(self.store)
         self.isearcher = IndexSearcher(self.reader)
         self.analyzer = StandardAnalyzer()
-        self.dup_filter = DuplicateFilter(unique_field)
+        # self.dup_filter = DuplicateFilter(unique_field)
         self.boost_map = HashMap()
         for k, v in boost.items():
             self.boost_map.put(k, Float(v))
@@ -97,15 +100,25 @@ class Searcher():
                                                 self.boost_map)
         self.date_format = date_format
 
-    def prepare_chained_filter(self, dt1, dt2):
-        """Return a chained filter."""
-        return ChainedFilter([
-            self.dup_filter,
-            TermRangeFilter('date_published',
-                            BytesRef(dt1.strftime(self.date_format)),
-                            BytesRef(dt2.strftime(self.date_format)), True,
-                            True)
-        ], [ChainedFilter.AND, ChainedFilter.AND])
+    def query_between_dates(self, dt1, dt2, original_query=None):
+        '''Update the given query to only allow records between dt1 and dt2.'''
+        return TermRangeQuery(
+            'date_published', # Field
+            BytesRef(dt1.strftime(self.date_format)), # Lower bound
+            BytesRef(dt2.strftime(self.date_format)), # Upper bound
+            True, # Include lower bound
+            True  # Include upper bound
+        )
+
+    # def prepare_chained_filter(self, dt1, dt2):
+    #     """Return a chained filter."""
+    #     return ChainedFilter([
+    #         self.dup_filter,
+    #         TermRangeFilter('date_published',
+    #                         BytesRef(dt1.strftime(self.date_format)),
+    #                         BytesRef(dt2.strftime(self.date_format)), True,
+    #                         True)
+    #     ], [ChainedFilter.AND, ChainedFilter.AND])
 
     def refresh(self):
         """Refresh the searsher, if index is changed."""
@@ -152,7 +165,7 @@ class Searcher():
             {'relevant', 'recent'}, the sorting order when doing lucene searching.
         min_score_of_recent_sorting : float
             The min score when sorting by 'recent'.
-        min_date_published : datetime<Plug>(neosnippet_expand)
+        min_date_published : datetime
             The min date_published when filtering lucene searching results.
 
         Returns
@@ -169,13 +182,13 @@ class Searcher():
                 dt1 = min_date_published
             elif isinstance(min_date_published, str):
                 dt1 = utc_from_str(min_date_published)
-            sf = self.prepare_chained_filter(dt1, dt2)
-        else:
-            sf = self.dup_filter
+            q_dates = self.query_between_dates(dt1, dt2)
         try:
             if use_lucene_syntax is False:
                 query = clean_query(query)
             q = self.mul_parser.parse(self.mul_parser, query)
+            if min_date_published is not None:
+              q = combine_queries(q, q_dates)
             logger.debug('Parsed query: %s', q)
         except Exception as e:
             logger.error(e)
@@ -197,6 +210,18 @@ You are quering with lucene syntax, be careful of your query string!""")
                 df = pd.DataFrame()
             else:
                 records = [self.fetch_one_doc(sd) for sd in score_docs]
+
+                # Index in each record of canonical URL and title
+                canonical_url, title = 1, 2
+                # Store 2-tuples of (site, article title) as keys in dict then
+                # turn back to list
+                unique_docs = dict()
+                for record in records:
+                  key = (record[canonical_url], record[title])
+                  if key not in unique_docs:
+                    unique_docs[key] = record
+                # Include only unique records
+                records = list(unique_docs.values())
                 df = pd.DataFrame(records, columns=cnames)
                 df['date_published'] = pd.to_datetime(df['date_published'])
             return total_hits, df
@@ -218,6 +243,16 @@ You are quering with lucene syntax, be careful of your query string!""")
                 df = pd.DataFrame(records, columns=cnames)
                 df['date_published'] = pd.to_datetime(df['date_published'])
             return counter, df
+
+def combine_queries(q1, q2):
+    '''Combine the two given queries into a BooleanQuery with the AND
+    operator.'''
+    # GO HERE AND DO STUFF
+    b = BooleanQuery.Builder()
+    b.add(q1, BooleanClause.MUST) # Must include results from q1
+    b.add(q2, BooleanClause.MUST) # Must include results from q2
+    bq = b.build() # BooleanQuery instance
+    return bq
 
 
 def db_query_filter_disabled_site(engine, df):
