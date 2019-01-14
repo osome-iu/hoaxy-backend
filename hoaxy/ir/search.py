@@ -25,15 +25,12 @@ from java.lang import Float
 from java.util import HashMap
 from org.apache.lucene.analysis.standard import StandardAnalyzer
 from org.apache.lucene.index import DirectoryReader
-# from org.apache.lucene.queries import ChainedFilter
 from org.apache.lucene.queryparser.classic import MultiFieldQueryParser
-# from org.apache.lucene.sandbox.queries import DuplicateFilter
 from org.apache.lucene.search import IndexSearcher
 from org.apache.lucene.search import BooleanQuery
 from org.apache.lucene.search import BooleanClause
 from org.apache.lucene.search import Sort
 from org.apache.lucene.search import SortField
-# from org.apache.lucene.search import TermRangeFilter
 from org.apache.lucene.search import TermRangeQuery
 from org.apache.lucene.store import FSDirectory
 from org.apache.lucene.util import BytesRef
@@ -92,7 +89,6 @@ class Searcher():
         self.reader = DirectoryReader.open(self.store)
         self.isearcher = IndexSearcher(self.reader)
         self.analyzer = StandardAnalyzer()
-        # self.dup_filter = DuplicateFilter(unique_field)
         self.boost_map = HashMap()
         for k, v in boost.items():
             self.boost_map.put(k, Float(v))
@@ -109,16 +105,6 @@ class Searcher():
             True, # Include lower bound
             True  # Include upper bound
         )
-
-    # def prepare_chained_filter(self, dt1, dt2):
-    #     """Return a chained filter."""
-    #     return ChainedFilter([
-    #         self.dup_filter,
-    #         TermRangeFilter('date_published',
-    #                         BytesRef(dt1.strftime(self.date_format)),
-    #                         BytesRef(dt2.strftime(self.date_format)), True,
-    #                         True)
-    #     ], [ChainedFilter.AND, ChainedFilter.AND])
 
     def refresh(self):
         """Refresh the searsher, if index is changed."""
@@ -247,7 +233,6 @@ You are quering with lucene syntax, be careful of your query string!""")
 def combine_queries(q1, q2):
     '''Combine the two given queries into a BooleanQuery with the AND
     operator.'''
-    # GO HERE AND DO STUFF
     b = BooleanQuery.Builder()
     b.add(q1, BooleanClause.MUST) # Must include results from q1
     b.add(q2, BooleanClause.MUST) # Must include results from q2
