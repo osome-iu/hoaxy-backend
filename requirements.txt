@@ -15,5 +15,5 @@ simplejson
 SQLAlchemy>=1.0
 sqlparse
 tabulate
-tweepy
+tweepy>=3.7.0
 ruamel.yaml
