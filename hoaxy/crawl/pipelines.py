@@ -107,7 +107,7 @@ class HtmlPipeline(object):
                 item['status_code'] = U_HTML_ERROR_INVALID_URL
         # remove potential NUL byte \x00 in the HTML
         if 'html' in item:
-            item['html'] = item['html'].replace(b'\x00', '')
+            item['html'] = item['html'].replace(b'\x00', b'')
         try:
             # update database of url table
             spider.session.query(Url).filter_by(id=item['id'])\
