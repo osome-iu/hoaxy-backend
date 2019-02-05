@@ -14,18 +14,16 @@ This document describes how to set up the hoaxy backend on your system.
 
 ## Python Environment
 
-Hoaxy has been developed using Python 2.7 under Ubuntu. These instructions have been tested only under that environment. Therefore, to run Hoaxy, we recommend to stick to Python 2.7. Other Python 2 versions may or may not work. Do let us know if you manage to make it work on a different 2.X version. And pull requests are always welcome, too. Please also note that Python 3 is not supported at this time. In summary, use a different environment at your own risk.
-
-We are beginning tests for Python 3.6.
+Hoaxy has been upgraded to use python3 under Ubuntu. We are beginning tests for Python 3.6.
 
 The recommended installation method is to use a virtual environment. We recommend [anaconda](https://www.continuum.io/downloads) to setup a virtual environment. You *could* directly use the setuptools script by running `python setup.py install`, but that is not recommended if you are not an expert Linux user, as some dependencies (e.g. NumPy) need to be compiled and could result in compilation errors.
 
 Anaconda provides already compiled packages for all dependencies needed to install Hoaxy. In the following, our instructions assume that you are using Anaconda. Here is an example of how to create and use python environment by conda.
 
-1. Create a new python virtual environment, named hoaxy with version 2.7:
+1. Create a new python virtual environment, named hoaxy with version 3.6:
 
     ```bash
-    conda create -n hoaxy python=2.7
+    conda create -n hoaxy python=3.6
     ```
 
 2. activate it (note that before you use other python related command, you should activate your python environment first):
@@ -33,18 +31,19 @@ Anaconda provides already compiled packages for all dependencies needed to insta
     ```bash
     source activate hoaxy
     ```
-Most Linux distributions have installed their own python version. After the activation, you are using the new created python environment, which is seperated from the system one. For the new created python environment, the actual python execuble is located at `/ANACONDA_INSTALLATION_HOME/envs/ENV_NAME/bin/python`, where `ANACONDA_INSTALLATION_HOME` is the installation home of your anaconda, and `ENV_NAME` is the name of python environment (here is hoaxy). Please be aware that you must activate the python environment before you call any other python related command. 
+Most Linux distributions have installed their own python version. After the activation, you are using the new created python environment, which is separated from the system one. For the new created python environment, the actual python executable is located at `/ANACONDA_INSTALLATION_HOME/envs/ENV_NAME/bin/python`, where `ANACONDA_INSTALLATION_HOME` is the installation home of your anaconda, and `ENV_NAME` is the name of python environment (here is hoaxy). Please be aware that you must activate the python environment before you call any other python related command. 
 
 ## Lucene
 
 Hoaxy uses [Apache Lucene](https://lucene.apache.org/) for indexing and searching. The python wrapper [pylucene](http://lucene.apache.org/pylucene/) is used to interface Hoaxy with Lucene. Unfortunately pylucene is neither avaiable via conda or pip, so you will have to compile it yourself.
 
-1. [Download](http://www.apache.org/dyn/closer.lua/lucene/pylucene/) pylucene **4.10.1**, the version we have tested. Other versions may not work as expected.
+1. [Download](http://www.apache.org/dyn/closer.lua/lucene/pylucene/) latest pylucene **7.6.0**(pylucene-7.6.0-src.tar.gz), the version we have tested.
 
 2. Follow these [instructions](http://lucene.apache.org/pylucene/install.html) to compile and install pylucene. Please note that building the package is a time-consuming task. Also, _do not forget to activate the python environment_, otherwise pylucene will be installed under the system Python!
 
 We found that the following tips made the compilation instructions of pylucene a bit easier to follow:
   - You can use `cd` instead of `pushd` and `popd`.
+  - pylucene supports oracle jdk 1.8
   - You will need the packages `default-jre` `default-jdk` `python-dev` and `ant` installed on the system (via apt-get if on Ubuntu).
   - ***Do not `sudo`*** anything during installation. Using sudo will prevent Lucene from being installed in the correct Anaconda and venv directories.
   - Two files need to be modified for your system, `setup.py` and `Makefile`. In these two files, the following three variables need to be set to reflect your installation and the virtual environment: `java`, `ant` and `python` (for the venv).
@@ -113,7 +112,7 @@ If you want to use this system purely to collect data, this step is optional.
 
 These assume that all prerequisite have been satisfied (see above section).
 
-1. Use conda to install all remaining dependencies (Remeber: activate your python environemnt first):
+1. Use conda to install all remaining dependencies (Remember: activate your python environment first):
 
     ```bash
     conda install docopt Flask gunicorn networkx pandas psycopg2 python-dateutil pytz pyyaml scrapy simplejson SQLAlchemy sqlparse tabulate
