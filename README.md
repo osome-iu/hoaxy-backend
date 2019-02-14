@@ -14,16 +14,16 @@ This document describes how to set up the hoaxy backend on your system.
 
 ## Python Environment
 
-Hoaxy has been upgraded to use python3 under Ubuntu. We are beginning tests for Python 3.6.
+Hoaxy has been upgraded to use python3 under Ubuntu. We are beginning tests for Python 3.7.
 
 The recommended installation method is to use a virtual environment. We recommend [anaconda](https://www.continuum.io/downloads) to setup a virtual environment. You *could* directly use the setuptools script by running `python setup.py install`, but that is not recommended if you are not an expert Linux user, as some dependencies (e.g. NumPy) need to be compiled and could result in compilation errors.
 
 Anaconda provides already compiled packages for all dependencies needed to install Hoaxy. In the following, our instructions assume that you are using Anaconda. Here is an example of how to create and use python environment by conda.
 
-1. Create a new python virtual environment, named hoaxy with version 3.6:
+1. Create a new python virtual environment, named hoaxy with version 3.7:
 
     ```bash
-    conda create -n hoaxy python=3.6
+    conda create -n hoaxy python=3.7
     ```
 
 2. activate it (note that before you use other python related command, you should activate your python environment first):
@@ -42,8 +42,13 @@ Hoaxy uses [Apache Lucene](https://lucene.apache.org/) for indexing and searchin
 2. Follow these [instructions](http://lucene.apache.org/pylucene/install.html) to compile and install pylucene. Please note that building the package is a time-consuming task. Also, _do not forget to activate the python environment_, otherwise pylucene will be installed under the system Python!
 
 We found that the following tips made the compilation instructions of pylucene a bit easier to follow:
+  - To build pylucene, you need gcc compiler. Recommended gcc version is GCC 5 or higher
+  - If you are getting GCC related errors, add following exports in your shell
+    - export JCC_ARGSEP=";"
+    -  export JCC_CFLAGS="-v;-fno-strict-aliasing;-Wno-write-strings;-D__STDC_FORMAT_MACROS"
   - You can use `cd` instead of `pushd` and `popd`.
   - pylucene supports oracle jdk 1.8
+  - pylucene needs apache ant 1.8.2 or higher
   - You will need the packages `default-jre` `default-jdk` `python-dev` and `ant` installed on the system (via apt-get if on Ubuntu).
   - ***Do not `sudo`*** anything during installation. Using sudo will prevent Lucene from being installed in the correct Anaconda and venv directories.
   - Two files need to be modified for your system, `setup.py` and `Makefile`. In these two files, the following three variables need to be set to reflect your installation and the virtual environment: `java`, `ant` and `python` (for the venv).
