@@ -1,0 +1,49 @@
+#
+# define ENV
+
+# SET YOUR EMAIL ADDRESS IF YOU WOULD LIKE TO RECEIVE ERROR LOGS
+# MAILTO=admin@example.com
+
+# SET YOUR SHELL, MAKE SURE `source` command is availabe under your shell
+SHELL=/bin/bash
+
+# ADD anaconda to PATH, suppose your hoaxy python environment is created
+# anaconda, named hoaxy
+PATH=/YOUR_HOME/anaconda3/bin:/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
+
+# test env
+# build crontab environment by command
+# env - `cat ~/cronenv` /bin/bash
+# then test your command
+# * * * * * env > crontab.env
+
+# hoaxy: fetch article update every hour
+0 * * * * source activate hoaxy && hoaxy crawl --fetch-url --update > /dev/null
+
+# hoaxy: fetch HTML page hourly
+# set --limit=10000 option in case of very large URL collection
+10 * * * * source activate hoaxy && hoaxy crawl --fetch-html --limit=10000 > /dev/null
+
+# hoaxy: parse article hourly
+20 * * * * source activate hoaxy && hoaxy crawl --parse-article --limit=10000 > /dev/null
+
+# hoaxy: index articles hourly
+30 * * * * source activate hoaxy && hoaxy lucene --index > /dev/null
+
+# hoaxy: report twitter streaming status every day morning to ensure this process is OK
+0 10 * * * source activate hoaxy && hoaxy report --status=twitter | grep 'ERROR'
+
+# hoaxy: generate top spreaders every day at 18:40 (tz: -5:00, 20 minutes before utc 00:00)
+40 18 * * * source activate hoaxy && hoaxy report --top-spreader --generate --force-today > /dev/null 2>&1
+
+# hoaxy: generate top articles every day at 18:55 (tz: -5:00, 5 minutes before utc 00:00)
+55 18 * * * source activate hoaxy && hoaxy report --top-article --generate --force-today > /dev/null 2>&1
+(base) root@af17b75262f7:/usr/src# cat /home/.hoaxy/
+conf.sample.yaml                 crontab.sample.txt               domains_claim.sample.txt         domains_factchecking.sample.txt  sites.sample.yaml                
+(base) root@af17b75262f7:/usr/src# cat /home/.hoaxy/domains_claim.sample.txt 
+# LIST CLAIM DOMAINS YOU WOULD LIKE TO TRACK
+# ONE DOMAIN PER LINE
+# MAKE SURE NO REDIRECTION FOR THESE DOMAINS
+
+# infowars.com
+# empirenews.net

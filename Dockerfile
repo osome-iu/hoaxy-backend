@@ -29,7 +29,7 @@ RUN conda install -y \
 RUN echo 'deb http://httpredir.debian.org/debian jessie-backports main' > /etc/apt/sources.list.d/jessie-backports.list
 RUN apt-get update \
     && apt-get install -y ca-certificates-java='20161107~bpo8+1' openjdk-8-jdk \
-    && apt-get install -y ant build-essential nano jq
+    && apt-get install -y ant build-essential nano jq libssl1.0.0 libssl-dev
 
 WORKDIR /usr/src/pylucene
 RUN curl https://www.apache.org/dist/lucene/pylucene/pylucene-4.10.1-1-src.tar.gz \
