@@ -5,12 +5,13 @@ services:
   hoaxy:
     image: hoaxy:py2-jessie
     build:
-      file:
+      file: Dockerfile
       context: .
     environment:
       HOAXY_HOME: /home/.hoaxy
     volume:
     - ./shared/config/hoaxy:/home/.hoaxy
+    command: 
 
   postgres:
     image: postgres:9.6-alpine
