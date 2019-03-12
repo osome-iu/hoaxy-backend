@@ -61,11 +61,11 @@ logging:
 database:
   connect_args:
     drivername: postgresql
-    host: postgresql
+    host: localhost
     port: 5432
-    username: 'hoaxy'
-    password: 'hoaxypass'
-    database: 'hoaxy'
+    username: '*** REQUIRED ***'
+    password: '*** REQUIRED ***'
+    database: '*** REQUIRED ***'
   # SQLALCHEMY engine connection settings
   # http://docs.sqlalchemy.org/en/latest/core/engines.html
   pool_size: 5
@@ -127,7 +127,7 @@ sns:
 lucene:
   # Lucene index directory.
   # if index_dir is a relative path, it starts from HOAXY_HOME
-  index_dir: '/var/lib/data/lucene'
+  index_dir: '*** REQUIRED ***'
   # datetime to string format, used for datetime fields
   date_format: '%Y-%m-%dT%H:%M:%S'
   # Lucene query score weight
@@ -148,7 +148,7 @@ botometer:
   # mashape_key represent HTTP header 'X-Mashape-Key'
   # When you consuming the botometer, you need to provide this key as a way
   # to authenticate, see http://docs.mashape.com/consuming-api
-  enabled: true
+  enabled: false
   twitter_app_credentials:
     access_token: 'Please use your twitter app credentials'
     access_token_secret: '*** REQUIRED if enabled is true ***'
