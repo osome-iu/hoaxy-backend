@@ -1,0 +1,33 @@
+version: '3.1'
+
+services:
+
+  hoaxy:
+    image: hoaxy:py2-jessie
+    build:
+      file:
+      context: .
+    environment:
+      HOAXY_HOME: /home/.hoaxy
+    volume:
+    - ./shared/config/hoaxy:/home/.hoaxy
+
+  postgres:
+    image: postgres:9.6-alpine
+    restart: always
+    ports:
+    - 5432:5432
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: example
+      POSTGRES_USER: hoaxy
+      POSTGRES_PASSWORD: hoaxypass
+      POSTGRES_DB: hoaxy
+    volume:
+    - ./shared/docker/postgresql:/var/lib/postgresql
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8080:8080
