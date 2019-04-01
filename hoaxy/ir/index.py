@@ -5,6 +5,7 @@
 # written by Chengcheng Shao <sccotte@gmail.com>
 
 from java.io import File
+from java.nio.file import Paths
 from org.apache.lucene.analysis.standard import StandardAnalyzer
 from org.apache.lucene.document import Document
 from org.apache.lucene.document import Field, StringField, TextField, \
@@ -37,9 +38,12 @@ class Indexer():
             We save datetime field as string, `date_format` specify how to
             format datetime into string.
         """
-        self.store = FSDirectory.open(File(index_dir))
-        self.analyzer = StandardAnalyzer(Version.LUCENE_CURRENT)
-        self.config = IndexWriterConfig(Version.LUCENE_CURRENT, self.analyzer)
+        # self.store = FSDirectory.open(File(index_dir))
+        self.store = FSDirectory.open(Paths.get(index_dir))
+        # self.analyzer = StandardAnalyzer(Version.LUCENE_CURRENT)
+        self.analyzer = StandardAnalyzer()
+        # self.config = IndexWriterConfig(Version.LUCENE_CURRENT, self.analyzer)
+        self.config = IndexWriterConfig(self.analyzer)
         self.mode = mode
         self.date_format = date_format
         if mode == 'create_or_append':
