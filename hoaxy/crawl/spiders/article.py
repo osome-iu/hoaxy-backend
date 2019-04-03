@@ -151,6 +151,7 @@ is not determined""", url_id)
             try:
                 item['title'] = data['title']
                 content = data['content'] if data['content'] else None
+                # print(content)
                 if content is not None:
                     content = lxml.html.fromstring(html=content).text_content()
                 item['content'] = content
