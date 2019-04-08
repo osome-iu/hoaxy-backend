@@ -1,0 +1,139 @@
+FROM frolvlad/alpine-glibc:alpine-3.9
+
+ENV CONDA_DIR="/opt/conda"
+ENV PATH="$CONDA_DIR/bin:$PATH"
+
+# Install conda2
+RUN CONDA_VERSION="4.5.12" && \
+    CONDA_MD5_CHECKSUM="4be03f925e992a8eda03758b72a77298" && \
+    \
+    apk add --no-cache --virtual=.build-dependencies wget ca-certificates bash && \
+    \
+    mkdir -p "$CONDA_DIR" && \
+    wget "http://repo.continuum.io/miniconda/Miniconda2-${CONDA_VERSION}-Linux-x86_64.sh" -O miniconda.sh && \
+    echo "$CONDA_MD5_CHECKSUM  miniconda.sh" | md5sum -c && \
+    bash miniconda.sh -f -b -p "$CONDA_DIR" && \
+    echo "export PATH=$CONDA_DIR/bin:\$PATH" > /etc/profile.d/conda.sh && \
+    rm miniconda.sh && \
+    \
+    conda update --all --yes && \
+    conda config --set auto_update_conda False && \
+    rm -r "$CONDA_DIR/pkgs" && \
+    \
+    apk del --purge .build-dependencies && \
+    \
+    mkdir -p "$CONDA_DIR/locks" && \
+    chmod 777 "$CONDA_DIR/locks"
+
+# java openjdk
+ENV JAVA_VERSION=8 \
+    JAVA_UPDATE=202 \
+    JAVA_BUILD=08 \
+    JAVA_PATH=1961070e4c9b4e26a04e7f5a083f551e \
+    JAVA_HOME="/usr/lib/jvm/default-jvm"
+
+RUN apk add --no-cache --virtual=build-dependencies wget ca-certificates unzip && \
+    cd "/tmp" && \
+    wget --header "Cookie: oraclelicense=accept-securebackup-cookie;" \
+        "http://download.oracle.com/otn-pub/java/jdk/${JAVA_VERSION}u${JAVA_UPDATE}-b${JAVA_BUILD}/${JAVA_PATH}/jdk-${JAVA_VERSION}u${JAVA_UPDATE}-linux-x64.tar.gz" && \
+    tar -xzf "jdk-${JAVA_VERSION}u${JAVA_UPDATE}-linux-x64.tar.gz" && \
+    mkdir -p "/usr/lib/jvm" && \
+    mv "/tmp/jdk1.${JAVA_VERSION}.0_${JAVA_UPDATE}" "/usr/lib/jvm/java-${JAVA_VERSION}-oracle" && \
+    ln -s "java-${JAVA_VERSION}-oracle" "$JAVA_HOME" && \
+    ln -s "$JAVA_HOME/bin/"* "/usr/bin/" && \
+    rm -rf "$JAVA_HOME/"*src.zip && \
+    rm -rf "$JAVA_HOME/lib/missioncontrol" \
+           "$JAVA_HOME/lib/visualvm" \
+           "$JAVA_HOME/lib/"*javafx* \
+           "$JAVA_HOME/jre/lib/plugin.jar" \
+           "$JAVA_HOME/jre/lib/ext/jfxrt.jar" \
+           "$JAVA_HOME/jre/bin/javaws" \
+           "$JAVA_HOME/jre/lib/javaws.jar" \
+           "$JAVA_HOME/jre/lib/desktop" \
+           "$JAVA_HOME/jre/plugin" \
+           "$JAVA_HOME/jre/lib/"deploy* \
+           "$JAVA_HOME/jre/lib/"*javafx* \
+           "$JAVA_HOME/jre/lib/"*jfx* \
+           "$JAVA_HOME/jre/lib/amd64/libdecora_sse.so" \
+           "$JAVA_HOME/jre/lib/amd64/"libprism_*.so \
+           "$JAVA_HOME/jre/lib/amd64/libfxplugins.so" \
+           "$JAVA_HOME/jre/lib/amd64/libglass.so" \
+           "$JAVA_HOME/jre/lib/amd64/libgstreamer-lite.so" \
+           "$JAVA_HOME/jre/lib/amd64/"libjavafx*.so \
+           "$JAVA_HOME/jre/lib/amd64/"libjfx*.so && \
+    rm -rf "$JAVA_HOME/jre/bin/jjs" \
+           "$JAVA_HOME/jre/bin/keytool" \
+           "$JAVA_HOME/jre/bin/orbd" \
+           "$JAVA_HOME/jre/bin/pack200" \
+           "$JAVA_HOME/jre/bin/policytool" \
+           "$JAVA_HOME/jre/bin/rmid" \
+           "$JAVA_HOME/jre/bin/rmiregistry" \
+           "$JAVA_HOME/jre/bin/servertool" \
+           "$JAVA_HOME/jre/bin/tnameserv" \
+           "$JAVA_HOME/jre/bin/unpack200" \
+           "$JAVA_HOME/jre/lib/ext/nashorn.jar" \
+           "$JAVA_HOME/jre/lib/jfr.jar" \
+           "$JAVA_HOME/jre/lib/jfr" \
+           "$JAVA_HOME/jre/lib/oblique-fonts" && \
+    wget --header "Cookie: oraclelicense=accept-securebackup-cookie;" \
+        "http://download.oracle.com/otn-pub/java/jce/${JAVA_VERSION}/jce_policy-${JAVA_VERSION}.zip" && \
+    unzip -jo -d "${JAVA_HOME}/jre/lib/security" "jce_policy-${JAVA_VERSION}.zip" && \
+    rm "${JAVA_HOME}/jre/lib/security/README.txt" && \
+    apk del build-dependencies && \
+    rm "/tmp/"* && \
+    \
+    echo 'public class Main { public static void main(String[] args) { System.out.println("Java code is running fine!"); } }' > Main.java && \
+    javac Main.java && \
+    java Main && \
+    rm -r "/tmp/"*
+
+ENV ANT_HOME /usr/share/java/apache-ant
+ENV PATH $PATH:$ANT_HOME/bin
+
+RUN apk add --no-cache --no-progress nano htop jq ca-certificates curl libssl1.1 apache-ant openssl openssl-dev g++ gcc bash
+
+#Install dependencies for hoaxy
+RUN conda install -y \
+        docopt \
+        Flask \
+        gunicorn \
+        networkx \
+        pandas \        
+        python-dateutil \
+        pytz \
+        pyyaml \
+        scrapy \
+        simplejson \
+        SQLAlchemy \
+        sqlparse \
+        tabulate \
+        gxx_linux-64 \
+        make
+
+WORKDIR /usr/src/pylucene
+
+RUN curl https://www.apache.org/dist/lucene/pylucene/pylucene-4.10.1-1-src.tar.gz | tar -xz --strip-components=1 \
+    && cd jcc \
+    && JCC_JDK=/usr/lib/jvm/default-jvm python setup.py install \
+    && cd .. \
+        && make all install JCC='python -m jcc' ANT=ant PYTHON=python NUM_FILES=8 \
+        && rm -rf /usr/src/pylucene
+
+RUN apk add --no-cache --no-progress git py2-psycopg2
+
+RUN git clone --recursive --depth=1 https://github.com/IUNetSci/hoaxy-backend.git /usr/src/hoaxy-backend \
+    && cd hoaxy-backend \
+    && conda install -y psycopg2 \
+    && pip install -U psycopg2 \
+    && python setup.py install
+
+WORKDIR /usr/src/hoaxy-backend
+# COPY . .
+# RUN python setup.py install
+
+ENV HOAXY_HOME=/home/.hoaxy
+
+EXPOSE 5432
+
+# WORKDIR /opt
+CMD ["/bin/bash"]

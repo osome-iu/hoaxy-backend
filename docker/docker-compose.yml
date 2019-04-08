@@ -3,7 +3,7 @@ version: '3.1'
 services:
 
   hoaxy:
-    image: hoaxy:miniconda2-jessie
+    image: hoaxy-backend:miniconda2-jdk8-alpine3.9
     build:
       file: Dockerfile
       context: .
