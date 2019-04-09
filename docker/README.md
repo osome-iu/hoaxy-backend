@@ -37,19 +37,29 @@ docker run --name hoaxy-psql -itd --restart always \
   sameersbn/postgresql:9.6-2
 ```
 
-
 # Notes
+- Clean up dockerfiles
+
+# To do
 - Can be optimized to less than 1Go
 - Create a miniconda3 version for next versions
 - Why not use a local elk stack instead of pylucene
+- Add notes about Makefile commands
+- Cleanup this README.md file and format sections
 
 # References
-## Hoaxy
+## Docker
+### Hoaxy
 - https://github.com/ppope/dockerfiles/tree/master/hoaxy
-## Miniconda
-- https://github.com/frol/docker-alpine-miniconda3
-- https://github.com/frol/docker-alpine-miniconda2
-## PostgresQL
+### Miniconda
+- https://github.com/frol/docker-alpine-miniconda3 (Alpine 3.9)
+- https://github.com/frol/docker-alpine-miniconda2 (Alpine 3.9)
+### PostgresQL
 - https://github.com/docker-library/postgres/blob/master/9.6/alpine/docker-entrypoint.sh
 - https://github.com/autocase/Alpine-uWSGI-PostgreSQL/blob/master/Dockerfile#L8
 - https://github.com/autocase/Alpine-uWSGI-PostgreSQL-SciPy-NumPy/blob/master/Dockerfile#L8
+### Sidekick
+- https://github.com/librariesio/libraries.io/blob/master/docker-compose.yml
+### Security
+- https://github.com/krallin/tini/releases (A tiny but valid `init` for containers)
+- https://github.com/tianon/gosu/releases (Simple Go-based setuid+setgid+setgroups+exec)
