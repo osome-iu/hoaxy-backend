@@ -19,6 +19,8 @@ import json
 import logging
 import lxml.html
 import scrapy
+import subprocess
+from newspaper import Article as npArticle
 
 logger = logging.getLogger(__name__)
 
@@ -99,10 +101,11 @@ is not determined""", url_id)
             if self.is_url_parsed(url_id, created_at, canonical) is True:
                 logger.info("URL %r was parsed before.", canonical)
                 continue
-            url = "https://mercury.postlight.com/parser?url={}".format(
-                canonical.encode('utf-8', errors='ignore'))
+            url = canonical.encode('utf-8', errors='ignore')
+            # url = "https://mercury.postlight.com/parser?url={}".format(
+            #     canonical.encode('utf-8', errors='ignore'))
             yield scrapy.Request(
-                url,
+                url.decode(),
                 callback=self.parse_item,
                 errback=self.errback_request,
                 meta=dict(
@@ -110,8 +113,9 @@ is not determined""", url_id)
                     date_captured=created_at,
                     date_published=date_published,
                     site_id=site_id,
-                    canonical_url=canonical),
-                headers={'x-api-key': self.api_key})
+                    canonical_url=canonical)#,
+                )
+                # headers={'x-api-key': self.api_key})
 
     def errback_request(self, failure):
         """Back call when error of the request.
@@ -139,28 +143,57 @@ is not determined""", url_id)
             url_id=url_id)
         # load json data
         try:
-            data = json.loads(response.text)
+            data = dict(html=response.text)
         except Exception as e:
-            data = None
             logger.warning('Error when loading response from webpaser: %s', e)
         # exceptions of the data
-        if data is None or 'title' not in data or len(data['title']) == 0:
+        if data is None:
             status_code = U_WP_ERROR_DATA_INVALID
         else:
             # fill item with data
             try:
+                try:
+                    newspaper_article = npArticle(url='')
+                    newspaper_article.set_html(data['html'])
+                    newspaper_article.parse()
+                    data['content'] = newspaper_article.text
+                    data['title'] = newspaper_article.title
+                    if newspaper_article.authors:
+                        data['author'] = newspaper_article.authors[0]
+                    else:
+                        data['author'] = None
+                except Exception as e:
+                    logger.warning('Error when using newspaper: %s', e)
+                    logger.info('Now parsing with Mercury.')
+                    # Now use Mercury
+                    try:
+                        mercury_parse = subprocess.check_output([
+                            'node', '../../node_sccripts/parse_with_mercury.js',
+                            item['canonical_url']])
+                        mercury_parse = json.loads(mercury_parse)
+                        data['content'] = lxml.html.fromstring(
+                            html=mercury_parse['content']).text_content()
+                        data['title'] = mercury_parse['title']
+                        data['author'] = mercury_parse['author']
+                        data['dek'] = mercury_parse['dek']
+                        data['excerpt'] = mercury_parse['excerpt']
+                    except Exception as e:
+                        logger.error('Error when parsing with Mercury: %s', e)
+                finally: # Fill with None if not exists
+                    data.setdefault('content', None)
+                    data.setdefault('title', None)
+                    data.setdefault('dek', None)
+                    data.setdefault('excerpt', None)
+                    data.setdefault('author', None)
+                    data.setdefault('date_published', None)
                 item['title'] = data['title']
-                content = data['content'] if data['content'] else None
-                # print(content)
-                if content is not None:
-                    content = lxml.html.fromstring(html=content).text_content()
+                content = data['content']
                 item['content'] = content
                 item['meta'] = dict(
                     dek=data['dek'],
                     excerpt=data['excerpt'],
                     author=data['author'])
-                if item['date_published'] is None:
-                    item['date_published'] = data['date_published']
+                item['date_published'] = data['date_published']
             except Exception as e:
                 logger.error('Error when parsing data from webparser %r: %s',
                              data, e)

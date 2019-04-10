@@ -17,3 +17,4 @@ sqlparse
 tabulate
 tweepy>=3.7.0
 ruamel.yaml
+newspaper3k
