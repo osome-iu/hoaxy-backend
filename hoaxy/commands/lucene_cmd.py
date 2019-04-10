@@ -97,6 +97,13 @@ Examples:
             if i % cls.conf['window_size'] == 1:
                 logger.info('Indexed %s articles', i)
         indexer.close()
+        q="""UPDATE article AS a
+             SET html=NULL
+             FROM UNNEST(:gids) AS t(group_id)
+             WHERE a.group_id=t.group_id
+          """
+        session.execute(sqlalchemy.text(q), gids=article_group_ids)
+        session.commit()
         if article is not None:
             mgid.value = str(article['group_id'])
             session.commit()
