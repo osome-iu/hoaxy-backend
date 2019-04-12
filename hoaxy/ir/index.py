@@ -9,10 +9,10 @@ from java.nio.file import Paths
 from org.apache.lucene.analysis.standard import StandardAnalyzer
 from org.apache.lucene.document import Document
 from org.apache.lucene.document import Field, StringField, TextField, \
-    StoredField
+    StoredField, SortedDocValuesField
 from org.apache.lucene.index import IndexWriter, IndexWriterConfig
 from org.apache.lucene.store import FSDirectory
-from org.apache.lucene.util import Version
+from org.apache.lucene.util import Version, BytesRef
 import logging
 
 logger = logging.getLogger(__name__)
@@ -71,6 +71,9 @@ class Indexer():
         doc.add(StoredField('article_id', article['article_id']))
         doc.add(
             StringField('date_published', date_published_str, Field.Store.YES))
+        doc.add(
+            SortedDocValuesField('date_published', BytesRef(date_published_str)))
+        doc.add(StoredField('date_published', date_published_str))
         doc.add(StringField('domain', article['domain'], Field.Store.YES))
         doc.add(StringField('site_type', article['site_type'], Field.Store.YES))
         doc.add(

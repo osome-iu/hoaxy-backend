@@ -21,6 +21,7 @@ from hoaxy.exceptions import APINoResultError
 from hoaxy.exceptions import APIParseError
 from hoaxy.utils.dt import utc_from_str
 from java.io import File
+from java.nio.file import Paths
 from java.lang import Float
 from java.util import HashMap
 from org.apache.lucene.analysis.standard import StandardAnalyzer
@@ -85,7 +86,7 @@ class Searcher():
         self.search_fields = search_fields
         self.sort_by_recent = Sort(
             SortField('date_published', SortField.Type.STRING, True))
-        self.store = FSDirectory.open(File(index_dir))
+        self.store = FSDirectory.open(Paths.get(index_dir))
         self.reader = DirectoryReader.open(self.store)
         self.isearcher = IndexSearcher(self.reader)
         self.analyzer = StandardAnalyzer()
@@ -162,6 +163,7 @@ class Searcher():
             'canonical_url', 'title', 'date_published', 'domain', 'site_type',
             'score']
         """
+        logger.error(query)
         if min_date_published is not None:
             dt2 = datetime.utcnow()
             if isinstance(min_date_published, datetime):
@@ -173,9 +175,11 @@ class Searcher():
             if use_lucene_syntax is False:
                 query = clean_query(query)
             q = self.mul_parser.parse(self.mul_parser, query)
+            logger.error('i**************')
             if min_date_published is not None:
+              logger.error('**************')
               q = combine_queries(q, q_dates)
-            logger.debug('Parsed query: %s', q)
+            logger.error('Parsed query: %s', q)
         except Exception as e:
             logger.error(e)
             if use_lucene_syntax is True:
@@ -189,7 +193,7 @@ You are quering with lucene syntax, be careful of your query string!""")
             'site_type', 'score'
         ]
         if sort_by == 'relevant':
-            top_docs = self.isearcher.search(q, sf, n1)
+            top_docs = self.isearcher.search(q, n1)
             score_docs = top_docs.scoreDocs
             total_hits = top_docs.totalHits
             if total_hits == 0:
@@ -215,7 +219,7 @@ You are quering with lucene syntax, be careful of your query string!""")
             counter = 0
             records = []
             top_field_docs = self.isearcher.search(
-                q, sf, n2, self.sort_by_recent, True, True)
+                q, n2, self.sort_by_recent, True, True)
             if top_field_docs.maxScore >= min_score_of_recent_sorting:
                 for sd in top_field_docs.scoreDocs:
                     if sd.score >= min_score_of_recent_sorting:
@@ -234,8 +238,8 @@ def combine_queries(q1, q2):
     '''Combine the two given queries into a BooleanQuery with the AND
     operator.'''
     b = BooleanQuery.Builder()
-    b.add(q1, BooleanClause.MUST) # Must include results from q1
-    b.add(q2, BooleanClause.MUST) # Must include results from q2
+    b.add(q1, BooleanClause.Occur.MUST) # Must include results from q1
+    b.add(q2, BooleanClause.Occur.MUST) # Must include results from q2
     bq = b.build() # BooleanQuery instance
     return bq
 

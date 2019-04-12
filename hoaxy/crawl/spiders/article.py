@@ -21,6 +21,8 @@ import lxml.html
 import scrapy
 import subprocess
 from newspaper import Article as npArticle
+from hoaxy.utils.dt import utc_from_str
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +156,10 @@ is not determined""", url_id)
             try:
                 try:
                     newspaper_article = npArticle(url='')
-                    newspaper_article.set_html(data['html'])
+                    if data['html']:
+                        newspaper_article.set_html(data['html'])
+                    else:
+                        raise Exception('Newspaper returned null content.')
                     newspaper_article.parse()
                     data['content'] = newspaper_article.text
                     data['title'] = newspaper_article.title
@@ -180,12 +185,12 @@ is not determined""", url_id)
                     except Exception as e:
                         logger.error('Error when parsing with Mercury: %s', e)
                 finally: # Fill with None if not exists
-                    data.setdefault('content', None)
-                    data.setdefault('title', None)
-                    data.setdefault('dek', None)
-                    data.setdefault('excerpt', None)
-                    data.setdefault('author', None)
-                    data.setdefault('date_published', None)
+                    data.setdefault('content', '')
+                    data.setdefault('title', '')
+                    data.setdefault('dek', '')
+                    data.setdefault('excerpt', '')
+                    data.setdefault('author', '')
+                    data.setdefault('date_published', '')
                 item['title'] = data['title']
                 content = data['content']
                 item['content'] = content

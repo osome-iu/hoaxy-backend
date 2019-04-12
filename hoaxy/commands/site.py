@@ -140,6 +140,7 @@ def parse_site(site):
             status = 'invalid'
             break
     if 'base_url' not in site:
+        if isinstance(site, str): print(site)
         if site.get('is_alive', True) is False:
             site['is_alive'] = False
             site['base_url'] = 'http://' + site['domain'] + '/'
@@ -364,7 +365,7 @@ or Use --ignore-inactive or --force-inactive  to handle inactive domains""")
                    ignore_redirected):
         """Load site.yaml into database."""
         with open(fn, 'r') as f:
-            sites = yaml.load(f)
+            sites = yaml.load(f)['sites']
         invalid_flag = False
         inactive_flag = False
         redirected_flag = False
