@@ -365,7 +365,7 @@ or Use --ignore-inactive or --force-inactive  to handle inactive domains""")
                    ignore_redirected):
         """Load site.yaml into database."""
         with open(fn, 'r') as f:
-            sites = yaml.load(f)['sites']
+            sites = yaml.load(f, Loader=yaml.FullLoader)['sites']
         invalid_flag = False
         inactive_flag = False
         redirected_flag = False
