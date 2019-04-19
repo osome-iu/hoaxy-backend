@@ -656,7 +656,7 @@ def limit_by_k_core(df, nodes_limit, edges_limit):
         This dataframe is refined with k_core algorithm.
     """
     v_cols = ['from_user_id', 'to_user_id']
-    G = nx.from_pandas_dataframe(
+    G = nx.from_pandas_edgelist(
         df, v_cols[0], v_cols[1], create_using=nx.DiGraph())
     G.remove_edges_from(G.selfloop_edges())
     #
@@ -685,7 +685,7 @@ def limit_by_k_core(df, nodes_limit, edges_limit):
     logger.debug('filtered nodes/edges = %s/%s',
                  G.number_of_nodes(), G.number_of_edges())
     df = df.set_index(['from_user_id', 'to_user_id'])
-    df = df.loc[G.edges()]
+    df = df.loc[list(G.edges())]
     return df.reset_index()
 
 
