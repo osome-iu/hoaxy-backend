@@ -27,10 +27,10 @@ else:
 if not isfile(HOAXY_CONF):
     HOAXY_CONF = resource_filename('hoaxy.data.samples', 'conf.sample.yaml')
     with open(HOAXY_CONF, 'r') as f:
-        CONF = yaml.load(f)
+        CONF = yaml.load(f, Loader=yaml.FullLoader)
 else:
     with open(HOAXY_CONF, 'r') as f:
-        CONF = yaml.load(f)
+        CONF = yaml.load(f, Loader=yaml.FullLoader)
 if not CONF['logging']['handlers']['file']['filename'].startswith('/'):
     CONF['logging']['handlers']['file']['filename'] = join(
         HOAXY_HOME, CONF['logging']['handlers']['file']['filename'])

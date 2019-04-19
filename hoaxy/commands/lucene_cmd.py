@@ -148,6 +148,7 @@ Examples:
             if args['--mode'] == 'create':
                 mgid.set_value(0)
                 session.commit()
+            logger.debug('Indexing started.. Getting articles..')
             q = """
             SELECT DISTINCT ON (a.group_id) a.id, a.group_id,
                 a.canonical_url,
