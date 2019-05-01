@@ -23,6 +23,7 @@ import subprocess
 from newspaper import Article as npArticle
 from hoaxy.utils.dt import utc_from_str
 from datetime import datetime
+import demjson
 
 logger = logging.getLogger(__name__)
 
@@ -47,12 +48,15 @@ class ArticleParserSpider(scrapy.spiders.Spider):
             A list of tuple (id, created_at, date_published,
             canonical_url, site_id), which is a URL collection fetched from
             database.
-        api_key : string
-            The API key to use the service.
+        node_path : string
+            node executable path.
+        mercury_parser_installation_path : string
+            pwd of <hoaxy-backened>/hoaxy/node_scripts/parse_with_mercury.js.
         """
         self.session = session
         self.url_tuples = url_tuples
-        self.api_key = kwargs.pop('api_key')
+        self.node_path = kwargs.pop('node_path')
+        self.mercury_parser_installation_path = kwargs.pop('mercury_parser_path')
         super(ArticleParserSpider, self).__init__(*args, **kwargs)
 
     def is_url_parsed(self, *url_tuple):
@@ -163,25 +167,41 @@ is not determined""", url_id)
                     newspaper_article.parse()
                     data['content'] = newspaper_article.text
                     data['title'] = newspaper_article.title
+                    logger.info('Newspaper parser found {} for the title of this article'.format(data['title']))
+                    data['date_published'] = newspaper_article.publish_date
+                    data['excerpt'] = newspaper_article.meta_description
+                    logger.info('Newpaper3k parser found {} for the description of this article'.format(data['excerpt']))
                     if newspaper_article.authors:
                         data['author'] = newspaper_article.authors[0]
                     else:
                         data['author'] = None
+                    if data['title'] == '':
+                        raise Exception('No title found!')
+                    if data['date_published'] == '':
+                        raise Exception('No date published found!')
+                    if data['excerpt'] == '':
+                        raise Exception('No excerpt found!')
                 except Exception as e:
                     logger.warning('Error when using newspaper: %s', e)
                     logger.info('Now parsing with Mercury.')
                     # Now use Mercury
                     try:
-                        mercury_parse = subprocess.check_output([
-                            'node', '../../node_sccripts/parse_with_mercury.js',
-                            item['canonical_url']])
-                        mercury_parse = json.loads(mercury_parse)
-                        data['content'] = lxml.html.fromstring(
-                            html=mercury_parse['content']).text_content()
-                        data['title'] = mercury_parse['title']
-                        data['author'] = mercury_parse['author']
-                        data['dek'] = mercury_parse['dek']
-                        data['excerpt'] = mercury_parse['excerpt']
+                        canonical_url = item['canonical_url']
+                        if canonical_url is not None and canonical_url != "":
+                            mercury_parse = subprocess.check_output([
+                                self.node_path, self.mercury_parser_installation_path,
+                                str(item['canonical_url'])])
+                            mercury_parse = demjson.decode(mercury_parse.decode('utf-8'))
+                            data['content'] = lxml.html.fromstring(
+                                html=mercury_parse['content']).text_content()
+                            data['title'] = mercury_parse['title']
+                            logger.info('Mercury parser found {} for the title of this article'.format(data['title']))
+                            data['author'] = mercury_parse['author']
+                            data['dek'] = mercury_parse['dek']
+                            data['excerpt'] = mercury_parse['excerpt']
+                            data['date_published'] = mercury_parse['date_published']
+                        else:
+                            logger.error('URL is empty')
                     except Exception as e:
                         logger.error('Error when parsing with Mercury: %s', e)
                 finally: # Fill with None if not exists
@@ -198,7 +218,10 @@ is not determined""", url_id)
                     dek=data['dek'],
                     excerpt=data['excerpt'],
                     author=data['author'])
-                item['date_published'] = data['date_published']
+                if 'date_published' not in item or item['date_published'] in (None, '', False):
+                    item['date_published'] = data['date_published']
+                if '' in (item['title'], item['content']):
+                    raise Exception('No proper content/title found')
             except Exception as e:
                 logger.error('Error when parsing data from webparser %r: %s',
                              data, e)

@@ -92,10 +92,14 @@ crawl:
     # Web content parser, we find two parser, one is python-goose, the other is
     # a webparser from *** https://mercury.postlight.com/ ***
     # We found that webparser works better than python-goose,
-    # so we use weparser as default to parse all web news articles.
-    # The api key of webparser, please register and generate your key.
+    # so we use webparser as default to parse all web news articles.
+    # We use local version of mercury parse which you need to install
+    # following https://www.npmjs.com/package/@postlight/mercury-parser,
+    # You need node installed in your system, you can find the nodejs script for
+    # parser in <hoaxy-backend>/hoaxy/node_scrips
     # *** REQUIRE *** SELF CONFIGURATION
-    webparser_api_key: '*** REQUIRED ***'
+    node_installation_path: '**** REQUIRED ****'
+    parse_with_mercury_js_path: '**** REQUIRED ****'
   # Many URLs we collected are coming from domains we do not need. For these
   # urls we do not parse their html page.
   excluded_domains:

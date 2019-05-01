@@ -163,7 +163,6 @@ class Searcher():
             'canonical_url', 'title', 'date_published', 'domain', 'site_type',
             'score']
         """
-        logger.error(query)
         if min_date_published is not None:
             dt2 = datetime.utcnow()
             if isinstance(min_date_published, datetime):
@@ -175,11 +174,9 @@ class Searcher():
             if use_lucene_syntax is False:
                 query = clean_query(query)
             q = self.mul_parser.parse(self.mul_parser, query)
-            logger.error('i**************')
             if min_date_published is not None:
-              logger.error('**************')
               q = combine_queries(q, q_dates)
-            logger.error('Parsed query: %s', q)
+            logger.info('Parsed query: %s', q)
         except Exception as e:
             logger.error(e)
             if use_lucene_syntax is True:

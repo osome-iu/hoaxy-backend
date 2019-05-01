@@ -174,12 +174,17 @@ class ArticlePipeline(object):
         # marticle exists
         # update datetime of this article
         if marticle:
+            logger.info('Current excerpt {} for this article'.format(marticle.meta['excerpt']))
             # marticle.date_published is None
             if marticle.date_published is None:
                 marticle.date_published = item['date_published']
             # marticle.date_captured > article['date_captured']
             if marticle.date_captured > item['date_captured']:
                 marticle.date_captured = item['date_captured']
+            if marticle.title is None:
+                marticle.title = item['title']
+            if marticle.meta['excerpt'] == '':
+                marticle.meta['excerpt'] = item['meta']['excerpt']
         # new article
         else:
             if item['site_id'] is not None:

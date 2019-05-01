@@ -229,7 +229,8 @@ Examples (`||` represents continue of commands, you can ignore when using):
             ArticleParserSpider,
             session=session,
             url_tuples=url_tuples,
-            api_key=cls.conf['crawl']['article_parser']['webparser_api_key'],
+            node_path=cls.conf['crawl']['article_parser']['node_installation_path'],
+            mercury_parser_path=cls.conf['crawl']['article_parser']['parse_with_mercury_js_path'],
         )
         process.start()
 
