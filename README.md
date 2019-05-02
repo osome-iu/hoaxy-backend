@@ -84,13 +84,14 @@ GRANT ALL PRIVILEGES ON DATABASE hoaxy TO hoaxy;
 
 Hoaxy tracks shares of claims and fact checking articles from the Twitter stream. To do so, it uses the [filter](https://dev.twitter.com/streaming/reference/post/statuses/filter) method of the [Twitter Streaming API](https://dev.twitter.com/streaming/overview). You must create at least one Twitter app authentication keys, and obtain their Access Token, Access Token Secret, Consumer Token and Consumer Secret information. Follow [these instructions](https://stackoverflow.com/questions/1808855/getting-new-twitter-api-consumer-and-secret-keys) to create a new app key and to generate all tokens. If you want to have the Botometer feature, you need another Twitter app authentication keys.
 
-## Mercury Web Parser API
+## Web Parser API
 
-Hoaxy relies on a third-party API to parse and extract the content of Web documents. This API takes care of removing all markup, as well as discarding all comments, ads, and site navigation text. Please go to 
+Hoaxy relies on two third-party libraries to parse and extract the content of Web documents. These libraries take care of removing all markup, as well as discarding all comments, ads, and site navigation text. 
+The two libraries we use are, newspaper3k (https://newspaper.readthedocs.io/en/latest/) and Mercury(https://www.npmjs.com/package/@postlight/mercury-parser). Both of them are locally installed. 
 
-    https://mercury.postlight.com/ 
-    
-And follow the instructions there to create a new account and an API key.
+For mercury parser, you need to install node first. Follow the instruction on https://nodejs.org/en/ to install node in your system. Then follow the instructions in  https://www.npmjs.com/package/@postlight/mercury-parser 
+to install mercury parser in node. Copy the <hoaxy-backend>/hoaxy/node_scripts/parse_with_mercury.js to node_modules directory where mercury parser being installed. 
+
 
 ## Mashape (_Optional_)
 
@@ -120,7 +121,7 @@ These assume that all prerequisite have been satisfied (see above section).
 1. Use conda to install all remaining dependencies (Remember: activate your python environment first):
 
     ```bash
-    conda install docopt Flask gunicorn networkx pandas psycopg2 python-dateutil pytz pyyaml scrapy simplejson SQLAlchemy sqlparse tabulate
+    conda install docopt Flask gunicorn networkx pandas psycopg2 python-dateutil pytz pyyaml scrapy simplejson SQLAlchemy sqlparse tabulate tweepy ruamel.yaml newspaper3k demjson
     ```
 
 2. Clone the hoaxy repository from Github:
@@ -182,7 +183,7 @@ These assume that all prerequisite have been satisfied (see above section).
 9. Configure Hoaxy for your needs. You may want to edit at least the following files:
       - `conf.yaml` is the main configuration file. 
       
-        Search for `*** REQUIRED ***` in conf.yaml to find settings that must be configured, including database login information, Twitter access tokens, etc.
+        Search for `*** REQUIRED ***` in conf.yaml to find settings that must be configured, including database login information, Twitter access tokens, mercury parser locations etc.
       
       - `domains_claim.txt`, `domains_factchecking.txt` and `sites.yaml` are site data files, which specify which domains need to be tracked. 
       
