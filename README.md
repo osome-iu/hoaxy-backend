@@ -123,7 +123,12 @@ These assume that all prerequisite have been satisfied (see above section).
     ```bash
     conda install docopt Flask gunicorn networkx pandas psycopg2 python-dateutil pytz pyyaml scrapy simplejson SQLAlchemy sqlparse tabulate tweepy ruamel.yaml newspaper3k demjson
     ```
-
+    Some of the packages are not official conda packages. You can use pip to install those packages.
+    
+    ```bash
+    pip install tweepy ruamel.yaml newspaper3k demjson
+    ```
+    
 2. Clone the hoaxy repository from Github:
 
     ```bash
