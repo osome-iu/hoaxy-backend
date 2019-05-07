@@ -121,7 +121,7 @@ These assume that all prerequisite have been satisfied (see above section).
 1. Use conda to install all remaining dependencies (Remember: activate your python environment first):
 
     ```bash
-    conda install docopt Flask gunicorn networkx pandas psycopg2 python-dateutil pytz pyyaml scrapy simplejson SQLAlchemy sqlparse tabulate tweepy ruamel.yaml newspaper3k demjson
+    conda install docopt Flask gunicorn networkx pandas psycopg2 python-dateutil pytz pyyaml scrapy simplejson SQLAlchemy sqlparse tabulate
     ```
     Some of the packages are not official conda packages. You can use pip to install those packages.
     
