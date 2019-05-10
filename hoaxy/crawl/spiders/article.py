@@ -24,6 +24,7 @@ from newspaper import Article as npArticle
 from hoaxy.utils.dt import utc_from_str
 from datetime import datetime
 import demjson
+from requests.utils import quote
 
 logger = logging.getLogger(__name__)
 
@@ -187,10 +188,11 @@ is not determined""", url_id)
                     # Now use Mercury
                     try:
                         canonical_url = item['canonical_url']
+                        escaped_url = quote(canonical_url, safe='/:?=&')
                         if canonical_url is not None and canonical_url != "":
                             mercury_parse = subprocess.check_output([
                                 self.node_path, self.mercury_parser_installation_path,
-                                str(item['canonical_url'])])
+                                escaped_url])
                             mercury_parse = demjson.decode(mercury_parse.decode('utf-8'))
                             data['content'] = lxml.html.fromstring(
                                 html=mercury_parse['content']).text_content()
