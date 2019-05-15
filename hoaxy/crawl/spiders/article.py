@@ -159,60 +159,65 @@ is not determined""", url_id)
         else:
             # fill item with data
             try:
+                # First use Mercury
                 try:
-                    newspaper_article = npArticle(url='')
-                    if data['html']:
-                        newspaper_article.set_html(data['html'])
+                    canonical_url = item['canonical_url']
+                    escaped_url = quote(canonical_url, safe='/:?=&')
+                    if canonical_url is not None and canonical_url != "":
+                        mercury_parse = subprocess.check_output([
+                            self.node_path, self.mercury_parser_installation_path,
+                            escaped_url])
+                        mercury_parse = demjson.decode(mercury_parse.decode('utf-8'))
+                        data['content'] = lxml.html.fromstring(
+                            html=mercury_parse['content']).text_content()
+                        data['title'] = mercury_parse['title']
+                        logger.info('Mercury parser found {} for the title of this article'.format(data['title']))
+                        data['author'] = mercury_parse['author']
+                        data['dek'] = mercury_parse['dek']
+                        data['excerpt'] = mercury_parse['excerpt']
+                        data['date_published'] = mercury_parse['date_published']
+                        if data['content'] is None:
+                            raise Exception('No content found!')
+                        if data['title'] is None:
+                            raise Exception('No title found!')
+                        if data['date_published'] is None:
+                            raise Exception('No date published found!')
+                        if data['excerpt'] is None:
+                            raise Exception('No excerpt found!')
                     else:
-                        raise Exception('Newspaper returned null content.')
-                    newspaper_article.parse()
-                    data['content'] = newspaper_article.text
-                    data['title'] = newspaper_article.title
-                    logger.info('Newspaper parser found {} for the title of this article'.format(data['title']))
-                    data['date_published'] = newspaper_article.publish_date
-                    data['excerpt'] = newspaper_article.meta_description
-                    logger.info('Newpaper3k parser found {} for the description of this article'.format(data['excerpt']))
-                    if newspaper_article.authors:
-                        data['author'] = newspaper_article.authors[0]
-                    else:
-                        data['author'] = None
-                    if data['title'] == '':
-                        raise Exception('No title found!')
-                    if data['date_published'] == '':
-                        raise Exception('No date published found!')
-                    if data['excerpt'] == '':
-                        raise Exception('No excerpt found!')
+                        logger.error('URL is empty')
                 except Exception as e:
-                    logger.warning('Error when using newspaper: %s', e)
-                    logger.info('Now parsing with Mercury.')
-                    # Now use Mercury
+                    logger.error('Error when parsing with Mercury: %s', e)
+                    logger.info('Now parsing with Newspaper.')
                     try:
-                        canonical_url = item['canonical_url']
-                        escaped_url = quote(canonical_url, safe='/:?=&')
-                        if canonical_url is not None and canonical_url != "":
-                            mercury_parse = subprocess.check_output([
-                                self.node_path, self.mercury_parser_installation_path,
-                                escaped_url])
-                            mercury_parse = demjson.decode(mercury_parse.decode('utf-8'))
-                            data['content'] = lxml.html.fromstring(
-                                html=mercury_parse['content']).text_content()
-                            data['title'] = mercury_parse['title']
-                            logger.info('Mercury parser found {} for the title of this article'.format(data['title']))
-                            data['author'] = mercury_parse['author']
-                            data['dek'] = mercury_parse['dek']
-                            data['excerpt'] = mercury_parse['excerpt']
-                            data['date_published'] = mercury_parse['date_published']
+                        newspaper_article = npArticle(url='')
+                        if data['html']:
+                            newspaper_article.set_html(data['html'])
                         else:
-                            logger.error('URL is empty')
+                            raise Exception('Newspaper returned null content.')
+                        newspaper_article.parse()
+                        if data['content'] is None:
+                            data['content'] = newspaper_article.text
+                        if data['title'] is None:
+                            data['title'] = newspaper_article.title
+                        if data['date_published'] is None:
+                            data['date_published'] = newspaper_article.publish_date
+                        if data['excerpt'] is None:
+                            data['excerpt'] = newspaper_article.meta_description
+                        if data['author'] is None:
+                            if newspaper_article.authors:
+                                data['author'] = newspaper_article.authors[0]
+                            else:
+                                data['author'] = None
                     except Exception as e:
-                        logger.error('Error when parsing with Mercury: %s', e)
+                        logger.warning('Error when using newspaper: %s', e)
                 finally: # Fill with None if not exists
-                    data.setdefault('content', '')
-                    data.setdefault('title', '')
-                    data.setdefault('dek', '')
-                    data.setdefault('excerpt', '')
-                    data.setdefault('author', '')
-                    data.setdefault('date_published', '')
+                    data.setdefault('content', None)
+                    data.setdefault('title', None)
+                    data.setdefault('dek', None)
+                    data.setdefault('excerpt', None)
+                    data.setdefault('author', None)
+                    data.setdefault('date_published', None)
                 item['title'] = data['title']
                 content = data['content']
                 item['content'] = content
@@ -222,7 +227,7 @@ is not determined""", url_id)
                     author=data['author'])
                 if 'date_published' not in item or item['date_published'] in (None, '', False):
                     item['date_published'] = data['date_published']
-                if '' in (item['title'], item['content']):
+                if None in (item['title'], item['content']):
                     raise Exception('No proper content/title found')
             except Exception as e:
                 logger.error('Error when parsing data from webparser %r: %s',
