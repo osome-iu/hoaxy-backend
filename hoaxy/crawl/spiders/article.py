@@ -164,26 +164,31 @@ is not determined""", url_id)
                     canonical_url = item['canonical_url']
                     escaped_url = quote(canonical_url, safe='/:?=&')
                     if canonical_url is not None and canonical_url != "":
-                        mercury_parse = subprocess.check_output([
-                            self.node_path, self.mercury_parser_installation_path,
-                            escaped_url])
-                        mercury_parse = demjson.decode(mercury_parse.decode('utf-8'))
-                        data['content'] = lxml.html.fromstring(
-                            html=mercury_parse['content']).text_content()
-                        data['title'] = mercury_parse['title']
-                        logger.info('Mercury parser found {} for the title of this article'.format(data['title']))
-                        data['author'] = mercury_parse['author']
-                        data['dek'] = mercury_parse['dek']
-                        data['excerpt'] = mercury_parse['excerpt']
-                        data['date_published'] = mercury_parse['date_published']
-                        if data['content'] is None:
-                            raise Exception('No content found!')
-                        if data['title'] is None:
-                            raise Exception('No title found!')
-                        if data['date_published'] is None:
-                            raise Exception('No date published found!')
-                        if data['excerpt'] is None:
-                            raise Exception('No excerpt found!')
+                        try:
+                            mercury_parse = subprocess.check_output([
+                                self.node_path, self.mercury_parser_installation_path,
+                                escaped_url])
+                            mercury_parse = demjson.decode(mercury_parse.decode('utf-8'))
+                            data['content'] = lxml.html.fromstring(
+                                html=mercury_parse['content']).text_content()
+                            data['title'] = mercury_parse['title']
+                            logger.info('Mercury parser found {} for the title of this article'.format(data['title']))
+                            data['author'] = mercury_parse['author']
+                            data['dek'] = mercury_parse['dek']
+                            data['excerpt'] = mercury_parse['excerpt']
+                            data['date_published'] = mercury_parse['date_published']
+                            if data['content'] is None:
+                                raise Exception('No content found!')
+                            if data['title'] is None:
+                                raise Exception('No title found!')
+                            if data['date_published'] is None:
+                                raise Exception('No date published found!')
+                            if data['excerpt'] is None:
+                                raise Exception('No excerpt found!')
+                        except subprocess.CalledProcessError as grepexc:
+                            if grepexc.returncode != 0:
+                                logger.error('Error while parsing with mercury. Try with Newspaper3k')
+                                raise Exception('Mercury timeout error !')
                     else:
                         logger.error('URL is empty')
                 except Exception as e:
