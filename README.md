@@ -315,6 +315,18 @@ After you have run the backend for the first time, Hoaxy will be ready to track 
     killasgroup=true
     stopasgroup=true
     ```
+    
+# Hoaxy backend as AWS image (AMI)
+We installed hoaxy backend (pylucene, postgres, hoaxy repository, configuration, supervisor, conda etc) as an AWS AMI which you can 
+use to host it in AWS. Here are the steps how to access AWS AMI.
+
+1. Log in AWS using your aws credentials 
+2. Go to Services -> EC2 and click on Launch Instance
+3. Click on "Community AMIs" and search for "hoaxy" and you will find an AMI as "IUNI-hoaxy-backend - ami-0e2cad4cda62fe51b"
+4. Select that and follow the instructions to create instance using that AMI
+5. Once you start the instance, you can find the hoaxy configuration under .hoaxy folder at home. You need to 
+update the configuration with your twitter keys and mashape api token
+ 
 
 # Frequently Asked Questions
 
