@@ -22,6 +22,7 @@ import scrapy
 import subprocess
 from newspaper import Article as npArticle
 from hoaxy.utils.dt import utc_from_str
+from hoaxy.utils.log import configure_logging
 from datetime import datetime
 import demjson
 from requests.utils import quote
@@ -58,6 +59,10 @@ class ArticleParserSpider(scrapy.spiders.Spider):
         self.url_tuples = url_tuples
         self.node_path = kwargs.pop('node_path')
         self.mercury_parser_installation_path = kwargs.pop('mercury_parser_path')
+        configure_logging(
+            'crawl.parse-article',
+            console_level=args['--console-log-level'],
+            file_level='WARNING')
         super(ArticleParserSpider, self).__init__(*args, **kwargs)
 
     def is_url_parsed(self, *url_tuple):
@@ -161,6 +166,7 @@ is not determined""", url_id)
             try:
                 # First use Mercury
                 try:
+
                     canonical_url = item['canonical_url']
                     escaped_url = quote(canonical_url, safe='/:?=&')
                     if canonical_url is not None and canonical_url != "":
@@ -173,7 +179,6 @@ is not determined""", url_id)
                                 data['content'] = lxml.html.fromstring(
                                     html=mercury_parse['content']).text_content()
                                 data['title'] = mercury_parse['title']
-                                logger.info('Mercury parser found {} for the title of this article'.format(data['title']))
                                 data['author'] = mercury_parse['author']
                                 data['dek'] = mercury_parse['dek']
                                 data['excerpt'] = mercury_parse['excerpt']
@@ -182,14 +187,10 @@ is not determined""", url_id)
                                     raise Exception('No content found!')
                                 if data['title'] is None:
                                     raise Exception('No title found!')
-                                if data['date_published'] is None:
-                                    raise Exception('No date published found!')
-                                if data['excerpt'] is None:
-                                    raise Exception('No excerpt found!')
                         except subprocess.CalledProcessError as grepexc:
-                            logger.critical('exit code %s ', grepexc.returncode)
+                            logger.error('exit code %s ', grepexc.returncode)
                             if grepexc.returncode != 0:
-                                logger.critical('Error while parsing with mercury. Try with Newspaper3k')
+                                logger.error('Error while parsing with mercury. Try with Newspaper3k')
                                 raise Exception('Mercury timeout error !')
                     else:
                         logger.error('URL is empty')
