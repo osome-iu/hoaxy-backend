@@ -61,7 +61,7 @@ class ArticleParserSpider(scrapy.spiders.Spider):
         self.mercury_parser_installation_path = kwargs.pop('mercury_parser_path')
         configure_logging(
             'crawl.parse-article',
-            console_level=args['--console-log-level'],
+            console_level='CRITICAL',
             file_level='WARNING')
         super(ArticleParserSpider, self).__init__(*args, **kwargs)
 
