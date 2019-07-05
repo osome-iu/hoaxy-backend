@@ -187,6 +187,8 @@ is not determined""", url_id)
                                     raise Exception('No content found!')
                                 if data['title'] is None:
                                     raise Exception('No title found!')
+                            else:
+                                logger.error('ConnectionTimedOut from Mercury script')
                         except subprocess.CalledProcessError as grepexc:
                             logger.error('exit code %s ', grepexc.returncode)
                             if grepexc.returncode != 0:
