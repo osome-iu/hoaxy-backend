@@ -240,8 +240,7 @@ is not determined""", url_id)
                 if None in (item['title'], item['content']):
                     raise Exception('No proper content/title found')
             except Exception as e:
-                logger.error('Error when parsing data from webparser %r: %s',
-                             data, e)
+                logger.error('Error when parsing data from webparser, error is %s ', e)
                 status_code = U_WP_ERROR_DATA_INVALID
         # No error happens, send to pipeline
         # remeber pipeline will also handle the url.status_code
