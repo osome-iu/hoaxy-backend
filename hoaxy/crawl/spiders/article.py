@@ -189,6 +189,7 @@ is not determined""", url_id)
                                     raise Exception('No title found!')
                             else:
                                 logger.error('ConnectionTimedOut from Mercury script for url %s ', canonical_url)
+                                raise Exception('Mercury timeout error. Try with Newspaper3k')
                         except subprocess.CalledProcessError as grepexc:
                             logger.error('exit code %s ', grepexc.returncode)
                             if grepexc.returncode != 0:
