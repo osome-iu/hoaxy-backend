@@ -59,7 +59,7 @@ class FileHandler(BaseHandler):
         if self.filepath == '-':
             self.fp = sys.stdout
         elif self.filepath.endswith(".gz"):
-            self.fp = gzip.open(filename=self.filepath, 'at')
+            self.fp = gzip.open(self.filepath, 'at')
         else:
             self.fp = open(self.filepath, 'at')
 
