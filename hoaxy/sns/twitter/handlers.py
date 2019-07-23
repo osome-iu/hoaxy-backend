@@ -58,8 +58,8 @@ class FileHandler(BaseHandler):
         """Internal function to open file. Mode should be append and text"""
         if self.filepath == '-':
             self.fp = sys.stdout
-        elif self.filepath.endswith("gz"):
-            self.fp = gzip.GzipFile(filename=self.filepath, mode='at')
+        elif self.filepath.endswith(".gz"):
+            self.fp = gzip.open(filename=self.filepath, 'at')
         else:
             self.fp = open(self.filepath, 'at')
 
