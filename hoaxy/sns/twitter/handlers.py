@@ -55,13 +55,13 @@ class FileHandler(BaseHandler):
         self._openfile()
 
     def _openfile(self):
-        """Internal function to open file."""
+        """Internal function to open file. Mode should be append and text"""
         if self.filepath == '-':
             self.fp = sys.stdout
         elif self.filepath.endswith("gz"):
-            self.fp = gzip.GzipFile(filename=self.filepath, mode='a')
+            self.fp = gzip.GzipFile(filename=self.filepath, mode='at')
         else:
-            self.fp = open(self.filepath, 'a')
+            self.fp = open(self.filepath, 'at')
 
     def process_one(self, jd):
         """Dump json as string, each object per line."""
