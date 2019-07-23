@@ -73,6 +73,7 @@ class FileHandler(BaseHandler):
         try:
             self.fp.write(line)
             self.fp.write('\n')
+            self.fp.flush()
         except Exception as e:
             logger.error(e)
             self.fp.close()

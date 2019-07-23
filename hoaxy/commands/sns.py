@@ -7,20 +7,22 @@ implemented.
 #
 # written by Chengcheng Shao <sccotte@gmail.com>
 
+import logging
+import queue
+import smtplib
+import time
+from os.path import join
+
+from hoaxy import HOAXY_HOME
 from hoaxy.commands import HoaxyCommand
 from hoaxy.database import Session
-from hoaxy.database.functions import get_platform_id
-from hoaxy.database.functions import get_site_tuples
+from hoaxy.database.functions import get_platform_id, get_site_tuples
 from hoaxy.database.models import N_PLATFORM_TWITTER
-from hoaxy.sns.twitter.handlers import QueueHandler
+from hoaxy.sns.twitter.handlers import FileHandler, QueueHandler
 from hoaxy.sns.twitter.parsers import QueueParser
 from hoaxy.sns.twitter.stream import TwitterStream
 from hoaxy.utils import get_track_keywords
 from hoaxy.utils.log import configure_logging
-import queue
-import logging
-import smtplib
-import time
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +32,7 @@ class SNS(HoaxyCommand):
 usage:
   hoaxy sns --twitter-streaming
             [(--mail-from=<f> --mail-to=<t>) --mail-server=<s>]
+            [--to-file=<filename>]
   hoaxy sns -h | --help
 
 Track posted messages in social networks. Right now only twitter platform is
@@ -41,7 +44,8 @@ implemented.
                           [default: localhost]
 --mail-from=<f>         From user address, when sending email.
 --mail-to=<t>           To user address, when sending email.
--h --help           Show help.
+--to-file=<filename>    Save tweets to a file only, one line per tweets.
+-h --help               Show help.
 
 Since twitter streaming is a long running process. It is good to monitor this
 process, especially when process exited because of exceptions. We provide
@@ -67,19 +71,29 @@ Examples:
         w_size = cls.conf['window_size']
         c = cls.conf['sns']['twitter']['app_credentials']
         snut = cls.conf['sns']['twitter']['save_none_url_tweet']
+        handlers = []
+
+        # dump to file
+        if args['--to-file'] is not None:
+            filepath = join(HOAXY_HOME, args['--to-file'])
+            fhandler = FileHandler(filepath)
+            handlers = [fhandler]
+        # save to database
+        else:
+            q = queue.Queue()
+            consumer = QueueParser(
+                q, platform_id, w_size, save_none_url_tweet=snut)
+            qhandler = QueueHandler(q)
+            consumer.start()
+            handlers = [qhandler]
 
         retries = 0
-        q = queue.Queue()
-        consumer = QueueParser(
-            q, platform_id, w_size, save_none_url_tweet=snut)
-        qhandler = QueueHandler(q)
-        consumer.start()
         stall_time = retry_stall
 
         while True:
             try:
                 streamer = TwitterStream(
-                    c, [qhandler], dict(track=keywords), w_size)
+                    c, handlers, dict(track=keywords), w_size)
                 streamer.stream()
             except Exception as e:
                 logger.exception(e)
@@ -97,7 +111,10 @@ Examples:
                         break
             except (KeyboardInterrupt, SystemExit):
                 break
-        consumer.stop()
+        if args['--to-file'] is not None:
+            fhandler.close()
+        else:
+            consumer.stop()
         s = args['--mail-server']
         f = args['--mail-from']
         t = args['--mail-to']
