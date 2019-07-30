@@ -66,3 +66,7 @@ lucene-index/
 
 # logs in tests
 tests/*.log
+
+# node packages
+node_modules/
+package-lock.json
