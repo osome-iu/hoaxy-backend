@@ -99,7 +99,7 @@ def authenticate_mashape(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         # Mashape authentication
-        mashape_secret = request.headers.get('X-Mashape-Proxy-Secret')
+        mashape_secret = request.headers.get('X-RapidAPI-Proxy-Secret')
         if mashape_secret is not None:
             client_ip = request.access_route[-1]
             # test the mashape_secret with corresponding request header
