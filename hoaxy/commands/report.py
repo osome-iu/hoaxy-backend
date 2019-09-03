@@ -19,7 +19,7 @@ from hoaxy.database.models import Top20ArticleMonthly
 from hoaxy.database.models import Top20SpreaderMonthly
 from hoaxy.ir.search import db_query_top_spreaders, db_query_top_articles
 from hoaxy.utils.log import configure_logging
-from requests import ConnectionError, Timeout
+from requests import ConnectionError, Timeout, HTTPError
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from tabulate import tabulate
@@ -97,7 +97,7 @@ is working.
                         getattr(e, 'msg', '') or getattr(e, 'reason', ''),
                     )
                     result = {'error': err_msg}
-                except (Timeout, ConnectionError) as e:
+                except (Timeout, ConnectionError, HTTPError) as e:
                     if num_retries >= max_retries:
                         raise
                     else:
