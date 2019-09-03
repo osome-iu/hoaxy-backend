@@ -93,13 +93,13 @@ For mercury parser, you need to install node first. Follow the instruction on ht
 to install mercury parser in node. Copy the <hoaxy-backend>/hoaxy/node_scripts/parse_with_mercury.js to node_modules directory where mercury parser being installed. 
 
 
-## Mashape (_Optional_)
+## Rapid API (_Optional_)
 
-This is needed if you want to use the Web front end (see below) or if you want to provide a REST API with, among others, full-text search capabilities. Mashape takes care of authentication and rate limiting, thus protecting your backend from heavy request loads. To set up Mashape, uou must create an account on the [Mashape API Marketplace](http://market.mashape.com/) and create an API key.
+This is needed if you want to use the Web front end (see below) or if you want to provide a REST API with, among others, full-text search capabilities. Rapid API takes care of authentication and rate limiting, thus protecting your backend from heavy request loads. To set up Rapid API, user must create an account on the [Rapid API Marketplace](https://rapidapi.com) and create an API key.
 
 ## Botometer (_Optional_)
 
-This is needed if you want to integrate [Botometer](http://botometer.iuni.iu.edu/) within Hoaxy to provide social bot scores for the most influential and most active accounts. The Botometer API is served via Mashape and requires access to the Twitter REST API to fetch data about Twitter users. Botometer is integrated within Hoaxy through its Python bindings, see:
+This is needed if you want to integrate [Botometer](http://botometer.iuni.iu.edu/) within Hoaxy to provide social bot scores for the most influential and most active accounts. The Botometer API is served via Rapid API and requires access to the Twitter REST API to fetch data about Twitter users. Botometer is integrated within Hoaxy through its Python bindings, see:
 
     https://github.com/IUNetSci/botometer-python
 
@@ -142,7 +142,7 @@ These assume that all prerequisite have been satisfied (see above section).
     cd hoaxy-backend
     ```
 
-4. If you are _not_ going to use Mashape, you will need to edit the file `hoaxy/backend/api.py` to remove the `authenticate_mashape` decorator from the flask routes.
+4. If you are _not_ going to use Rapid API, you will need to edit the file `hoaxy/backend/api.py` to remove the `authenticate_rapidapi` decorator from the flask routes.
 
 5. Install the package:
 
@@ -325,7 +325,7 @@ use to host it in AWS. Here are the steps how to access AWS AMI.
 3. Click on "Community AMIs" and search for "hoaxy" and you will find an AMI as "IUNI-hoaxy-backend - ami-0e2cad4cda62fe51b"
 4. Select that and follow the instructions to create instance using that AMI
 5. Once you start the instance, you can find the hoaxy configuration under .hoaxy folder at home. You need to 
-update the configuration with your twitter keys and mashape api token
+update the configuration with your twitter keys and rapid api token
  
 
 # Frequently Asked Questions

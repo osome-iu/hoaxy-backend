@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Implemention of hoaxy backend APIs
 
-(1) Mashape framework is used for deployment.
+(1) Rapid API framework is used for deployment.
 (2) Flask framework is used for implementation of APIs
 
 """
@@ -38,10 +38,10 @@ import sqlalchemy
 
 logger = logging.getLogger(__name__)
 
-# Flask app instance configuration of mashape authentication
+# Flask app instance configuration of rapid authentication
 app = Flask(__name__)
-app.config['MASHAPE_SECRET'] = CONF['api']['mashape']['secret']
-app.config['MASHAPE_IPS'] = CONF['api']['mashape']['ips']
+app.config['RAPID_SECRET'] = CONF['api']['rapid']['secret']
+app.config['RAPID_IPS'] = CONF['api']['rapid']['ips']
 
 # Prepare EasyLuceneSearcher class
 searcher = Searcher(
@@ -93,17 +93,17 @@ def copy_req_args(req_args):
     return q_kwargs
 
 
-def authenticate_mashape(func):
-    """Decorator to authenticate request with Mashape."""
+def authenticate_rapidapi(func):
+    """Decorator to authenticate request with Rapid API."""
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        # Mashape authentication
-        mashape_secret = request.headers.get('X-RapidAPI-Proxy-Secret')
-        if mashape_secret is not None:
+        # Rapid authentication
+        rapid_secret = request.headers.get('X-RapidAPI-Proxy-Secret')
+        if rapid_secret is not None:
             client_ip = request.access_route[-1]
-            # test the mashape_secret with corresponding request header
-            if mashape_secret == app.config['MASHAPE_SECRET']:
+            # test the rapid api with corresponding request header
+            if rapid_secret == app.config['RAPID_SECRET']:
                 return func(*args, **kwargs)
         # No authentication
         return "Invalid/expired token", 401
@@ -142,11 +142,11 @@ def before_request():
 
 
 @app.route('/')
-@authenticate_mashape
-def verify_mashape():
+@authenticate_rapidapi
+def verify_rapid():
     """Verify backend secret and client token are correct.
 
-    When decorated with @authenticate_mashape, this verifies that the Mashape
+    When decorated with @authenticate_rapidapi, this verifies that the RapidAPI
     config is correct and that the client's token is good.
 
     Returns
@@ -158,7 +158,7 @@ def verify_mashape():
 
 
 @app.route('/articles')
-@authenticate_mashape
+@authenticate_rapidapi
 def query_articles():
     """Handle API request '/articles'.
 
@@ -230,7 +230,7 @@ def query_articles():
 
 
 @app.route('/latest-articles')
-@authenticate_mashape
+@authenticate_rapidapi
 def query_latest_articles():
     """Handle API request '/latest-articles'.
 
@@ -299,7 +299,7 @@ def query_latest_articles():
 
 
 @app.route('/tweets')
-@authenticate_mashape
+@authenticate_rapidapi
 def query_tweets():
     """Handle API '/tweets'.
 
@@ -349,7 +349,7 @@ def query_tweets():
 
 
 @app.route('/timeline')
-@authenticate_mashape
+@authenticate_rapidapi
 def query_timeline():
     """Handle API '/timeline'.
 
@@ -416,7 +416,7 @@ def query_timeline():
 
 
 @app.route('/network')
-@authenticate_mashape
+@authenticate_rapidapi
 def query_network():
     """Handle API request '/network'.
 
@@ -481,7 +481,7 @@ def query_network():
 
 
 @app.route('/top-users')
-@authenticate_mashape
+@authenticate_rapidapi
 def query_top_spreaders():
     """Handle API request '/top-user'.
 
@@ -540,7 +540,7 @@ def query_top_spreaders():
 
 
 @app.route('/top-articles')
-@authenticate_mashape
+@authenticate_rapidapi
 def query_top_articles():
     """Handle API request 'top-articles'
 
