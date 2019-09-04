@@ -81,7 +81,7 @@ is working.
         """
         logger.info('Fetching bot score for top spreaders ...')
         bon = botometer.Botometer(
-            rapid_key=cls.conf['botometer']['rapid_key'],
+            rapidapi_key=cls.conf['botometer']['rapid_key'],
             wait_on_ratelimit=True,
             **cls.conf['botometer']['twitter_app_credentials'])
         max_retries = 3
