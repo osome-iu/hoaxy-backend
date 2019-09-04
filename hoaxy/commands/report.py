@@ -80,8 +80,10 @@ is working.
                 An instance of model Top20SpreaderMonthly.
         """
         logger.info('Fetching bot score for top spreaders ...')
+        rapid_key = cls.conf['botometer']['rapid_key']
+        logger.info(rapid_key)
         bon = botometer.Botometer(
-            rapidapi_key=cls.conf['botometer']['rapid_key'],
+            rapidapi_key=rapid_key,
             wait_on_ratelimit=True,
             **cls.conf['botometer']['twitter_app_credentials'])
         max_retries = 3
