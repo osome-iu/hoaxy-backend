@@ -11,7 +11,7 @@ RUN apk add --no-cache --update alpine-sdk \
                      libffi-dev \
                      zlib-dev \
                      py-pip \
-                     nano bash jq
+                     nano bash jq musl-dev
 
 # Install conda2
 # Install conda
@@ -36,67 +36,9 @@ RUN CONDA_VERSION="4.5.12" && \
     mkdir -p "$CONDA_DIR/locks" && \
     chmod 777 "$CONDA_DIR/locks"
 
-# java openjdk
-ENV JAVA_VERSION=8 \
-    JAVA_UPDATE=202 \
-    JAVA_BUILD=08 \
-    JAVA_PATH=1961070e4c9b4e26a04e7f5a083f551e \
-    JAVA_HOME="/usr/lib/jvm/default-jvm"
-
-RUN apk add --no-cache --virtual=build-dependencies wget ca-certificates unzip && \
-    cd "/tmp" && \
-    wget --header "Cookie: oraclelicense=accept-securebackup-cookie;" \
-        "http://download.oracle.com/otn-pub/java/jdk/${JAVA_VERSION}u${JAVA_UPDATE}-b${JAVA_BUILD}/${JAVA_PATH}/jdk-${JAVA_VERSION}u${JAVA_UPDATE}-linux-x64.tar.gz" && \
-    tar -xzf "jdk-${JAVA_VERSION}u${JAVA_UPDATE}-linux-x64.tar.gz" && \
-    mkdir -p "/usr/lib/jvm" && \
-    mv "/tmp/jdk1.${JAVA_VERSION}.0_${JAVA_UPDATE}" "/usr/lib/jvm/java-${JAVA_VERSION}-oracle" && \
-    ln -s "java-${JAVA_VERSION}-oracle" "$JAVA_HOME" && \
-    ln -s "$JAVA_HOME/bin/"* "/usr/bin/" && \
-    rm -rf "$JAVA_HOME/"*src.zip && \
-    rm -rf "$JAVA_HOME/lib/missioncontrol" \
-           "$JAVA_HOME/lib/visualvm" \
-           "$JAVA_HOME/lib/"*javafx* \
-           "$JAVA_HOME/jre/lib/plugin.jar" \
-           "$JAVA_HOME/jre/lib/ext/jfxrt.jar" \
-           "$JAVA_HOME/jre/bin/javaws" \
-           "$JAVA_HOME/jre/lib/javaws.jar" \
-           "$JAVA_HOME/jre/lib/desktop" \
-           "$JAVA_HOME/jre/plugin" \
-           "$JAVA_HOME/jre/lib/"deploy* \
-           "$JAVA_HOME/jre/lib/"*javafx* \
-           "$JAVA_HOME/jre/lib/"*jfx* \
-           "$JAVA_HOME/jre/lib/amd64/libdecora_sse.so" \
-           "$JAVA_HOME/jre/lib/amd64/"libprism_*.so \
-           "$JAVA_HOME/jre/lib/amd64/libfxplugins.so" \
-           "$JAVA_HOME/jre/lib/amd64/libglass.so" \
-           "$JAVA_HOME/jre/lib/amd64/libgstreamer-lite.so" \
-           "$JAVA_HOME/jre/lib/amd64/"libjavafx*.so \
-           "$JAVA_HOME/jre/lib/amd64/"libjfx*.so && \
-    rm -rf "$JAVA_HOME/jre/bin/jjs" \
-           "$JAVA_HOME/jre/bin/keytool" \
-           "$JAVA_HOME/jre/bin/orbd" \
-           "$JAVA_HOME/jre/bin/pack200" \
-           "$JAVA_HOME/jre/bin/policytool" \
-           "$JAVA_HOME/jre/bin/rmid" \
-           "$JAVA_HOME/jre/bin/rmiregistry" \
-           "$JAVA_HOME/jre/bin/servertool" \
-           "$JAVA_HOME/jre/bin/tnameserv" \
-           "$JAVA_HOME/jre/bin/unpack200" \
-           "$JAVA_HOME/jre/lib/ext/nashorn.jar" \
-           "$JAVA_HOME/jre/lib/jfr.jar" \
-           "$JAVA_HOME/jre/lib/jfr" \
-           "$JAVA_HOME/jre/lib/oblique-fonts" && \
-    wget --header "Cookie: oraclelicense=accept-securebackup-cookie;" \
-        "http://download.oracle.com/otn-pub/java/jce/${JAVA_VERSION}/jce_policy-${JAVA_VERSION}.zip" && \
-    unzip -jo -d "${JAVA_HOME}/jre/lib/security" "jce_policy-${JAVA_VERSION}.zip" && \
-    rm "${JAVA_HOME}/jre/lib/security/README.txt" && \
-    apk del build-dependencies && \
-    rm "/tmp/"* && \
-    \
-    echo 'public class Main { public static void main(String[] args) { System.out.println("Java code is running fine!"); } }' > Main.java && \
-    javac Main.java && \
-    java Main && \
-    rm -r "/tmp/"*
+ENV JAVA_HOME=/usr/lib/jvm/default-jvm
+RUN apk add --no-cache openjdk8 && \
+    ln -sf "${JAVA_HOME}/bin/"* "/usr/bin/"
 
 ENV ANT_HOME /usr/share/java/apache-ant
 ENV PATH $PATH:$ANT_HOME/bin
@@ -146,22 +88,29 @@ RUN apk add --no-cache python && \
 # USER hoaxy
 # WORKDIR /opt/hoaxy
 
-RUN curl https://www.apache.org/dist/lucene/pylucene/pylucene-7.6.0-src.tar.gz | tar -xz --strip-components=1 \
+RUN curl https://www.apache.org/dist/lucene/pylucene/pylucene-7.7.1-src.tar.gz | tar -xz --strip-components=1 \
     && cd jcc \
     && JCC_JDK=/usr/lib/jvm/default-jvm python setup.py install \
     && cd .. \
         && make all install JCC='python -m jcc' ANT=ant PYTHON=python NUM_FILES=8 \
         && rm -rf /usr/src/pylucene
 
-ENV HOAXY_VCS_BRANCH=${HOAXY_VCS_BRANCH:-"hoaxy-python3"} \
+ENV HOAXY_VCS_BRANCH=${HOAXY_VCS_BRANCH:-"master"} \
     HOAXY_VCS_DEPTH=${HOAXY_VCS_DEPTH:-"1"} \
     HOAXY_VCS_REMOTE=${HOAXY_VCS_REMOTE:-"https://github.com/IUNetSci/hoaxy-backend.git"}
 
-RUN git clone --recursive --depth=${HOAXY_VCS_DEPTH} --branch ${HOAXY_VCS_BRANCH} ${HOAXY_VCS_REMOTE} \
-    && cd hoaxy-backend \
-    && conda install -y psycopg2 \
+RUN apk add --no-cache --no-progress yaml-dev postgresql-dev \
+    && git clone --recursive --depth=${HOAXY_VCS_DEPTH} --branch ${HOAXY_VCS_BRANCH} ${HOAXY_VCS_REMOTE} \
+    && cd hoaxy-backend 
+#    && conda install -y psycopg2
+
+RUN cd hoaxy-backend \
+    && pip install --upgrade --force-reinstall jieba3k==0.35.1 \
     && pip install -U psycopg2 \
     && python setup.py install
+
+#    && pip install --upgrade --force-reinstall setuptools \
+#    && find . -name '*.pyc' -delete \
 
 ## Use entrypoint script to switch case and pass custom/default params to hoaxy
 WORKDIR /opt
