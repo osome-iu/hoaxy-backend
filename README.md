@@ -14,16 +14,16 @@ This document describes how to set up the hoaxy backend on your system.
 
 ## Python Environment
 
-Hoaxy has been developed using Python 2.7 under Ubuntu. These instructions have been tested only under that environment. Therefore, to run Hoaxy, we recommend to stick to Python 2.7. Other Python 2 versions may or may not work. Do let us know if you manage to make it work on a different 2.X version. And pull requests are always welcome, too. Please also note that Python 3 is not supported at this time. In summary, use a different environment at your own risk.
+Hoaxy has been upgraded to use python3 under Ubuntu. We are beginning tests for Python 3.7.
 
 The recommended installation method is to use a virtual environment. We recommend [anaconda](https://www.continuum.io/downloads) to setup a virtual environment. You *could* directly use the setuptools script by running `python setup.py install`, but that is not recommended if you are not an expert Linux user, as some dependencies (e.g. NumPy) need to be compiled and could result in compilation errors.
 
 Anaconda provides already compiled packages for all dependencies needed to install Hoaxy. In the following, our instructions assume that you are using Anaconda. Here is an example of how to create and use python environment by conda.
 
-1. Create a new python virtual environment, named hoaxy with version 2.7:
+1. Create a new python virtual environment, named hoaxy with version 3.7:
 
     ```bash
-    conda create -n hoaxy python=2.7
+    conda create -n hoaxy python=3.7
     ```
 
 2. activate it (note that before you use other python related command, you should activate your python environment first):
@@ -31,18 +31,24 @@ Anaconda provides already compiled packages for all dependencies needed to insta
     ```bash
     source activate hoaxy
     ```
-Most Linux distributions have installed their own python version. After the activation, you are using the new created python environment, which is seperated from the system one. For the new created python environment, the actual python execuble is located at `/ANACONDA_INSTALLATION_HOME/envs/ENV_NAME/bin/python`, where `ANACONDA_INSTALLATION_HOME` is the installation home of your anaconda, and `ENV_NAME` is the name of python environment (here is hoaxy). Please be aware that you must activate the python environment before you call any other python related command. 
+Most Linux distributions have installed their own python version. After the activation, you are using the new created python environment, which is separated from the system one. For the new created python environment, the actual python executable is located at `/ANACONDA_INSTALLATION_HOME/envs/ENV_NAME/bin/python`, where `ANACONDA_INSTALLATION_HOME` is the installation home of your anaconda, and `ENV_NAME` is the name of python environment (here is hoaxy). Please be aware that you must activate the python environment before you call any other python related command. 
 
 ## Lucene
 
 Hoaxy uses [Apache Lucene](https://lucene.apache.org/) for indexing and searching. The python wrapper [pylucene](http://lucene.apache.org/pylucene/) is used to interface Hoaxy with Lucene. Unfortunately pylucene is neither avaiable via conda or pip, so you will have to compile it yourself.
 
-1. [Download](http://www.apache.org/dyn/closer.lua/lucene/pylucene/) pylucene **4.10.1**, the version we have tested. Other versions may not work as expected.
+1. [Download](http://www.apache.org/dyn/closer.lua/lucene/pylucene/) latest pylucene **7.6.0**(pylucene-7.6.0-src.tar.gz), the version we have tested.
 
 2. Follow these [instructions](http://lucene.apache.org/pylucene/install.html) to compile and install pylucene. Please note that building the package is a time-consuming task. Also, _do not forget to activate the python environment_, otherwise pylucene will be installed under the system Python!
 
 We found that the following tips made the compilation instructions of pylucene a bit easier to follow:
+  - To build pylucene, you need gcc compiler. Recommended gcc version is GCC 5 or higher
+  - If you are getting GCC related errors, add following exports in your shell
+    - export JCC_ARGSEP=";"
+    -  export JCC_CFLAGS="-v;-fno-strict-aliasing;-Wno-write-strings;-D__STDC_FORMAT_MACROS"
   - You can use `cd` instead of `pushd` and `popd`.
+  - pylucene supports oracle jdk 1.8
+  - pylucene needs apache ant 1.8.2 or higher
   - You will need the packages `default-jre` `default-jdk` `python-dev` and `ant` installed on the system (via apt-get if on Ubuntu).
   - ***Do not `sudo`*** anything during installation. Using sudo will prevent Lucene from being installed in the correct Anaconda and venv directories.
   - Two files need to be modified for your system, `setup.py` and `Makefile`. In these two files, the following three variables need to be set to reflect your installation and the virtual environment: `java`, `ant` and `python` (for the venv).
@@ -78,21 +84,22 @@ GRANT ALL PRIVILEGES ON DATABASE hoaxy TO hoaxy;
 
 Hoaxy tracks shares of claims and fact checking articles from the Twitter stream. To do so, it uses the [filter](https://dev.twitter.com/streaming/reference/post/statuses/filter) method of the [Twitter Streaming API](https://dev.twitter.com/streaming/overview). You must create at least one Twitter app authentication keys, and obtain their Access Token, Access Token Secret, Consumer Token and Consumer Secret information. Follow [these instructions](https://stackoverflow.com/questions/1808855/getting-new-twitter-api-consumer-and-secret-keys) to create a new app key and to generate all tokens. If you want to have the Botometer feature, you need another Twitter app authentication keys.
 
-## Mercury Web Parser API
+## Web Parser API
 
-Hoaxy relies on a third-party API to parse and extract the content of Web documents. This API takes care of removing all markup, as well as discarding all comments, ads, and site navigation text. Please go to 
+Hoaxy relies on two third-party libraries to parse and extract the content of Web documents. These libraries take care of removing all markup, as well as discarding all comments, ads, and site navigation text. 
+The two libraries we use are, newspaper3k (https://newspaper.readthedocs.io/en/latest/) and Mercury(https://www.npmjs.com/package/@postlight/mercury-parser). Both of them are locally installed. 
 
-    https://mercury.postlight.com/ 
-    
-And follow the instructions there to create a new account and an API key.
+For mercury parser, you need to install node first. Follow the instruction on https://nodejs.org/en/ to install node in your system. Then follow the instructions in  https://www.npmjs.com/package/@postlight/mercury-parser 
+to install mercury parser in node. Copy the <hoaxy-backend>/hoaxy/node_scripts/parse_with_mercury.js to node_modules directory where mercury parser being installed. 
 
-## Mashape (_Optional_)
 
-This is needed if you want to use the Web front end (see below) or if you want to provide a REST API with, among others, full-text search capabilities. Mashape takes care of authentication and rate limiting, thus protecting your backend from heavy request loads. To set up Mashape, uou must create an account on the [Mashape API Marketplace](http://market.mashape.com/) and create an API key.
+## Rapid API (_Optional_)
+
+This is needed if you want to use the Web front end (see below) or if you want to provide a REST API with, among others, full-text search capabilities. Rapid API takes care of authentication and rate limiting, thus protecting your backend from heavy request loads. To set up Rapid API, user must create an account on the [Rapid API Marketplace](https://rapidapi.com) and create an API key.
 
 ## Botometer (_Optional_)
 
-This is needed if you want to integrate [Botometer](http://botometer.iuni.iu.edu/) within Hoaxy to provide social bot scores for the most influential and most active accounts. The Botometer API is served via Mashape and requires access to the Twitter REST API to fetch data about Twitter users. Botometer is integrated within Hoaxy through its Python bindings, see:
+This is needed if you want to integrate [Botometer](http://botometer.iuni.iu.edu/) within Hoaxy to provide social bot scores for the most influential and most active accounts. The Botometer API is served via Rapid API and requires access to the Twitter REST API to fetch data about Twitter users. Botometer is integrated within Hoaxy through its Python bindings, see:
 
     https://github.com/IUNetSci/botometer-python
 
@@ -111,12 +118,17 @@ If you want to use this system purely to collect data, this step is optional.
 
 These assume that all prerequisite have been satisfied (see above section).
 
-1. Use conda to install all remaining dependencies (Remeber: activate your python environemnt first):
+1. Use conda to install all remaining dependencies (Remember: activate your python environment first):
 
     ```bash
     conda install docopt Flask gunicorn networkx pandas psycopg2 python-dateutil pytz pyyaml scrapy simplejson SQLAlchemy sqlparse tabulate
     ```
-
+    Some of the packages are not official conda packages. You can use pip to install those packages.
+    
+    ```bash
+    pip install tweepy ruamel.yaml newspaper3k demjson
+    ```
+    
 2. Clone the hoaxy repository from Github:
 
     ```bash
@@ -130,7 +142,7 @@ These assume that all prerequisite have been satisfied (see above section).
     cd hoaxy-backend
     ```
 
-4. If you are _not_ going to use Mashape, you will need to edit the file `hoaxy/backend/api.py` to remove the `authenticate_mashape` decorator from the flask routes.
+4. If you are _not_ going to use Rapid API, you will need to edit the file `hoaxy/backend/api.py` to remove the `authenticate_rapidapi` decorator from the flask routes.
 
 5. Install the package:
 
@@ -176,7 +188,7 @@ These assume that all prerequisite have been satisfied (see above section).
 9. Configure Hoaxy for your needs. You may want to edit at least the following files:
       - `conf.yaml` is the main configuration file. 
       
-        Search for `*** REQUIRED ***` in conf.yaml to find settings that must be configured, including database login information, Twitter access tokens, etc.
+        Search for `*** REQUIRED ***` in conf.yaml to find settings that must be configured, including database login information, Twitter access tokens, mercury parser locations etc.
       
       - `domains_claim.txt`, `domains_factchecking.txt` and `sites.yaml` are site data files, which specify which domains need to be tracked. 
       
@@ -303,6 +315,18 @@ After you have run the backend for the first time, Hoaxy will be ready to track 
     killasgroup=true
     stopasgroup=true
     ```
+    
+# Hoaxy backend as AWS image (AMI)
+We installed hoaxy backend (pylucene, postgres, hoaxy repository, configuration, supervisor, conda etc) as an AWS AMI which you can 
+use to host it in AWS. Here are the steps how to access AWS AMI.
+
+1. Log in AWS using your aws credentials 
+2. Go to Services -> EC2 and click on Launch Instance
+3. Click on "Community AMIs" and search for "hoaxy" and you will find an AMI as "IUNI-hoaxy-backend - ami-0e2cad4cda62fe51b"
+4. Select that and follow the instructions to create instance using that AMI
+5. Once you start the instance, you can find the hoaxy configuration under .hoaxy folder at home. You need to 
+update the configuration with your twitter keys and rapid api token
+ 
 
 # Frequently Asked Questions
 

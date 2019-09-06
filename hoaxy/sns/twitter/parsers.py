@@ -24,7 +24,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.dialects.postgresql import insert
 import simplejson as json
-import Queue
+import queue
 import logging
 import threading
 import time
@@ -36,7 +36,7 @@ def replace_null_byte(jd, fp=None, new=''):
     """Find and delete NULL bytes in a JSON string dumped from a JSON object.
 
     We have experienced DataError exception when inserting the tweet JSON
-    string caused by NULL bytes r'\u0000'. This function would replace the
+    string caused by NULL bytes r'\\u0000'. This function would replace the
     NULL byte with pre-defined char, e.g., default is empty (that is delete
     the NULL byte).
 
@@ -886,7 +886,7 @@ class BulkParser():
                     g_edges_set=g_edges_set)
         else:
             if isinstance(jds, dict):
-                for tw_id, jd in jds.iteritems():
+                for tw_id, jd in jds.items():
                     self.parse_existed_one(
                         tw_id,
                         jd,
@@ -1040,7 +1040,7 @@ class QueueParser(object):
 
                 if has_task_done:
                     q.task_done()
-            except Queue.Empty:
+            except queue.Empty:
                 break
             except Exception as e:
                 logger.error('Exception %s when parsing %s', e, jd)
@@ -1059,7 +1059,7 @@ class QueueParser(object):
                 parser.parse(jd)
                 if has_task_done:
                     q.task_done()
-            except Queue.Empty:
+            except queue.Empty:
                 break
             except Exception as e:
                 logger.error('Exception %s when parsing %s', e, jd)

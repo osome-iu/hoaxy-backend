@@ -248,7 +248,7 @@ def create_or_get_m(session, cls, data, fb_uk):
         q = session.query(cls)
         # set up filter_by()
         fb = dict()
-        if isinstance(fb_uk, basestring):
+        if isinstance(fb_uk, str):
             fb[fb_uk] = data[fb_uk]
         elif isinstance(fb_uk, (list, tuple)):
             for k in fb_uk:
@@ -301,7 +301,7 @@ def get_or_create_m(session,
     # set up filter_by()
     if fb_uk:
         fb = dict()
-        if isinstance(fb_uk, basestring):
+        if isinstance(fb_uk, str):
             fb[fb_uk] = data[fb_uk]
         elif isinstance(fb_uk, (list, tuple)):
             for k in fb_uk:

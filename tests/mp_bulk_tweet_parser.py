@@ -14,7 +14,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.postgresql import insert
 
 from multiprocessing import Process, Manager
-from Queue import Empty
+from queue import Empty
 logger = logging.getLogger(__name__)
 
 
@@ -108,7 +108,7 @@ def workers_queue(pid, q1, q2):
                 g_urls_map[url] = url_id
         g_uusers_set = set()
         g_edges_set = set()
-        for tw_id, jd in jds.iteritems():
+        for tw_id, jd in jds.items():
             parser.parse_existed_one(
                 tw_id,
                 jd,
@@ -226,7 +226,7 @@ def mp_main_test(min_id=None,
     except (KeyboardInterrupt, SystemExit):
         logger.info('interrupt signal received')
         sys.exit(1)
-    except Exception, e:
+    except Exception as e:
         raise e
 
 

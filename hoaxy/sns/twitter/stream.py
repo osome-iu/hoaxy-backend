@@ -12,7 +12,7 @@
 # and also see:
 # http://docs.python-requests.org/en/latest/user/quickstart/#timeouts
 
-from __future__ import print_function
+
 try:
     import simplejson as json
 except ImportError:
@@ -205,12 +205,12 @@ class TwitterStream(object):
                 except requests.ConnectionError:
                     logger.warn("Reconnecting to stream endpoint...")
                     self._backoff('tcp')
-                except socket.error, e:
+                except socket.error as e:
                     msg = "Socket error {}: {}. " +\
                         "Reconnecting to stream endpoint..."
                     logger.warn(msg.format(e.errno, e.message))
                     self._backoff('tcp')
-                except requests.HTTPError, e:
+                except requests.HTTPError as e:
                     if e.response.status_code == 420:
                         msg = "Got HTTP 420 Error. Backing off.."
                         logger.warn(msg)

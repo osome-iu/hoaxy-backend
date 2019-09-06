@@ -75,3 +75,6 @@ docker/shared/**
 .staging/
 .staging/*
 .staging/**
+# node packages
+node_modules/
+package-lock.json

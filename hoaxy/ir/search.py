@@ -21,17 +21,18 @@ from hoaxy.exceptions import APINoResultError
 from hoaxy.exceptions import APIParseError
 from hoaxy.utils.dt import utc_from_str
 from java.io import File
+from java.nio.file import Paths
 from java.lang import Float
 from java.util import HashMap
 from org.apache.lucene.analysis.standard import StandardAnalyzer
 from org.apache.lucene.index import DirectoryReader
-from org.apache.lucene.queries import ChainedFilter
 from org.apache.lucene.queryparser.classic import MultiFieldQueryParser
-from org.apache.lucene.sandbox.queries import DuplicateFilter
 from org.apache.lucene.search import IndexSearcher
+from org.apache.lucene.search import BooleanQuery
+from org.apache.lucene.search import BooleanClause
 from org.apache.lucene.search import Sort
 from org.apache.lucene.search import SortField
-from org.apache.lucene.search import TermRangeFilter
+from org.apache.lucene.search import TermRangeQuery
 from org.apache.lucene.store import FSDirectory
 from org.apache.lucene.util import BytesRef
 from sqlalchemy import text
@@ -85,27 +86,26 @@ class Searcher():
         self.search_fields = search_fields
         self.sort_by_recent = Sort(
             SortField('date_published', SortField.Type.STRING, True))
-        self.store = FSDirectory.open(File(index_dir))
+        self.store = FSDirectory.open(Paths.get(index_dir))
         self.reader = DirectoryReader.open(self.store)
         self.isearcher = IndexSearcher(self.reader)
         self.analyzer = StandardAnalyzer()
-        self.dup_filter = DuplicateFilter(unique_field)
         self.boost_map = HashMap()
-        for k, v in boost.iteritems():
+        for k, v in boost.items():
             self.boost_map.put(k, Float(v))
         self.mul_parser = MultiFieldQueryParser(search_fields, self.analyzer,
                                                 self.boost_map)
         self.date_format = date_format
 
-    def prepare_chained_filter(self, dt1, dt2):
-        """Return a chained filter."""
-        return ChainedFilter([
-            self.dup_filter,
-            TermRangeFilter('date_published',
-                            BytesRef(dt1.strftime(self.date_format)),
-                            BytesRef(dt2.strftime(self.date_format)), True,
-                            True)
-        ], [ChainedFilter.AND, ChainedFilter.AND])
+    def query_between_dates(self, dt1, dt2, original_query=None):
+        '''Update the given query to only allow records between dt1 and dt2.'''
+        return TermRangeQuery(
+            'date_published', # Field
+            BytesRef(dt1.strftime(self.date_format)), # Lower bound
+            BytesRef(dt2.strftime(self.date_format)), # Upper bound
+            True, # Include lower bound
+            True  # Include upper bound
+        )
 
     def refresh(self):
         """Refresh the searsher, if index is changed."""
@@ -152,7 +152,7 @@ class Searcher():
             {'relevant', 'recent'}, the sorting order when doing lucene searching.
         min_score_of_recent_sorting : float
             The min score when sorting by 'recent'.
-        min_date_published : datetime<Plug>(neosnippet_expand)
+        min_date_published : datetime
             The min date_published when filtering lucene searching results.
 
         Returns
@@ -167,16 +167,16 @@ class Searcher():
             dt2 = datetime.utcnow()
             if isinstance(min_date_published, datetime):
                 dt1 = min_date_published
-            elif isinstance(min_date_published, basestring):
+            elif isinstance(min_date_published, str):
                 dt1 = utc_from_str(min_date_published)
-            sf = self.prepare_chained_filter(dt1, dt2)
-        else:
-            sf = self.dup_filter
+            q_dates = self.query_between_dates(dt1, dt2)
         try:
             if use_lucene_syntax is False:
                 query = clean_query(query)
             q = self.mul_parser.parse(self.mul_parser, query)
-            logger.debug('Parsed query: %s', q)
+            if min_date_published is not None:
+              q = combine_queries(q, q_dates)
+            logger.info('Parsed query: %s', q)
         except Exception as e:
             logger.error(e)
             if use_lucene_syntax is True:
@@ -190,13 +190,25 @@ You are quering with lucene syntax, be careful of your query string!""")
             'site_type', 'score'
         ]
         if sort_by == 'relevant':
-            top_docs = self.isearcher.search(q, sf, n1)
+            top_docs = self.isearcher.search(q, n1)
             score_docs = top_docs.scoreDocs
             total_hits = top_docs.totalHits
             if total_hits == 0:
                 df = pd.DataFrame()
             else:
                 records = [self.fetch_one_doc(sd) for sd in score_docs]
+
+                # Index in each record of canonical URL and title
+                canonical_url, title = 1, 2
+                # Store 2-tuples of (site, article title) as keys in dict then
+                # turn back to list
+                unique_docs = dict()
+                for record in records:
+                  key = (record[canonical_url], record[title])
+                  if key not in unique_docs:
+                    unique_docs[key] = record
+                # Include only unique records
+                records = list(unique_docs.values())
                 df = pd.DataFrame(records, columns=cnames)
                 df['date_published'] = pd.to_datetime(df['date_published'])
             return total_hits, df
@@ -204,7 +216,7 @@ You are quering with lucene syntax, be careful of your query string!""")
             counter = 0
             records = []
             top_field_docs = self.isearcher.search(
-                q, sf, n2, self.sort_by_recent, True, True)
+                q, n2, self.sort_by_recent, True, True)
             if top_field_docs.maxScore >= min_score_of_recent_sorting:
                 for sd in top_field_docs.scoreDocs:
                     if sd.score >= min_score_of_recent_sorting:
@@ -218,6 +230,15 @@ You are quering with lucene syntax, be careful of your query string!""")
                 df = pd.DataFrame(records, columns=cnames)
                 df['date_published'] = pd.to_datetime(df['date_published'])
             return counter, df
+
+def combine_queries(q1, q2):
+    '''Combine the two given queries into a BooleanQuery with the AND
+    operator.'''
+    b = BooleanQuery.Builder()
+    b.add(q1, BooleanClause.Occur.MUST) # Must include results from q1
+    b.add(q2, BooleanClause.Occur.MUST) # Must include results from q2
+    bq = b.build() # BooleanQuery instance
+    return bq
 
 
 def db_query_filter_disabled_site(engine, df):
@@ -315,7 +336,7 @@ def attach_site_tags(engine, df):
     """
     rs = engine.execute(text(q).\
                         bindparams(domains=df.domain.unique().tolist()))
-    df2 = pd.DataFrame(iter(rs), columns=rs.keys())
+    df2 = pd.DataFrame(iter(rs), columns=list(rs.keys()))
     df = pd.merge(df, df2, how='left', on='domain')
     return df
 
@@ -350,7 +371,7 @@ def db_query_twitter_shares(engine, df):
     """
     rs = engine.execution_options(stream_results=True)\
         .execute(text(q), ids=df['id'].tolist())
-    df1 = pd.DataFrame(iter(rs), columns=rs.keys())
+    df1 = pd.DataFrame(iter(rs), columns=list(rs.keys()))
     df = pd.merge(df, df1, on='id', how='inner', sort=False)
     return df
 
@@ -386,7 +407,7 @@ def db_query_article(engine, ids):
     """
     rs = engine.execution_options(stream_results=True)\
         .execute(text(q), gids=ids)
-    return pd.DataFrame(iter(rs), columns=rs.keys())
+    return pd.DataFrame(iter(rs), columns=list(rs.keys()))
 
 
 def db_query_latest_articles(engine,
@@ -487,7 +508,7 @@ def db_query_latest_articles(engine,
         q = text(q2.format(where_condition=where_condition))
     q = q.bindparams(latest=latest)
     rs = engine.execute(q)
-    df = pd.DataFrame(iter(rs), columns=rs.keys())
+    df = pd.DataFrame(iter(rs), columns=list(rs.keys()))
     return attach_site_tags(engine, df)
 
 
@@ -523,7 +544,7 @@ def db_query_tweets(engine, ids):
     """
     rs = engine.execution_options(stream_results=True)\
         .execute(text(q), gids=ids)
-    df2 = pd.DataFrame(iter(rs), columns=rs.keys())
+    df2 = pd.DataFrame(iter(rs), columns=list(rs.keys()))
     df = pd.merge(df, df2, on='id', how='inner', sort=False)
     df = df.sort_values('date_published', ascending=True)
     return df
@@ -632,13 +653,13 @@ def limit_by_k_core(df, nodes_limit, edges_limit):
         This dataframe is refined with k_core algorithm.
     """
     v_cols = ['from_user_id', 'to_user_id']
-    G = nx.from_pandas_dataframe(
+    G = nx.from_pandas_edgelist(
         df, v_cols[0], v_cols[1], create_using=nx.DiGraph())
     G.remove_edges_from(G.selfloop_edges())
     #
     # sort nodes by ascending core number
     core = nx.core_number(G)
-    nodes_list = sorted(core.items(), key=lambda k: k[1], reverse=False)
+    nodes_list = sorted(list(core.items()), key=lambda k: k[1], reverse=False)
     nodes_list = list(zip(*nodes_list))[0]
     nodes_list = list(nodes_list)
     #
@@ -661,7 +682,7 @@ def limit_by_k_core(df, nodes_limit, edges_limit):
     logger.debug('filtered nodes/edges = %s/%s',
                  G.number_of_nodes(), G.number_of_edges())
     df = df.set_index(['from_user_id', 'to_user_id'])
-    df = df.loc[G.edges()]
+    df = df.loc[list(G.edges())]
     return df.reset_index()
 
 
@@ -831,7 +852,7 @@ def db_query_top_spreaders(engine, upper_day, most_recent=False):
     """
     q = text(q0).bindparams(upper_day=upper_day)
     rp = engine.execute(q)
-    df = pd.DataFrame(iter(rp), columns=rp.keys())
+    df = pd.DataFrame(iter(rp), columns=list(rp.keys()))
     if len(df) == 0 and most_recent is True:
         q1 = 'SELECT MAX(upper_day) FROM top20_spreader_monthly'
         upper_day = engine.execute(text(q1)).scalar()
@@ -840,7 +861,7 @@ def db_query_top_spreaders(engine, upper_day, most_recent=False):
         else:
             q = text(q0).bindparams(upper_day=upper_day)
             rp = engine.execute(q)
-            df = pd.DataFrame(iter(rp), columns=rp.keys())
+            df = pd.DataFrame(iter(rp), columns=list(rp.keys()))
     df['user_raw_id'] = df.user_raw_id.astype(str)
 
     def get_bot_score(bon):
@@ -889,7 +910,7 @@ def db_query_top_articles(engine, upper_day, most_recent=False,
     """
     q = text(q0).bindparams(upper_day=upper_day)
     rp = engine.execute(q)
-    df = pd.DataFrame(iter(rp), columns=rp.keys())
+    df = pd.DataFrame(iter(rp), columns=list(rp.keys()))
     if len(df) == 0 and most_recent is True:
         q1 = 'SELECT MAX(upper_day) FROM top20_article_monthly'
         upper_day = engine.execute(text(q1)).scalar()
@@ -898,7 +919,7 @@ def db_query_top_articles(engine, upper_day, most_recent=False,
         else:
             q = text(q0).bindparams(upper_day=upper_day)
             rp = engine.execute(q)
-            df = pd.DataFrame(iter(rp), columns=rp.keys())
+            df = pd.DataFrame(iter(rp), columns=list(rp.keys()))
     if exclude_tags:
         df = db_query_filter_tags(engine, df, exclude_tags)
     if len(df) > 0:

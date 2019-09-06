@@ -78,10 +78,10 @@ Examples:
             date_published=date_published,
             domain=domain,
             site_type=site_type)
-        article['meta'] = unicode(meta)
-        article['uq_id_str'] = unicode(group_id) + title
+        article['meta'] = str(meta)
+        article['uq_id_str'] = str(group_id) + title
         if article['content'] is None:
-            article['content'] = u'NULL'
+            article['content'] = 'NULL'
         return article
 
     @classmethod
@@ -91,13 +91,22 @@ Examples:
         indexer = Indexer(
             index_dir, mode, date_format=cls.conf['lucene']['date_format'])
         article = None
+        article_group_ids = []
         for i, data in enumerate(articles_iter):
             article = cls.prepare_article(data)
             indexer.index_one(article)
             if i % cls.conf['window_size'] == 1:
                 logger.info('Indexed %s articles', i)
+            article_group_ids.append(article['group_id'])
         indexer.close()
         if article is not None:
+            q = """UPDATE article AS a
+                         SET html=NULL
+                         FROM UNNEST(:gids) AS t(group_id)
+                         WHERE a.group_id=t.group_id
+                      """
+            session.execute(sqlalchemy.text(q), {"gids":article_group_ids})
+            session.commit()
             mgid.value = str(article['group_id'])
             session.commit()
             logger.info('Indexed article pointer updated!')
@@ -139,6 +148,7 @@ Examples:
             if args['--mode'] == 'create':
                 mgid.set_value(0)
                 session.commit()
+            logger.debug('Indexing started.. Getting articles..')
             q = """
             SELECT DISTINCT ON (a.group_id) a.id, a.group_id,
                 a.canonical_url,

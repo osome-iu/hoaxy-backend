@@ -125,7 +125,7 @@ class HtmlSpider(scrapy.spiders.Spider):
         try:
             text = response.body
             code = response.encoding
-            html = unicode(text.decode(code, 'ignore'))\
+            html = str(text.decode(code, 'ignore'))\
                 .encode('utf-8', 'ignore')
             item['html'] = html
             item['status_code'] = U_HTML_SUCCESS

@@ -19,7 +19,7 @@ from hoaxy.database.models import Top20ArticleMonthly
 from hoaxy.database.models import Top20SpreaderMonthly
 from hoaxy.ir.search import db_query_top_spreaders, db_query_top_articles
 from hoaxy.utils.log import configure_logging
-from requests import ConnectionError, Timeout
+from requests import ConnectionError, Timeout, HTTPError
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from tabulate import tabulate
@@ -80,8 +80,10 @@ is working.
                 An instance of model Top20SpreaderMonthly.
         """
         logger.info('Fetching bot score for top spreaders ...')
+        rapid_key = cls.conf['botometer']['rapid_key']
+        logger.info(rapid_key)
         bon = botometer.Botometer(
-            mashape_key=cls.conf['botometer']['mashape_key'],
+            rapidapi_key=rapid_key,
             wait_on_ratelimit=True,
             **cls.conf['botometer']['twitter_app_credentials'])
         max_retries = 3
@@ -97,7 +99,7 @@ is working.
                         getattr(e, 'msg', '') or getattr(e, 'reason', ''),
                     )
                     result = {'error': err_msg}
-                except (Timeout, ConnectionError) as e:
+                except (Timeout, ConnectionError, HTTPError) as e:
                     if num_retries >= max_retries:
                         raise
                     else:
@@ -434,13 +436,13 @@ is working.
             strf = '%Y-%m-%d %H:%M:%S'
             with ENGINE.connect() as conn:
                 result = conn.execute(stmt).fetchall()
-                print('-' * 35)
-                print('{0:^20s} | {1:12s}'.format('Timeline (%s)' % interval,
-                                                  'Aggregation'))
-                print('-' * 35)
+                print(('-' * 35))
+                print(('{0:^20s} | {1:12s}'.format('Timeline (%s)' % interval,
+                                                  'Aggregation')))
+                print(('-' * 35))
                 for v, t in result:
-                    print('{0:^20s} | {1:8d}'.format(t.strftime(strf), v))
-                print('-' * 35)
+                    print(('{0:^20s} | {1:8d}'.format(t.strftime(strf), v)))
+                print(('-' * 35))
         elif args['--status']:
             configure_logging(
                 'report.streaming-status',

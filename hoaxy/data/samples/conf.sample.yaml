@@ -92,10 +92,14 @@ crawl:
     # Web content parser, we find two parser, one is python-goose, the other is
     # a webparser from *** https://mercury.postlight.com/ ***
     # We found that webparser works better than python-goose,
-    # so we use weparser as default to parse all web news articles.
-    # The api key of webparser, please register and generate your key.
+    # so we use webparser as default to parse all web news articles.
+    # We use local version of mercury parse which you need to install
+    # following https://www.npmjs.com/package/@postlight/mercury-parser,
+    # You need node installed in your system, you can find the nodejs script for
+    # parser in <hoaxy-backend>/hoaxy/node_scrips
     # *** REQUIRE *** SELF CONFIGURATION
-    webparser_api_key: '*** REQUIRED ***'
+    node_installation_path: '**** REQUIRED ****'
+    parse_with_mercury_js_path: '**** REQUIRED ****'
   # Many URLs we collected are coming from domains we do not need. For these
   # urls we do not parse their html page.
   excluded_domains:
@@ -144,17 +148,17 @@ lucene:
 #############################################################################
 botometer:
   # if enabled is True, you must provide twitter_app_credentials
-  # and mashape_key
-  # mashape_key represent HTTP header 'X-Mashape-Key'
+  # and rapid_key
+  # rapid_key represent HTTP header 'X-RapidAPI-Key'
   # When you consuming the botometer, you need to provide this key as a way
-  # to authenticate, see http://docs.mashape.com/consuming-api
+  # to authenticate, see Consuming APIS section of  https://docs.rapidapi.com/docs/
   enabled: false
   twitter_app_credentials:
     access_token: 'Please use your twitter app credentials'
     access_token_secret: '*** REQUIRED if enabled is true ***'
     consumer_key: ''
     consumer_secret: ''
-  mashape_key: '*** REQUIRED if enabled is true ***'
+  rapid_key: '*** REQUIRED if enabled is true ***'
 
 ###############################################################################
 # settings for api
@@ -194,25 +198,25 @@ api:
   # to provide latest indexing results.
   searcher_refresh_interval:
     seconds: 3600
-  # Settings for using mashape platform
-  # IF YOU DO NOT WANT TO USE MASHAPE PLATFORM TO PROVIDE API
+  # Settings for using rapid platform
+  # IF YOU DO NOT WANT TO USE RAPID API PLATFORM TO PROVIDE API
   # MODIFY THE hoaxy.backend.api MODULE
-  mashape:
-    # the X-Mashape-Proxy-Secret key,
-    # See http://docs.mashape.com/headers
-    # You should find this key in your mashape API network settings
+  rapid:
+    # the X-RapidAPI-Proxy-Secret key,
+    # See https://docs.rapidapi.com/docs/headers-sent-by-mashape-proxy2
+    # You should find this key in your rapid API network settings
     # For security reasons, you should protect your API and block requests
-    # coming from outside the Mashape infrastructure.
-    # Mashape adds the "X-Mashape-Proxy-Secret" header on every request.
+    # coming from outside the rapid api infrastructure.
+    # Rapid adds the "X-RapidAPI-Proxy-Secret" header on every request.
     # This header has a unique value for every API, and if the header is
     # missing or has a different value, you can assume the request is not
     # coming from your infrastructure.
-    # Please be aware the difference from mashape_key in botometer section.
-    # Use 'X-Mashape-Proxy-Secret' when you are providing API service.
+    # Please be aware the difference from rapid_key in botometer section.
+    # Use 'X-RapidAPI-Proxy-Secret' when you are providing API service.
     # *** REQUIRE *** SELF CONFIGURATION
     secret: '*** REQUIRED ***'
     # List of IPs used by RapidAPI: https://docs.rapidapi.com/v2.1/docs/firewall-ip-security
-    # (formerly Mashape, updated Feb 15 2019)
+    # (formerly RapidAPI, updated Feb 15 2019)
     ips:
       - '107.23.255.128'
       - '107.23.255.129'

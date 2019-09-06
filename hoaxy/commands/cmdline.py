@@ -53,11 +53,11 @@ def format_cmds_descriptions(cmds_cls):
         formatted descriptions of subcommands.
 
     """
-    cmds_name_length = [len(k) for k, c in cmds_cls.iteritems()]
+    cmds_name_length = [len(k) for k, c in cmds_cls.items()]
     max_name_length = max(cmds_name_length)
     formatter = '{0:%s}{1}\n' % (max_name_length + 4)
     cmds_short_description = ''
-    for k, c in cmds_cls.iteritems():
+    for k, c in cmds_cls.items():
         cmds_short_description += formatter.format(k, c.short_description)
     return cmds_short_description
 
