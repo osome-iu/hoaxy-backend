@@ -1,6 +1,6 @@
 # Build docker image
 ```ssh
-docker compose up
+docker-compose up
 ```
 
 # Run the container
