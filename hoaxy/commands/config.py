@@ -89,7 +89,7 @@ Also please edit and rename samples to make Hoaxy work with them.
                 os.umask(org_umask)
         samples = resource_listdir('hoaxy.data', 'samples')
         for sample in samples:
-            if not sample.startswith('__init__.') or not sample.startswith('__pycache__'):
+            if not sample.startswith('__init__.') and not sample.startswith('__pycache__'):
                 sample = resource_filename('hoaxy.data.samples', sample)
                 shutil.copy(sample, hoaxy_home)
                 os.chmod(
