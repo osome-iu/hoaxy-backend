@@ -1,17 +1,17 @@
-version: '3.1'
+version: '3.3'
 
 services:
 
   hoaxy:
     image: hoaxy-backend:miniconda2-jdk8-alpine3.9
     build:
-      file: Dockerfile
+      dockerfile: Dockerfile
       context: .
     environment:
       HOAXY_HOME: /home/.hoaxy
       HOST: localhost
       PORT: 8080
-    volume:
+    volumes:
     - ./shared/config/hoaxy:/home/.hoaxy
     - ./shared/docker/lucene:/var/lib/data/lucene
     command: hoaxy config
@@ -22,10 +22,10 @@ services:
     ports:
     - 5432:5432
     environment:
-      POSTGRES_PASSWORD: insert.your.safe.password.here
+      POSTGRES_PASSWORD: hoaxy
       POSTGRES_USER: hoaxy
       POSTGRES_DB: hoaxy
-    volume:
+    volumes:
     - ./shared/docker/postgresql:/var/lib/postgresql
 
   adminer:
