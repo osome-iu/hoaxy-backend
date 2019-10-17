@@ -1,42 +1,29 @@
 # Build docker image
 ```ssh
-# Python 2.7
-docker build -t lucmichalskip/hoaxy-backend:alpine-miniconda2-jdk8 -f miniconda2-alpine3.9.dockerfile .
+docker compose up
 ```
 
-# Pull docker image
+# Run the container
+Once the build completes, you can run docker command to get the container information. 
 ```ssh
-docker pull lucmichalskip/hoaxy-backend:alpine-miniconda2-jdk8
+docker ps -a 
+2a4723abf38d        hoaxy-backend:miniconda2-jdk8-alpine3.9   "/opt/entrypoint.sh …"   31 minutes ago      Exited (1) 30 minutes ago                                docker_hoaxy_1
+fd683f81e369        postgres:9.6-alpine                       "docker-entrypoint.s…"   31 minutes ago      Up 30 minutes                   0.0.0.0:5432->5432/tcp   docker_postgres_1
+d7ce7f3e37df        adminer                                   "entrypoint.sh docke…"   31 minutes ago      Up 30 minutes                   0.0.0.0:8080->8080/tcp   docker_adminer_1
+
 ```
 
-# Run docker container
+Then to connect to hoaxy-backend docker, run
 ```ssh
-docker -ti --rm lucmichalskip/hoaxy-backend:alpine-miniconda2-jdk8 hoaxy -h
-docker run --rm -v $PWD/shared/config:/home/.hoaxy lucmichalskip/hoaxy-backend:alpine-miniconda2-jdk8 hoaxy config
+docker run -ti  hoaxy-backend:miniconda2-jdk8-alpine3.9 bash
 ```
 
-# Enter dev container
-```
-docker run -ti lucmichalskip/hoaxy-backend:alpine-miniconda2-jdk8
-docker run -ti -v $PWD/shared/config:/home/.hoaxy lucmichalskip/hoaxy-backend:alpine-miniconda2-jdk8
-```
-
-# Create alias
+Once you are inside docker, you can run
 ```ssh
-alias hoaxy='docker run --rm -v $PWD/shared/config:/home/.hoaxy lucmichalskip/hoaxy-backend:alpine-miniconda2-jdk8 hoaxy'
+hoaxy config
 ```
-
-# Create Hoaxy db (without docker-compose):
-```
-docker run --name hoaxy-psql -itd --restart always \
-  --publish 5432:5432 \
-  --volume /srv/docker/postgresql:/var/lib/postgresql \
-  --env 'PG_TRUST_LOCALNET=true' \
-  --env 'DB_USER=hoaxy' --env 'DB_PASS=pizza' \
-  --env 'DB_NAME=hoaxy' \
-  sameersbn/postgresql:9.6-2
-```
-
+to set up hoaxy configs. 
+ 
 # Notes
 - Clean up dockerfiles
 
