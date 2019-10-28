@@ -1,5 +1,7 @@
 # Build docker image
+To build the image, we use docker-compose utility. Make sure you have docker-compose installed. 
 ```ssh
+cd docker
 docker-compose up
 ```
 
