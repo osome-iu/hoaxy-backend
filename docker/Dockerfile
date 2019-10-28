@@ -50,6 +50,7 @@ RUN conda install -y \
         gunicorn \
         networkx \
         pandas \
+        psycopg2 \
         python-dateutil \
         pytz \
         pyyaml \
@@ -90,6 +91,8 @@ RUN apk add --no-cache python && \
 
 RUN curl https://www.apache.org/dist/lucene/pylucene/pylucene-7.7.1-src.tar.gz | tar -xz --strip-components=1 \
     && cd jcc \
+    && export JCC_ARGSEP=";" \
+    && export JCC_CFLAGS="-v;-fno-strict-aliasing;-Wno-write-strings;-D__STDC_FORMAT_MACROS" \
     && JCC_JDK=/usr/lib/jvm/default-jvm python setup.py install \
     && cd .. \
         && make all install JCC='python -m jcc' ANT=ant PYTHON=python NUM_FILES=8 \
@@ -106,7 +109,6 @@ RUN apk add --no-cache --no-progress yaml-dev postgresql-dev \
 
 RUN cd hoaxy-backend \
     && pip install --upgrade --force-reinstall jieba3k==0.35.1 \
-    && pip install -U psycopg2 \
     && python setup.py install
 
 #    && pip install --upgrade --force-reinstall setuptools \
