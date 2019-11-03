@@ -227,18 +227,14 @@ class QueueHandler(BaseHandler):
             return False
 
     def _consume_this_bucket(self, parser, session, platform_id):
+        """consume on bucket by parse and save all tweets in the bucket.
+        """
         this_bucket_size = len(self.bucket)
         logger.info('Global tweets counter is %s', self.global_counter)
         logger.info('Current qsize is %s', self.queue.qsize())
         logger.info('Current bucket size is %s', this_bucket_size)
         logger.info('Trying to parsing tweets one by one')
-        parsed_results = []
-        for jd in self.bucket:
-            try:
-                parsed_results.append(parser.parse_one(jd))
-            except Exception as e:
-                logger.error(e)
-                continue
+        parsed_results = parser.parse_many(self.bucket, multiprocesses=False)
         dfs = parser.to_dict(parsed_results)
         parser.bulk_save(session, dfs, platform_id)
 
