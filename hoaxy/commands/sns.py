@@ -8,21 +8,22 @@ implemented.
 # written by Chengcheng Shao <sccotte@gmail.com>
 
 import logging
-import queue
-import smtplib
-import time
-from os.path import join
+import Queue
+import sys
 
-from hoaxy import HOAXY_HOME
+import simplejson as json
+
 from hoaxy.commands import HoaxyCommand
 from hoaxy.database import Session
 from hoaxy.database.functions import get_platform_id, get_site_tuples
 from hoaxy.database.models import N_PLATFORM_TWITTER
-from hoaxy.sns.twitter.handlers import FileHandler, QueueHandler
-from hoaxy.sns.twitter.parsers import QueueParser
+from hoaxy.sns.twitter.handlers import QueueHandler
+from hoaxy.sns.twitter.parsers import Parser
 from hoaxy.sns.twitter.stream import TwitterStream
 from hoaxy.utils import get_track_keywords
 from hoaxy.utils.log import configure_logging
+from schema import Or, Schema, SchemaError, Use
+from xopen import xopen
 
 logger = logging.getLogger(__name__)
 
@@ -31,20 +32,25 @@ class SNS(HoaxyCommand):
     """
 usage:
   hoaxy sns --twitter-streaming
-            [(--mail-from=<f> --mail-to=<t>) --mail-server=<s>]
-            [--to-file=<filename>]
+  hoaxy sns --load-tweets [--strict-on-error] [--number-of-tweets=<nt>]
+            <filepath>
   hoaxy sns -h | --help
 
 Track posted messages in social networks. Right now only twitter platform is
 implemented.
 
 --twitter-streaming     Start twitter streaming.
---mail-server=<s>       SMTP server host address. When process exits
-                          unexceptionally, hoaxy send you email.
-                          [default: localhost]
---mail-from=<f>         From user address, when sending email.
---mail-to=<t>           To user address, when sending email.
---to-file=<filename>    Save tweets to a file only, one line per tweets.
+--load-tweets           Load local tweets from file, one tweet per line.
+--strict-on-error       By default, we would try our best to read and parse
+                        lines, ignore possible errors when parsing and continue
+                        on the next line. However, If this flag is set, the
+                        program will exit (with 1) on any error.
+--number-of-tweets=<nt> How many tweets to collect. If not set, the number is
+                        not set, the number is unlimited.
+<filepath>              File that stores the JSON structured tweets, one tweet
+                          per line. Compressed format are supported, which are
+                          automatically recognized by their file extension
+                          .gz, .bz2 or .xz.
 -h --help               Show help.
 
 Since twitter streaming is a long running process. It is good to monitor this
@@ -56,84 +62,112 @@ Examples:
 
   1. Track twitter stream
   hoaxy sns --twitter-streaming
-            || --mail-from=root@s.indiana.edu --mail-to=hoaxy@s.edu
+
+  2. Load local tweets
+  hoaxy sns --load-tweets dumped_tweets.json.gz
     """
     name = 'sns'
     short_description = 'Online social network services management'
+    args_schema = Schema({
+        '--number-of-tweets': Or(None, Use(int)),
+        object: object
+    })
 
     @classmethod
-    def twitter_stream(cls, session, args, max_retries=5, retry_stall=60):
+    def twitter_stream(cls, session, args):
         """Twitter streaming process."""
         sites = get_site_tuples(session)
         keywords = get_track_keywords(sites)
-        platform_id = get_platform_id(session, name=N_PLATFORM_TWITTER)
         session.close()
-        w_size = cls.conf['window_size']
-        c = cls.conf['sns']['twitter']['app_credentials']
-        snut = cls.conf['sns']['twitter']['save_none_url_tweet']
-        handlers = []
+        window_size = cls.conf['window_size']
+        credentials = cls.conf['sns']['twitter']['app_credentials']
+        save_none_url_tweet = cls.conf['sns']['twitter']['save_none_url_tweet']
 
-        # dump to file
-        if args['--to-file'] is not None:
-            filepath = join(HOAXY_HOME, args['--to-file'])
-            fhandler = FileHandler(filepath)
-            handlers = [fhandler]
-        # save to database
-        else:
-            q = queue.Queue()
-            consumer = QueueParser(
-                q, platform_id, w_size, save_none_url_tweet=snut)
-            qhandler = QueueHandler(q)
-            consumer.start()
-            handlers = [qhandler]
+        queue = Queue.Queue()
+        consumer = QueueHandler(
+            queue,
+            bucket_size=window_size,
+            parser_kwargs=dict(save_none_url_tweet=save_none_url_tweet))
+        consumer.start()
+        try:
+            streamer = TwitterStream(
+                credentials=credentials,
+                handlers=[consumer],
+                params=dict(track=keywords),
+                window_size=window_size)
+            streamer.stream()
+        except Exception as e:
+            logger.exception(e)
+        consumer.stop()
 
-        retries = 0
-        stall_time = retry_stall
-
-        while True:
-            try:
-                streamer = TwitterStream(
-                    c, handlers, dict(track=keywords), w_size)
-                streamer.stream()
-            except Exception as e:
-                logger.exception(e)
-                time.sleep(stall_time)
-                if streamer._counter > 100:
-                    # reset retry counter and stall time
-                    retries = 0
-                    stall_time = retry_stall
-                else:
-                    # increase retry counter and stall time
-                    retries += 1
-                    stall_time = 2 * stall_time
-                    if retries >= max_retries:
-                        logger.error('Reached max retries!')
-                        break
-            except (KeyboardInterrupt, SystemExit):
-                break
-        if args['--to-file'] is not None:
-            fhandler.close()
-        else:
-            consumer.stop()
-        s = args['--mail-server']
-        f = args['--mail-from']
-        t = args['--mail-to']
-
-        if s and f and t:
-            logger.info('server %r, from %r, to %r', s, f, t)
-            try:
-                server = smtplib.SMTP(s)
-                msg = 'Twitter streaming is stopped!'
-                server.sendmail(f, t, msg)
-            except Exception as e:
-                logger.error(e)
         logger.info('Exit')
+
+    @classmethod
+    def load_tweets(cls, session, args, bucket_size=10000):
+        parser = Parser()
+        ntweets = args['--number-of-tweets']
+        strict_on_error = args['--strict-on-error']
+        true_counter = 0
+        counter = 0
+        jds = []
+        f = xopen(args['<filepath>'])
+        platform_id = get_platform_id(session, N_PLATFORM_TWITTER)
+        while True:
+            line = f.readline()
+            counter += 1
+            if line:
+                try:
+                    jd = json.loads(line)
+                    if 'in_reply_to_status_id' in jd and 'user' in jd and\
+                            'text' in jd:
+                        jds.append(json.loads(line))
+                        true_counter += 1
+                    else:
+                        logger.error('Not a tweet at line %s, raw data %r',
+                                     counter, jd)
+                        if strict_on_error:
+                            sys.exit(1)
+                        continue
+                except Exception as e:
+                    msg = 'JSON loads error at line %s: %r, raw data: %r'
+                    logger.error(msg, counter, e, line)
+                    if strict_on_error:
+                        sys.exit(1)
+                    continue
+            else:
+                logger.error('Empty line at line %s', counter)
+            if ntweets is not None and ntweets == true_counter:
+                logger.warning('Reaching the number of tweets %s at line %s',
+                               ntweets, counter)
+                # break the loop
+                break
+            if true_counter % bucket_size == 0:
+                logger.warning('Reading %s lines, %s tweets parsed', counter,
+                               true_counter)
+                # parsed_results = parser.parse_many(jds, multiprocesses=True)
+                parsed_results = [parser.parse_one(jd) for jd in jds]
+                dfs = parser.to_dict(parsed_results)
+                parser.bulk_save(session, dfs, platform_id)
+                jds = []
+        if jds:
+            logger.warning('Reading %s lines, %s tweets parsed', counter,
+                           true_counter)
+            parsed_results = parser.parse_many(jds, multiprocesses=True)
+            dfs = parser.to_dict(parsed_results)
+            parser.bulk_save(session, dfs, platform_id)
+            jds = []
 
     @classmethod
     def run(cls, args):
         """Overriding method as the entry point of this command."""
+        try:
+            args = cls.args_schema.validate(args)
+        except SchemaError as e:
+            raise SystemExit(e)
         session = Session(expire_on_commit=False)
         if args['--twitter-streaming'] is True:
-            configure_logging(
-                'twitter.streaming', console_level=args['--console-log-level'])
+            configure_logging('twitter.streaming')
             cls.twitter_stream(session, args)
+        elif args['--load-tweets'] is True:
+            configure_logging('twitter.load-tweets')
+            cls.load_tweets(session, args)
