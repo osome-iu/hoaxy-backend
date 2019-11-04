@@ -52,6 +52,6 @@ setup(
         'tweepy>=3.7.0',
         'ruamel.yaml>=0.15.92',
         'newspaper3k>=0.2.8',
-        'demjson>=2.2.4'
-
+        'demjson>=2.2.4',
+        'pathos>=0.2.5'
     ],)
