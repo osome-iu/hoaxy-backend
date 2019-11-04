@@ -53,5 +53,6 @@ setup(
         'ruamel.yaml>=0.15.92',
         'newspaper3k>=0.2.8',
         'demjson>=2.2.4',
-        'pathos>=0.2.5'
+        'pathos>=0.2.5',
+        'xopen>=0.8.4'
     ],)
