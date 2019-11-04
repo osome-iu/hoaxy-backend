@@ -414,6 +414,7 @@ class Parser():
             jd = replace_null_byte(jd)
         self._parse_l1(jd)
         if self.save_none_url_tweet is False and not self.urls['union']:
+            logger.warning('Tweet=%s with no URL, ignored', jd.get('id'))
             return None
         self._parse_l2(jd)
         tweet_raw_id = jd['id']
