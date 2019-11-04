@@ -8,7 +8,7 @@ implemented.
 # written by Chengcheng Shao <sccotte@gmail.com>
 
 import logging
-import Queue
+from queue import Queue
 import sys
 
 import simplejson as json
@@ -83,9 +83,9 @@ Examples:
         credentials = cls.conf['sns']['twitter']['app_credentials']
         save_none_url_tweet = cls.conf['sns']['twitter']['save_none_url_tweet']
 
-        queue = Queue.Queue()
+        tw_queue = Queue()
         consumer = QueueHandler(
-            queue,
+            tw_queue,
             bucket_size=window_size,
             parser_kwargs=dict(save_none_url_tweet=save_none_url_tweet))
         consumer.start()

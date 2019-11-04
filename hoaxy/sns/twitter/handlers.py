@@ -6,7 +6,7 @@
 
 import gzip
 import logging
-import Queue
+import queue
 import sys
 import threading
 import time
@@ -133,7 +133,7 @@ class QueueHandler(BaseHandler):
 
         Parameters
         ----------
-        queue : Queue
+        queue : queue
             A queue instance.
         bucket_size : Integer
             Specify how many tweets should be saved in bulk.
@@ -257,7 +257,7 @@ class QueueHandler(BaseHandler):
                     return
                 self._fp_db_down.write(json.dumps(jd))
                 self._fp_db_down.write('\n')
-            except Queue.Empty:
+            except queue.Empty:
                 break
 
     def _on_db_server_down(self, session):
@@ -342,7 +342,7 @@ class QueueHandler(BaseHandler):
                 self._consume_this_bucket(parser, session, platform_id)
                 self.bucket = []
                 logger.info('Operations on this bucket is done')
-            except Queue.Empty:
+            except queue.Empty:
                 break
             except Exception as e:
                 logger.error('Exception %s when bulk parsing and saving', e)
@@ -367,7 +367,7 @@ class QueueHandler(BaseHandler):
                 if jd is self._sentinel:
                     break
                 self.bucket.append(jd)
-            except Queue.Empty:
+            except queue.Empty:
                 break
         try:
             if len(self.bucket) > 0:
