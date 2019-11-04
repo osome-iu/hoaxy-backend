@@ -3,13 +3,13 @@
 #
 # written by Chengcheng Shao <sccotte@gmail.com>
 
-from hoaxy import CONF
-from scrapy.logformatter import DROPPEDMSG
-from scrapy.logformatter import LogFormatter
-from scrapy.logformatter import SCRAPEDMSG
-from twisted.python.failure import Failure
 import copy
 import logging.config
+
+from scrapy.logformatter import DROPPEDMSG, SCRAPEDMSG, LogFormatter
+from twisted.python.failure import Failure
+
+from hoaxy import CONF
 
 
 class HoaxyFormatter(logging.Filter):
@@ -94,7 +94,10 @@ class PrettyLogFormatter(LogFormatter):
         }
 
 
-def configure_logging(cmd_name=None, console_level='DEBUG', file_level='INFO'):
+def configure_logging(cmd_name=None,
+                      console_level='DEBUG',
+                      file_level='INFO',
+                      smtp_level='CRITICAL'):
     """Configure the logging.
 
     Parameters
@@ -105,13 +108,17 @@ def configure_logging(cmd_name=None, console_level='DEBUG', file_level='INFO'):
         The logging level for console.
     file_level : string
         The logging level for file.
+    smtp_level : string
+        The logging level for smtp (email)
     """
     lconf = copy.deepcopy(CONF['logging'])
-    console_handler = lconf['handlers']['console']
-    console_handler['level'] = console_level
-    file_handler = lconf['handlers']['file']
-    file_handler['level'] = file_level
+    if 'console' in lconf['handlers']:
+        lconf['handlers']['console']['level'] = console_level
+    if 'file' in lconf['handlers']:
+        lconf['handlers']['file']['level'] = file_level
+    if 'stmp' in lconf['handlers']:
+        lconf['handlers']['stmp']['level'] = smtp_level
     logging.config.dictConfig(lconf)
-    f = HoaxyFormatter(cmd_name)
+    log_filter = HoaxyFormatter(cmd_name)
     for handler in logging.root.handlers:
-        handler.addFilter(f)
+        handler.addFilter(log_filter)

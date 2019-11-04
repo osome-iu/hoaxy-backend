@@ -28,7 +28,7 @@ API_URL = 'https://stream.twitter.com/1.1/statuses/filter.json'
 
 # all times are in seconds. Start with time, then depending on whether
 # kind is linear or exponential either add step or multiply by factor.
-# Raise a fatal error after waiting max.
+# Raise a critical error after waiting max.
 BACKOFF_PARAMS = {
     'tcp': {
         'time': 0,
@@ -116,7 +116,7 @@ class TwitterStream(object):
         A strategy defines a set of parameters for the backoff, including
         the initial time, the way it increases the sleep period (linear or
         exponential), and a maximum time after which it's better to just
-        raise a fatal error.
+        raise a critical error.
         """
         try:
             params = self._backoff_params[strategy]
@@ -131,7 +131,7 @@ class TwitterStream(object):
             # continue with previous strategy
             if self._backoff_sleep >= params['max']:
                 logger.error(
-                    "Reached maximum backoff time. Raising fatal error!")
+                    "Reached maximum backoff time. Raising critical error!")
                 raise TwitterStreamError()
             if params['kind'] == 'linear':
                 self._backoff_sleep += params['step']
@@ -223,7 +223,7 @@ class TwitterStream(object):
                     logger.info("got ^C from user. Exit.")
                     raise
         finally:
-            # catch any fatal error (including TwitterStreamError we raise if
+            # catch any critical error (including TwitterStreamError we raise if
             # backoff reaches maximum sleep time)
             resp.close()
             try:

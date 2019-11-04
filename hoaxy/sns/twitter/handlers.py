@@ -178,7 +178,7 @@ class QueueHandler(BaseHandler):
         # when bulk saving is failed
         self._fp_db_bulk_save = None
         # send mail only once
-        self._is_fatal_mailed = False
+        self._is_critical_mailed = False
 
     def start(self):
         """Start the handler.
@@ -268,7 +268,7 @@ class QueueHandler(BaseHandler):
         # option 1, do nothing and exit
         if self.hold_on_failure is False:
             msg = "The database server is down, exit!"
-            logger.fatal(msg)
+            logger.critical(msg)
             raise SystemExit(msg)
         # option 2, hold on the processing and wait for reconnection
         time.sleep(self.hold_on_sleep_seconds)
@@ -289,7 +289,7 @@ class QueueHandler(BaseHandler):
             self.current_hold_on_seconds = 0
             self._fp_db_down.close()
             self._fp_db_down = None
-            self._is_fatal_mailed = False
+            self._is_critical_mailed = False
 
     def _on_db_bulk_save_error(self):
         """ When database error occurs on bulk saving operation, dump the
@@ -350,9 +350,9 @@ class QueueHandler(BaseHandler):
                     session.rollback()
                     if isinstance(e, OperationalError):
                         # if 'could not connect to server' in str(e):
-                        if self._is_fatal_mailed is False:
-                            self._is_fatal_mailed = True
-                            logger.fatal('Database server is down!')
+                        if self._is_critical_mailed is False:
+                            self._is_critical_mailed = True
+                            logger.critical('Database server is down!')
                         logger.error('Hold on until SQL service back! %s', e)
                         self.is_connection_failed = True
                     else:

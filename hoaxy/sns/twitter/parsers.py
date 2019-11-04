@@ -19,22 +19,19 @@ database.
 # written by Chengcheng Shao <sccotte@gmail.com>
 
 import logging
-from functools import partial, reduce
-from itertools import chain
+from functools import reduce
 from operator import iconcat
-from pprint import pprint
 
 import pandas as pd
 import simplejson as json
+from pathos.multiprocessing import ProcessPool
 from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.dialects.postgresql import dialect
 
 from hoaxy.database.models import (
     MAX_URL_LEN, AssTweet, AssTweetHashtag, AssTweetUrl, AssUrlPlatform,
     Hashtag, Tweet, TwitterNetworkEdge, TwitterUser, TwitterUserUnion, Url)
 from hoaxy.utils.dt import utc_from_str
-from pathos.multiprocessing import ProcessPool
 
 logger = logging.getLogger(__name__)
 
@@ -321,14 +318,14 @@ class Parser():
         # 2-1) retweet, focusing on retweeted_status
         #               edge direction: from retweeted_user to current user
         if retweeted_status_id is not None:
-            logger.debug('2-1-a) building edges for retweet ...')
+            logger.debug('2-1-a) building edges for retweet=%s', tweet_raw_id)
             for u in self.urls['retweet']:
                 self.edges.add((tweet_raw_id, retweeted_user_id, user_raw_id,
                                 u, False, False, 'retweet'))
         # 2-2) reply, focusing on current status
         #             edges direction: from current user to mentions
         if in_reply_to_status_id is not None:
-            logger.debug('2-1-b) building edges for reply ...')
+            logger.debug('2-1-b) building edges for reply=%s', tweet_raw_id)
             # in_reply_to_user, edge
             for url in self.urls['this']:
                 self.edges.add((tweet_raw_id, user_raw_id, in_reply_to_user_id,
@@ -345,7 +342,8 @@ class Parser():
             #                         treated as retweet edge
             if retweeted_status_id is not None:
                 logger.debug(
-                    '2-1-c) building edges for the quote of a retweet ...')
+                    '2-1-c) building edges for the quote of a retweet=%s',
+                    tweet_raw_id)
                 for url in self.urls['quote']:
                     self.edges.add((tweet_raw_id, retweeted_user_id,
                                     user_raw_id, url, True, False, 'retweet'))
@@ -353,7 +351,8 @@ class Parser():
             #                       treated as reply edge
             elif in_reply_to_status_id is not None:
                 logger.debug(
-                    '2-1-c) building edges for the quote of a reply ...')
+                    '2-1-c) building edges for the quote of a reply=%s',
+                    tweet_raw_id)
                 # in_reply_to_user, edges for quoted url
                 for url in self.urls['quote']:
                     self.edges.add(
@@ -368,7 +367,8 @@ class Parser():
                                  True, True, 'reply'))
             # 2-3-3) pure quote
             else:
-                logger.debug('2-1-c) Building edges for a pure quote ...')
+                logger.debug('2-1-c) Building edges for a pure quote=%s',
+                             tweet_raw_id)
                 # a. information edges: from quoted_user to this_user
                 #                       for urls inputted by quoted user
                 for url in self.urls['quote']:
@@ -388,7 +388,8 @@ class Parser():
         # 2-4) original tweet
         if retweeted_status_id is None and in_reply_to_status_id is None\
                 and quoted_status_id is None:
-            logger.debug('2-1-d) building edges for original tweet ...')
+            logger.debug('2-1-d) building edges for original tweet=%s',
+                         tweet_raw_id)
             for mention_id, mention_screen in self.mentions['this']:
                 for url in self.urls['this']:
                     self.edges.add((tweet_raw_id, user_raw_id, mention_id, url,
