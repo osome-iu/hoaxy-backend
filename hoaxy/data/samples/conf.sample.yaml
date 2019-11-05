@@ -213,7 +213,8 @@ api:
     # coming from your infrastructure.
     # Please be aware the difference from rapid_key in botometer section.
     # Use 'X-RapidAPI-Proxy-Secret' when you are providing API service.
-    # *** REQUIRE *** SELF CONFIGURATION
+    enabled: true
+    # *** REQUIRE IF ENABLED TRUE *** SELF CONFIGURATION
     secret: '*** REQUIRED ***'
     # List of IPs used by RapidAPI: https://docs.rapidapi.com/v2.1/docs/firewall-ip-security
     # (formerly RapidAPI, updated Feb 15 2019)

@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.config['RAPID_SECRET'] = CONF['api']['rapid']['secret']
 app.config['RAPID_IPS'] = CONF['api']['rapid']['ips']
+rapid_enabled = CONF['api']['rapid']['enabled']
 
 # Prepare EasyLuceneSearcher class
 searcher = Searcher(
@@ -99,14 +100,17 @@ def authenticate_rapidapi(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         # Rapid authentication
-        rapid_secret = request.headers.get('X-RapidAPI-Proxy-Secret')
-        if rapid_secret is not None:
-            client_ip = request.access_route[-1]
-            # test the rapid api with corresponding request header
-            if rapid_secret == app.config['RAPID_SECRET']:
-                return func(*args, **kwargs)
-        # No authentication
-        return "Invalid/expired token", 401
+        if rapid_enabled:
+            rapid_secret = request.headers.get('X-RapidAPI-Proxy-Secret')
+            if rapid_secret is not None:
+                client_ip = request.access_route[-1]
+                # test the rapid api with corresponding request header
+                if rapid_secret == app.config['RAPID_SECRET']:
+                    return func(*args, **kwargs)
+            # No authentication
+            return "Invalid/expired token", 401
+        else:
+            return func(*args, **kwargs)
 
     return wrapper
 
