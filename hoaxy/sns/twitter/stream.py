@@ -12,16 +12,16 @@
 # and also see:
 # http://docs.python-requests.org/en/latest/user/quickstart/#timeouts
 
-
 try:
     import simplejson as json
 except ImportError:
     import json
-from requests_oauthlib import OAuth1
 import logging
-import requests
 import socket
 import time
+
+import requests
+from requests_oauthlib import OAuth1
 
 logger = logging.getLogger(__name__)
 API_URL = 'https://stream.twitter.com/1.1/statuses/filter.json'
@@ -61,7 +61,6 @@ BACKOFF_PARAMS = {
 
 class TwitterStreamError(Exception):
     """Exception of TwitterStream"""
-    pass
 
 
 class TwitterStream(object):
@@ -137,7 +136,7 @@ class TwitterStream(object):
                 self._backoff_sleep += params['step']
             else:
                 self._backoff_sleep *= params['factor']
-            logger.warn("Sleeping {:.2f}s as part of {} backoff.".format(
+            logger.warning("Sleeping {:.2f}s as part of {} backoff.".format(
                 self._backoff_sleep, params['kind']))
         time.sleep(self._backoff_sleep)
 
@@ -169,13 +168,14 @@ class TwitterStream(object):
                                 msg = 'Json loads error: %s, raw data: %s'
                                 logger.error(msg, e, line)
                                 continue
-                            if not ('in_reply_to_status_id' in jd and
-                                    'user' in jd and 'text' in jd):
+                            if not ('in_reply_to_status_id' in jd
+                                    and 'user' in jd and 'text' in jd):
                                 logger.error('Not status tweet: %s', jd)
                                 continue
                             self._counter += 1
                             if self._counter % self.window_size == 0:
-                                logger.info("{} tweets.".format(self._counter))
+                                msg =  'TwitterStreamer received %s tweets'
+                                logger.info(msg, self._counter)
                             for handler in self.handlers:
                                 handler.process_one(jd)
                         if data_lines >= 8:
@@ -186,48 +186,41 @@ class TwitterStream(object):
                             logger.debug("Reset backoff")
                             self._reset_backoff()
                             data_lines = 0
-                    logger.warn("Backing off..")
+                    logger.warning("Backing off..")
                     self._backoff('tcp')
                 except requests.exceptions.ConnectTimeout:
                     # wait just a (small) fixed amount of time and try to
                     # reconnect.
                     msg = "Timeout while trying to connect to server. " +\
                         "Retrying in {}s.."
-                    logger.warn(msg.format(self._conn_timeout_sleep))
+                    logger.warning(msg.format(self._conn_timeout_sleep))
                     time.sleep(self._conn_timeout_sleep)
                 except requests.Timeout:
                     # catching requests.Timeout instead of requests.ReadTimeout
                     # because we are setting a timeout parameter in the POST
                     msg = "Server did not send any data for {}s. " +\
                         "Backing off.."
-                    logger.warn(msg.format(self._stall_timeout))
+                    logger.warning(msg.format(self._stall_timeout))
                     self._backoff('tcp')
                 except requests.ConnectionError:
-                    logger.warn("Reconnecting to stream endpoint...")
-                    self._backoff('tcp')
-                except socket.error as e:
-                    msg = "Socket error {}: {}. " +\
-                        "Reconnecting to stream endpoint..."
-                    logger.warn(msg.format(e.errno, e.message))
+                    logger.warning("Reconnecting to stream endpoint...")
                     self._backoff('tcp')
                 except requests.HTTPError as e:
                     if e.response.status_code == 420:
                         msg = "Got HTTP 420 Error. Backing off.."
-                        logger.warn(msg)
+                        logger.warning(msg)
                         self._backoff("http_420")
                     else:
                         msg = "Got HTTP Error. Backing off.."
-                        logger.warn(msg)
+                        logger.warning(msg)
                         self._backoff("http")
+                except socket.error as e:
+                    logger.warning('Got socket error: %s, reconnecting!', e)
+                    self._backoff('tcp')
                 except KeyboardInterrupt:
-                    logger.info("got ^C from user. Exit.")
+                    logger.info("Got ^C from user. Exit.")
                     raise
         finally:
-            # catch any critical error (including TwitterStreamError we raise if
-            # backoff reaches maximum sleep time)
+            # close the request connection
+            logger.info('Requestion connection closed!')
             resp.close()
-            try:
-                for h in self.handlers:
-                    h.close()
-            except Exception as e:
-                logger.error(e)
