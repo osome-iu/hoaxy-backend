@@ -24,7 +24,6 @@ from operator import iconcat
 
 import pandas as pd
 import simplejson as json
-from pathos.multiprocessing import ProcessPool
 from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert
 
@@ -32,6 +31,7 @@ from hoaxy.database.models import (
     MAX_URL_LEN, AssTweet, AssTweetHashtag, AssTweetUrl, AssUrlPlatform,
     Hashtag, Tweet, TwitterNetworkEdge, TwitterUser, TwitterUserUnion, Url)
 from hoaxy.utils.dt import utc_from_str
+from pathos.multiprocessing import ProcessPool
 
 logger = logging.getLogger(__name__)
 
@@ -511,7 +511,7 @@ class Parser():
             dfs[k] = dfs[k].drop_duplicates(PMETA[k]['pu_keys'], keep='first')
         return dfs
 
-    def bulk_save(self, session, dfs, platform_id):
+    def bulk_save(self, session, dfs, platform_id, ignore_tweet_table=False):
         """This function save the standandlized parsed tweet into the database
         in a bulked way.
 
@@ -536,142 +536,170 @@ class Parser():
         # Table twitter_user, url, hashtag
         for tc in [TwitterUser, Url, Hashtag]:
             tn = tc.__table__.name
-            stmt_do_nothing = insert(tc).values(
-                dfs[tn].to_dict(orient='record')).on_conflict_do_nothing(
-                    index_elements=PMETA[tn]['du_keys'])
-            session.execute(stmt_do_nothing)
-            session.commit()
+            # make sure the dataframe is not empty!
+            if not dfs[tn].empty:
+                stmt_do_nothing = insert(tc).values(
+                    dfs[tn].to_dict(orient='record')).on_conflict_do_nothing(
+                        index_elements=PMETA[tn]['du_keys'])
+                session.execute(stmt_do_nothing)
+                session.commit()
 
         # Table twitter_user_union
         # full_user is prioritized: try to insert these full_users, when
         # conflict do update only for those profile is NULL or newer items
         k = 'full_user'
-        update_where = 'twitter_user_union.profile IS NULL OR ' + \
-            'twitter_user_union.updated_at<EXCLUDED.updated_at'
-        stmt = insert(TwitterUserUnion).values(dfs[k].to_dict(orient='record'))
-        stmt = stmt.on_conflict_do_update(
-            index_elements=PMETA[k]['du_keys'],
-            set_=dict(
-                screen_name=stmt.excluded.screen_name,
-                followers_count=stmt.excluded.followers_count,
-                profile=stmt.excluded.profile,
-                updated_at=stmt.excluded.updated_at),
-            where=text(update_where))
-        session.execute(stmt)
-        session.commit()
+        if not dfs[k].empty:
+            update_where = 'twitter_user_union.profile IS NULL OR ' + \
+                'twitter_user_union.updated_at<EXCLUDED.updated_at'
+            stmt = insert(TwitterUserUnion).values(
+                dfs[k].to_dict(orient='record'))
+            stmt = stmt.on_conflict_do_update(
+                index_elements=PMETA[k]['du_keys'],
+                set_=dict(
+                    screen_name=stmt.excluded.screen_name,
+                    followers_count=stmt.excluded.followers_count,
+                    profile=stmt.excluded.profile,
+                    updated_at=stmt.excluded.updated_at),
+                where=text(update_where))
+            session.execute(stmt)
+            session.commit()
         #
         # mentioned user
         k = 'mentioned_user'
-        stmt_do_nothing = insert(TwitterUserUnion).values(
-            dfs[k].to_dict(orient='record')).on_conflict_do_nothing(
-                index_elements=PMETA[k]['du_keys'])
-        session.execute(stmt_do_nothing)
-        session.commit()
+        if not dfs[k].empty:
+            stmt_do_nothing = insert(TwitterUserUnion).values(
+                dfs[k].to_dict(orient='record')).on_conflict_do_nothing(
+                    index_elements=PMETA[k]['du_keys'])
+            session.execute(stmt_do_nothing)
+            session.commit()
 
         #
         # Fetch inserted values
         #
 
         # Table twitter_user
-        q = """
-        SELECT tu.id AS user_id, tu.raw_id AS user_raw_id
-        FROM UNNEST(:raw_ids) AS t(raw_id)
-            JOIN twitter_user AS tu ON tu.raw_id=t.raw_id
-        """
-        rs = session.execute(
-            text(q).bindparams(raw_ids=dfs['twitter_user'].raw_id.tolist()))
-        df_user = pd.DataFrame(iter(rs), columns=rs.keys())
+        tn = 'twitter_user'
+        if not dfs[k].empty:
+            q = """
+            SELECT tu.id AS user_id, tu.raw_id AS user_raw_id
+            FROM UNNEST(:raw_ids) AS t(raw_id)
+                JOIN twitter_user AS tu ON tu.raw_id=t.raw_id
+            """
+            rs = session.execute(
+                text(q).bindparams(raw_ids=dfs[tn].raw_id.tolist()))
+            df_user = pd.DataFrame(iter(rs), columns=rs.keys())
+        else:
+            df_user = pd.DataFrame([], columns=rs.keys())
 
         # Table url
-        q = """
-        SELECT url.id AS url_id, url.raw AS url_raw
-        FROM UNNEST(:raws) AS t(raw)
-            JOIN url ON url.raw=t.raw
-        """
-        rs = session.execute(text(q).bindparams(raws=dfs['url'].raw.tolist()))
-        df_url = pd.DataFrame(iter(rs), columns=rs.keys())
+        tn = 'url'
+        if not dfs[k].empty:
+            q = """
+            SELECT url.id AS url_id, url.raw AS url_raw
+            FROM UNNEST(:raws) AS t(raw)
+                JOIN url ON url.raw=t.raw
+            """
+            rs = session.execute(text(q).bindparams(raws=dfs[tn].raw.tolist()))
+            df_url = pd.DataFrame(iter(rs), columns=rs.keys())
+        else:
+            df_url = pd.DataFrame([], columns=rs.keys())
 
         # Table hashtag
-        q = """
-        SELECT hashtag.id AS hashtag_id, hashtag.text AS hashtag_text
-        FROM UNNEST(:texts) AS t(text)
-            JOIN hashtag ON hashtag.text=t.text
-        """
-        rs = session.execute(
-            text(q).bindparams(texts=dfs['hashtag'].text.tolist()))
-        df_hashtag = pd.DataFrame(iter(rs), columns=rs.keys())
+        tn = 'hashtag'
+        if not dfs[tn].empty:
+            q = """
+            SELECT hashtag.id AS hashtag_id, hashtag.text AS hashtag_text
+            FROM UNNEST(:texts) AS t(text)
+                JOIN hashtag ON hashtag.text=t.text
+            """
+            rs = session.execute(
+                text(q).bindparams(texts=dfs[tn].text.tolist()))
+            df_hashtag = pd.DataFrame(iter(rs), columns=rs.keys())
+        else:
+            df_hashtag = pd.DataFrame([], columns=rs.keys())
 
         # update and insert tweet table
         tn = 'tweet'
         dfs[tn] = pd.merge(dfs[tn], df_user, on='user_raw_id')
-        stmt_do_nothing = insert(Tweet).returning(
-            Tweet.__table__.c.raw_id).values(
-                dfs[tn][PMETA[tn]['d_keys']].to_dict(orient='record')
-            ).on_conflict_do_nothing(index_elements=PMETA[tn]['du_keys'])
-        rs = session.execute(stmt_do_nothing)
-        duplicated_tweet_raw_ids = set(dfs[tn].raw_id) - set(r[0] for r in rs)
-        if len(duplicated_tweet_raw_ids) != 0:
-            logger.warning('Existed tweets with raw ids: %s',
-                           duplicated_tweet_raw_ids)
-        session.commit()
+        if not dfs[tn].empty:
+            stmt_do_nothing = insert(Tweet).returning(
+                Tweet.__table__.c.raw_id).values(
+                    dfs[tn][PMETA[tn]['d_keys']].to_dict(orient='record')
+                ).on_conflict_do_nothing(index_elements=PMETA[tn]['du_keys'])
+            rs = session.execute(stmt_do_nothing)
+            duplicated_tweet_raw_ids = set(dfs[tn].raw_id) - set(r[0]
+                                                                 for r in rs)
+            if len(duplicated_tweet_raw_ids) != 0:
+                logger.warning('Existed tweets with raw ids: %s',
+                               duplicated_tweet_raw_ids)
+            session.commit()
 
         # update and insert ass_url_platform
         # ass_url_platform is not in PMETA, it is constructed as:
         df_url_platform = df_url[['url_id']].copy()
         df_url_platform['platform_id'] = platform_id
-        stmt_do_nothing = insert(AssUrlPlatform).values(
-            df_url_platform.to_dict(orient='record')).on_conflict_do_nothing(
-                index_elements=['url_id', 'platform_id'])
-        session.execute(stmt_do_nothing)
-        session.commit()
+        if not df_url_platform.empty:
+            stmt_do_nothing = insert(AssUrlPlatform).values(
+                df_url_platform.to_dict(orient='record')
+            ).on_conflict_do_nothing(index_elements=['url_id', 'platform_id'])
+            session.execute(stmt_do_nothing)
+            session.commit()
 
         # Fetch tweet table
-        q = """
-        SELECT tw.id AS tweet_id, tw.raw_id AS tweet_raw_id
-        FROM UNNEST(:tweet_raw_ids) AS t(tweet_raw_id)
-            JOIN tweet AS tw ON tw.raw_id=t.tweet_raw_id
-        """
-        rs = session.execute(
-            text(q).bindparams(tweet_raw_ids=dfs['tweet'].raw_id.tolist()))
-        df_tweet = pd.DataFrame(iter(rs), columns=rs.keys())
+        tn = 'tweet'
+        if not dfs[tn].empty:
+            q = """
+            SELECT tw.id AS tweet_id, tw.raw_id AS tweet_raw_id
+            FROM UNNEST(:tweet_raw_ids) AS t(tweet_raw_id)
+                JOIN tweet AS tw ON tw.raw_id=t.tweet_raw_id
+            """
+            rs = session.execute(
+                text(q).bindparams(tweet_raw_ids=dfs['tweet'].raw_id.tolist()))
+            df_tweet = pd.DataFrame(iter(rs), columns=rs.keys())
+        else:
+            df_tweet = pd.DataFrame([], columns=rs.keys())
 
         # update and insert ass_tweet_url
         tn = 'ass_tweet_url'
         dfs[tn] = pd.merge(dfs[tn], df_url, on='url_raw')
         dfs[tn] = pd.merge(dfs[tn], df_tweet, on='tweet_raw_id')
-        stmt_do_nothing = insert(AssTweetUrl).values(
-            dfs[tn][PMETA[tn]['d_keys']].to_dict(orient='record')
-        ).on_conflict_do_nothing(index_elements=PMETA[tn]['du_keys'])
-        session.execute(stmt_do_nothing)
-        session.commit()
+        if not dfs[tn].empty:
+            stmt_do_nothing = insert(AssTweetUrl).values(
+                dfs[tn][PMETA[tn]['d_keys']].to_dict(orient='record')
+            ).on_conflict_do_nothing(index_elements=PMETA[tn]['du_keys'])
+            session.execute(stmt_do_nothing)
+            session.commit()
 
         # update and insert ass_tweet
         tn = 'ass_tweet'
         dfs[tn] = pd.merge(
             dfs[tn], df_tweet,
             on='tweet_raw_id').rename(columns=dict(tweet_id='id'))
-        stmt_do_nothing = insert(AssTweet).values(
-            dfs[tn][PMETA[tn]['d_keys']].to_dict(orient='record')
-        ).on_conflict_do_nothing(index_elements=PMETA[tn]['du_keys'])
-        session.execute(stmt_do_nothing)
-        session.commit()
+        if not dfs[tn].empty:
+            stmt_do_nothing = insert(AssTweet).values(
+                dfs[tn][PMETA[tn]['d_keys']].to_dict(orient='record')
+            ).on_conflict_do_nothing(index_elements=PMETA[tn]['du_keys'])
+            session.execute(stmt_do_nothing)
+            session.commit()
 
         # update and insert ass_tweet_hashtag
         tn = 'ass_tweet_hashtag'
         dfs[tn] = pd.merge(dfs[tn], df_hashtag, on='hashtag_text')
         dfs[tn] = pd.merge(dfs[tn], df_tweet, on='tweet_raw_id')
-        stmt_do_nothing = insert(AssTweetHashtag).values(
-            dfs[tn][PMETA[tn]['d_keys']].to_dict(orient='record')
-        ).on_conflict_do_nothing(index_elements=PMETA[tn]['du_keys'])
-        session.execute(stmt_do_nothing)
-        session.commit()
+        if not dfs[tn].empty:
+            stmt_do_nothing = insert(AssTweetHashtag).values(
+                dfs[tn][PMETA[tn]['d_keys']].to_dict(orient='record')
+            ).on_conflict_do_nothing(index_elements=PMETA[tn]['du_keys'])
+            session.execute(stmt_do_nothing)
+            session.commit()
 
         # update and insert twitter_network_edge
         tn = 'twitter_network_edge'
         dfs[tn] = pd.merge(dfs[tn], df_url, on='url_raw')
         dfs[tn] = pd.merge(dfs[tn], df_tweet, on='tweet_raw_id')
-        stmt_do_nothing = insert(TwitterNetworkEdge).values(
-            dfs[tn][PMETA[tn]['d_keys']].to_dict(orient='record')
-        ).on_conflict_do_nothing(index_elements=PMETA[tn]['du_keys'])
-        session.execute(stmt_do_nothing)
-        session.commit()
+        if not dfs[tn].empty:
+            stmt_do_nothing = insert(TwitterNetworkEdge).values(
+                dfs[tn][PMETA[tn]['d_keys']].to_dict(orient='record')
+            ).on_conflict_do_nothing(index_elements=PMETA[tn]['du_keys'])
+            session.execute(stmt_do_nothing)
+            session.commit()
