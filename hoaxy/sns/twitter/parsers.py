@@ -589,7 +589,7 @@ class Parser():
                 text(q).bindparams(raw_ids=dfs[tn].raw_id.tolist()))
             df_user = pd.DataFrame(iter(rs), columns=rs.keys())
         else:
-            df_user = pd.DataFrame([], columns=rs.keys())
+            df_user = pd.DataFrame([], columns=['user_id', 'user_raw_id'])
 
         # Table url
         tn = 'url'
@@ -602,7 +602,7 @@ class Parser():
             rs = session.execute(text(q).bindparams(raws=dfs[tn].raw.tolist()))
             df_url = pd.DataFrame(iter(rs), columns=rs.keys())
         else:
-            df_url = pd.DataFrame([], columns=rs.keys())
+            df_url = pd.DataFrame([], columns=['url_id', 'url_raw'])
 
         # Table hashtag
         tn = 'hashtag'
@@ -616,7 +616,7 @@ class Parser():
                 text(q).bindparams(texts=dfs[tn].text.tolist()))
             df_hashtag = pd.DataFrame(iter(rs), columns=rs.keys())
         else:
-            df_hashtag = pd.DataFrame([], columns=rs.keys())
+            df_hashtag = pd.DataFrame([], columns=['hashtag_id', 'hashtag_text'])
 
         # update and insert tweet table
         tn = 'tweet'
@@ -657,7 +657,7 @@ class Parser():
                 text(q).bindparams(tweet_raw_ids=dfs['tweet'].raw_id.tolist()))
             df_tweet = pd.DataFrame(iter(rs), columns=rs.keys())
         else:
-            df_tweet = pd.DataFrame([], columns=rs.keys())
+            df_tweet = pd.DataFrame([], columns=['tweet_id', 'tweet_raw_id'])
 
         # update and insert ass_tweet_url
         tn = 'ass_tweet_url'

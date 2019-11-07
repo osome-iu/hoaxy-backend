@@ -8,10 +8,13 @@ implemented.
 # written by Chengcheng Shao <sccotte@gmail.com>
 
 import logging
-from queue import Queue
+import signal
 import sys
+from queue import Queue
 
 import simplejson as json
+import os.path
+import os
 
 from hoaxy.commands import HoaxyCommand
 from hoaxy.database import Session
@@ -24,6 +27,7 @@ from hoaxy.utils import get_track_keywords
 from hoaxy.utils.log import configure_logging
 from schema import Or, Schema, SchemaError, Use
 from xopen import xopen
+from hoaxy import HOAXY_HOME
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +35,7 @@ logger = logging.getLogger(__name__)
 class SNS(HoaxyCommand):
     """
 usage:
-  hoaxy sns --twitter-streaming
+  hoaxy sns --twitter-streaming [--dump-dir=<d>]
   hoaxy sns --load-tweets [--strict-on-error] [--number-of-tweets=<nt>]
             <filepath>
   hoaxy sns -h | --help
@@ -40,6 +44,8 @@ Track posted messages in social networks. Right now only twitter platform is
 implemented.
 
 --twitter-streaming     Start twitter streaming.
+--dump-dir=<d>          The folder to save dumped file when error occurs. The
+                        default location is HOAXY_HOME/dumps.
 --load-tweets           Load local tweets from file, one tweet per line.
 --strict-on-error       By default, we would try our best to read and parse
                         lines, ignore possible errors when parsing and continue
@@ -76,19 +82,40 @@ Examples:
     @classmethod
     def twitter_stream(cls, session, args):
         """Twitter streaming process."""
+        # create a dump folder
+        if args['--dump-dir'] is not None:
+            dump_dir = os.path.expanduser(args['--dump-dir'])
+            dump_dir = os.path.abspath(dump_dir)
+        else:
+            dump_dir = os.path.join(HOAXY_HOME, 'dumps')
+        if not os.path.exists(dump_dir):
+            try:
+                org_umask = os.umask(0)
+                os.makedirs(dump_dir, 0o755)
+            finally:
+                os.umask(org_umask)
         sites = get_site_tuples(session)
         keywords = get_track_keywords(sites)
         session.close()
         window_size = cls.conf['window_size']
         credentials = cls.conf['sns']['twitter']['app_credentials']
         save_none_url_tweet = cls.conf['sns']['twitter']['save_none_url_tweet']
-
         tw_queue = Queue()
         consumer = QueueHandler(
             tw_queue,
             bucket_size=window_size,
+            dump_dir=dump_dir,
             parser_kwargs=dict(save_none_url_tweet=save_none_url_tweet))
         consumer.start()
+        logger.debug('Consumer thread started.')
+
+        # KeyboardInterrupt signal handler
+        def clean_up(signal_n, c_frame):
+            raise KeyboardInterrupt
+
+        signal.signal(signal.SIGINT, clean_up)
+        # signal.signal(signal.SIGINT, signal.SIG_DFL)
+
         try:
             streamer = TwitterStream(
                 credentials=credentials,
@@ -96,14 +123,16 @@ Examples:
                 params=dict(track=keywords),
                 window_size=window_size)
             streamer.stream()
-        except Exception as e:
-            logger.exception(e)
-        consumer.stop()
-
-        logger.info('Exit')
+            logger.info('Twitter steaming exits.')
+        except (KeyboardInterrupt, SystemExit):
+            logger.info('KeyboardInterruption recevied, cleaning up ...')
+            consumer.stop()
+            logger.info('Clean up done, exit!')
 
     @classmethod
     def load_tweets(cls, session, args, bucket_size=10000):
+        """Load tweets from file into database.
+        """
         parser = Parser()
         ntweets = args['--number-of-tweets']
         strict_on_error = args['--strict-on-error']
@@ -112,8 +141,7 @@ Examples:
         jds = []
         f = xopen(args['<filepath>'])
         platform_id = get_platform_id(session, N_PLATFORM_TWITTER)
-        while True:
-            line = f.readline()
+        for line in f:
             counter += 1
             if line:
                 try:
