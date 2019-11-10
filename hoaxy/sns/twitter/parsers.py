@@ -505,13 +505,26 @@ class Parser():
         for k in tkeys:
             if k == 'full_user' or k == 'mentioned_user':
                 dfs[k] = dfs[k].sort_values('updated_at', ascending=False)
+            #
+            # !IMPORTANT (ESPECIALLY FOR `ass_tweet` table)
+            # Causion:
+            # (1) The default missing values for pandas.DataFrame is
+            # np.NAN, which is not compatible with SQL insertion in SQLAlchemy.
+            # Thus a replace operation need to take.
+            # (2) When missing values occurs, the dtype of a DataFrame would
+            # be 'float' (either float32 or float64), which could truncate
+            # the large numbers. Since version 24, pandas provide new data type
+            # Int64 (CAPITAL I). Thus we need to convert it to this data type.
+            #
             if k == 'ass_tweet':
                 # replace np.NAN as None
+                import ipdb; ipdb.set_trace()
+                dfs[k] = dfs[k].astype('Int64')
                 dfs[k].replace({pd.np.nan: None}, inplace=True)
             dfs[k] = dfs[k].drop_duplicates(PMETA[k]['pu_keys'], keep='first')
         return dfs
 
-    def bulk_save(self, session, dfs, platform_id, ignore_tweet_table=False):
+    def bulk_save(self, session, dfs, platform_id, ignored_tables=[]):
         """This function save the standandlized parsed tweet into the database
         in a bulked way.
 
@@ -524,7 +537,9 @@ class Parser():
             `to_dict`.
         platform_id : integer
             The `platform_id` for URL should be the id of `N_PLATFORM_TWITTER`.
-
+        ignored_tables : list of string
+            A list of table names. When inserting, we would ignore the
+            insertion operation for these tables.
         Returns
         ----------
         None
@@ -537,7 +552,7 @@ class Parser():
         for tc in [TwitterUser, Url, Hashtag]:
             tn = tc.__table__.name
             # make sure the dataframe is not empty!
-            if not dfs[tn].empty:
+            if not dfs[tn].empty and tn not in ignored_tables:
                 stmt_do_nothing = insert(tc).values(
                     dfs[tn].to_dict(orient='record')).on_conflict_do_nothing(
                         index_elements=PMETA[tn]['du_keys'])
@@ -548,7 +563,7 @@ class Parser():
         # full_user is prioritized: try to insert these full_users, when
         # conflict do update only for those profile is NULL or newer items
         k = 'full_user'
-        if not dfs[k].empty:
+        if not dfs[k].empty and 'twitter_user_union' not in ignored_tables:
             update_where = 'twitter_user_union.profile IS NULL OR ' + \
                 'twitter_user_union.updated_at<EXCLUDED.updated_at'
             stmt = insert(TwitterUserUnion).values(
@@ -566,7 +581,7 @@ class Parser():
         #
         # mentioned user
         k = 'mentioned_user'
-        if not dfs[k].empty:
+        if not dfs[k].empty and 'twitter_user_union' not in ignored_tables:
             stmt_do_nothing = insert(TwitterUserUnion).values(
                 dfs[k].to_dict(orient='record')).on_conflict_do_nothing(
                     index_elements=PMETA[k]['du_keys'])
@@ -616,12 +631,13 @@ class Parser():
                 text(q).bindparams(texts=dfs[tn].text.tolist()))
             df_hashtag = pd.DataFrame(iter(rs), columns=rs.keys())
         else:
-            df_hashtag = pd.DataFrame([], columns=['hashtag_id', 'hashtag_text'])
+            df_hashtag = pd.DataFrame(
+                [], columns=['hashtag_id', 'hashtag_text'])
 
         # update and insert tweet table
         tn = 'tweet'
         dfs[tn] = pd.merge(dfs[tn], df_user, on='user_raw_id')
-        if not dfs[tn].empty:
+        if not dfs[tn].empty and tn not in ignored_tables:
             stmt_do_nothing = insert(Tweet).returning(
                 Tweet.__table__.c.raw_id).values(
                     dfs[tn][PMETA[tn]['d_keys']].to_dict(orient='record')
@@ -638,7 +654,7 @@ class Parser():
         # ass_url_platform is not in PMETA, it is constructed as:
         df_url_platform = df_url[['url_id']].copy()
         df_url_platform['platform_id'] = platform_id
-        if not df_url_platform.empty:
+        if not df_url_platform.empty and 'ass_url_platform' not in ignored_tables:
             stmt_do_nothing = insert(AssUrlPlatform).values(
                 df_url_platform.to_dict(orient='record')
             ).on_conflict_do_nothing(index_elements=['url_id', 'platform_id'])
@@ -663,7 +679,7 @@ class Parser():
         tn = 'ass_tweet_url'
         dfs[tn] = pd.merge(dfs[tn], df_url, on='url_raw')
         dfs[tn] = pd.merge(dfs[tn], df_tweet, on='tweet_raw_id')
-        if not dfs[tn].empty:
+        if not dfs[tn].empty and tn not in ignored_tables:
             stmt_do_nothing = insert(AssTweetUrl).values(
                 dfs[tn][PMETA[tn]['d_keys']].to_dict(orient='record')
             ).on_conflict_do_nothing(index_elements=PMETA[tn]['du_keys'])
@@ -675,7 +691,7 @@ class Parser():
         dfs[tn] = pd.merge(
             dfs[tn], df_tweet,
             on='tweet_raw_id').rename(columns=dict(tweet_id='id'))
-        if not dfs[tn].empty:
+        if not dfs[tn].empty and tn not in ignored_tables:
             stmt_do_nothing = insert(AssTweet).values(
                 dfs[tn][PMETA[tn]['d_keys']].to_dict(orient='record')
             ).on_conflict_do_nothing(index_elements=PMETA[tn]['du_keys'])
@@ -686,7 +702,7 @@ class Parser():
         tn = 'ass_tweet_hashtag'
         dfs[tn] = pd.merge(dfs[tn], df_hashtag, on='hashtag_text')
         dfs[tn] = pd.merge(dfs[tn], df_tweet, on='tweet_raw_id')
-        if not dfs[tn].empty:
+        if not dfs[tn].empty and tn not in ignored_tables:
             stmt_do_nothing = insert(AssTweetHashtag).values(
                 dfs[tn][PMETA[tn]['d_keys']].to_dict(orient='record')
             ).on_conflict_do_nothing(index_elements=PMETA[tn]['du_keys'])
@@ -697,7 +713,7 @@ class Parser():
         tn = 'twitter_network_edge'
         dfs[tn] = pd.merge(dfs[tn], df_url, on='url_raw')
         dfs[tn] = pd.merge(dfs[tn], df_tweet, on='tweet_raw_id')
-        if not dfs[tn].empty:
+        if not dfs[tn].empty and tn not in ignored_tables:
             stmt_do_nothing = insert(TwitterNetworkEdge).values(
                 dfs[tn][PMETA[tn]['d_keys']].to_dict(orient='record')
             ).on_conflict_do_nothing(index_elements=PMETA[tn]['du_keys'])
