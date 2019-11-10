@@ -24,6 +24,7 @@ from operator import iconcat
 
 import pandas as pd
 import simplejson as json
+from pathos.multiprocessing import ProcessPool
 from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert
 
@@ -31,7 +32,6 @@ from hoaxy.database.models import (
     MAX_URL_LEN, AssTweet, AssTweetHashtag, AssTweetUrl, AssUrlPlatform,
     Hashtag, Tweet, TwitterNetworkEdge, TwitterUser, TwitterUserUnion, Url)
 from hoaxy.utils.dt import utc_from_str
-from pathos.multiprocessing import ProcessPool
 
 logger = logging.getLogger(__name__)
 
@@ -518,7 +518,6 @@ class Parser():
             #
             if k == 'ass_tweet':
                 # replace np.NAN as None
-                import ipdb; ipdb.set_trace()
                 dfs[k] = dfs[k].astype('Int64')
                 dfs[k].replace({pd.np.nan: None}, inplace=True)
             dfs[k] = dfs[k].drop_duplicates(PMETA[k]['pu_keys'], keep='first')
