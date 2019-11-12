@@ -102,11 +102,11 @@ recommended that you have tested this command on small set, and probably you
 need to backup your database. If you want to keep the re-constructed table
 clean, a delete operation must be done on desired tables. We provide
 `--delete-tables` to support the deletion operation of four tables: ass_tweet,
-ass_tweet_url, ass_tweet_hashtag, and twitter_network_edge. Also, 
-if you definitely sure that some tables would never be updated, you could
+ass_tweet_url, ass_tweet_hashtag, and twitter_network_edge. Also, if you
+definitely sure that some tables would never be updated, you could
 specify `--ignored-tables` to ignore any insert operations to save time.
 Often, you have to specify `--delete-tables` if parsing schema are changed
-(if there are changes for tables out of the above four tables, you have to 
+(if there are changes for tables out of the above four tables, you have to
 take the delete operation by yourself). You do not need to specify
 `--ignore-tables` unless you are definitely sure these tables would not be
 updated by the reparse process. By default, `tweet` and `twitter_user` table
@@ -155,9 +155,9 @@ Examples:
      is built, where we are sure that tables like twitter_network_edge,
      ass_tweet_url.
   hoaxy sns --reparse-db-tweets --delete-tables=twitter_network_edge
-            --delete-tables=url --delete-tables=ass_tweet_url
-            --ignore-tables=twitter_user --ignore-tables=tweet
-            --plain-sql="SELECT raw_id from tweet WHERE id<10000
+            || --delete-tables=url --delete-tables=ass_tweet_url
+            || --ignore-tables=twitter_user --ignore-tables=tweet
+            || --plain-sql="SELECT raw_id from tweet WHERE id<10000
     """
     name = 'sns'
     short_description = 'Online social network services management'
