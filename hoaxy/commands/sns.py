@@ -53,8 +53,8 @@ usage:
   hoaxy sns --twitter-streaming [--dump-dir=<d>]
   hoaxy sns --load-tweets [--strict-on-error] [--number-of-tweets=<nt>]
             <filepath>
-  hoaxy sns --reparse-db-tweets [--window-size=<w>] [--plain-sql=<q>]
-            (--delete-tables=<tn> ...) [--ignore-tables=<tn>]
+  hoaxy sns --reparse-db-tweets [--window-size=<w>] (--delete-tables=<tn> ...)
+            [--ignore-tables=<tn>] (--plain-sql=<q>)
   hoaxy sns -h | --help
 
 Track posted messages in social networks. Right now only TWITTER platform is
@@ -157,7 +157,7 @@ Examples:
   hoaxy sns --reparse-db-tweets --delete-tables=twitter_network_edge
             || --delete-tables=url --delete-tables=ass_tweet_url
             || --ignore-tables=twitter_user --ignore-tables=tweet
-            || --plain-sql="SELECT raw_id from tweet WHERE id<10000
+            || --plain-sql="SELECT raw_id from tweet WHERE id<10000"
     """
     name = 'sns'
     short_description = 'Online social network services management'
