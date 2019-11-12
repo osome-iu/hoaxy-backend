@@ -54,7 +54,7 @@ usage:
   hoaxy sns --load-tweets [--strict-on-error] [--number-of-tweets=<nt>]
             <filepath>
   hoaxy sns --reparse-db-tweets [--window-size=<w>] [--plain-sql=<q>]
-            [--delete-tables=<tn> ...]
+            (--delete-tables=<tn> ...) [--ignore-tables=<tn>]
   hoaxy sns -h | --help
 
 Track posted messages in social networks. Right now only TWITTER platform is
@@ -63,8 +63,8 @@ implemented. Three sub-commands are implemented.
 (1) The --twitter-streaming command is used to track streaming tweets with
 specified keywords. As we need to parse tweets and save them into database as
 well, we use a multi-threading method with a queue as data (tweets)
-communication. The main thread is mainly used to handle tweets steaming and the
-slave-thread is used to parse and save tweets. We use a bulk insertion
+communication channel. The main thread is mainly used to handle tweets steaming
+and the slave-thread is used to parse and save tweets. We use a bulk insertion
 operation to reduce database query overhead. For case of database insertion
 errors, the under-saving tweets would be dumped. Also, this command is capable
 to handle exceptions when database server is temperally down: cache the
@@ -93,13 +93,24 @@ format as one tweet per line).
                           automatically recognized by their file extension
                           .gz, .bz2 or .xz.
 
-(3) The --reparse-db-tweets command is to used to re-parse tweets and rebuild
-other tables. Tweets table are the most important table, from which most other
-tables could be rebuilt. This command is essentially only for developers that
-has changed the tweet parsing schema (e.g., new data field to save; new network
-contruction and etc.). Before the operation, it is highly recommended that you
-have tested this command on small set, and probably you need to backup your
-database. Also, you have to delete tables that you would like to re-construct.
+(3) The --reparse-db-tweets command is to used to re-parse tweets in the
+database and rebuild other tables. Tweets table are the most important table,
+from which most other tables could be rebuilt. This command is essentially only
+for developers that has changed the tweet parsing schema (e.g., new data field
+to save; new network contruction and etc.). Before the operation, it is highly
+recommended that you have tested this command on small set, and probably you
+need to backup your database. If you want to keep the re-constructed table
+clean, a delete operation must be done on desired tables. We provide
+`--delete-tables` to support the deletion operation of four tables: ass_tweet,
+ass_tweet_url, ass_tweet_hashtag, and twitter_network_edge. Also, 
+if you definitely sure that some tables would never be updated, you could
+specify `--ignored-tables` to ignore any insert operations to save time.
+Often, you have to specify `--delete-tables` if parsing schema are changed
+(if there are changes for tables out of the above four tables, you have to 
+take the delete operation by yourself). You do not need to specify
+`--ignore-tables` unless you are definitely sure these tables would not be
+updated by the reparse process. By default, `tweet` and `twitter_user` table
+are ignored.
 
 --reparse-db            Re-construct everything using the tweets in the
                         database. Backup things before running this command.
@@ -107,10 +118,18 @@ database. Also, you have to delete tables that you would like to re-construct.
                         are used to re-construct other tables. The SELECT
                         statment should return a list of tweet.raw_id.
 --delete-tables=<tn>    Specify tables to delete that associated with the
-                        re-parsing tweets. Supported tables are:
+                        re-parsing tweets. Current supported tables are:
                         ass_tweet, ass_tweet_url, ass_tweet_hashtag,
-                        twitter_network_edge.
-                        [default: ass_tweet ass_tweet_url ass_tweet_hashtag twitter_network_edge]
+                        twitter_network_edge. Administrator can take direct SQL
+                        operations on other tables.
+--ignore-tables=<tn>    Specify tables that the re-parsing process should not
+                        be updated so that we can ignore.
+                        WARNING: this parameter should be compatible with
+                        `--delete-tables` so that we never ignore tables that
+                        are marked as delete. Availabe values are:
+                        twitter_user, url, hashtag, twitter_user_union,
+                        twitter_network_edge, ass_tweet_url, ass_tweet_hashtag
+                        ass_url_platform.
 --window-size=<w>       Re-parse on the database would be conducted on windows.
                         This parameter specify the size of the window.
                         [default: 10000]
@@ -132,9 +151,13 @@ Examples:
   2. Load local tweets
   hoaxy sns --load-tweets dumped_tweets.json.gz
 
-  3. Reparse tweets in database
-  hoaxy sns --reparse-db-tweets \
-    --plain-sql="SELECT raw_id from tweet WHERE created_at>'2019-01-01'"
+  3. Reparse tweets in database when we change the way of how the network
+     is built, where we are sure that tables like twitter_network_edge,
+     ass_tweet_url.
+  hoaxy sns --reparse-db-tweets --delete-tables=twitter_network_edge
+            --delete-tables=url --delete-tables=ass_tweet_url
+            --ignore-tables=twitter_user --ignore-tables=tweet
+            --plain-sql="SELECT raw_id from tweet WHERE id<10000
     """
     name = 'sns'
     short_description = 'Online social network services management'
@@ -262,7 +285,8 @@ Examples:
         parser = Parser()
         bucket_size = args['--window-size']
         plain_sql = args['--plain-sql']
-        deletes = args['--delete-tables']
+        delete_tables = args['--delete-tables']
+        ignore_tables = args['--ignore-tables']
         counter = 0
         table_deletes_sql = dict(
             ass_tweet="""\
@@ -286,7 +310,7 @@ Examples:
             WHERE tne.tweet_raw_id=t.raw_id
             """)
 
-        for tn in deletes:
+        for tn in delete_tables:
             del_tn = table_deletes_sql.get(tn)
             if del_tn is None:
                 raise ValueError('Unsupported deletion of table %s', tn)
@@ -301,7 +325,7 @@ Examples:
         JOIN tweet AS tw ON tw.raw_id=t.raw_id
         """
         for chunk in chunked_iterable(affected_ids, bucket_size):
-            for tn in deletes:
+            for tn in delete_tables:
                 del_tn = table_deletes_sql[tn]
                 try:
                     session.execute(text(del_tn).bindparams(ids=chunk))
@@ -314,7 +338,8 @@ Examples:
             jds = iter_rows_0(rs)
             parsed_results = parser.parse_many(jds, multiprocesses=True)
             dfs = parser.to_dict(parsed_results)
-            parser.bulk_save(session, dfs, platform_id)
+            parser.bulk_save(
+                session, dfs, platform_id, ignore_tables=ignore_tables)
             counter += len(chunk)
             logger.info('Current Number of repared tweets: %s', counter)
         logger.info('Total number of reparsed tweets: %s! Exit!', counter)
