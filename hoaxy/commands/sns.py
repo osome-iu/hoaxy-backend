@@ -153,11 +153,10 @@ Examples:
 
   3. Reparse tweets in database when we change the way of how the network
      is built, where we are sure that tables like twitter_network_edge,
-     ass_tweet_url.
+     ass_tweet_url (Here we use short-hand options to save place).
   hoaxy sns --reparse-db-tweets --delete-tables=twitter_network_edge
-            || --delete-tables=url --delete-tables=ass_tweet_url
-            || --ignore-tables=twitter_user --ignore-tables=tweet
-            || --plain-sql="SELECT raw_id from tweet WHERE id<10000"
+            || -d url -d ass_tweet_url -i twitter_user -i tweet
+            || -q "SELECT raw_id from tweet WHERE id<10000"
     """
     name = 'sns'
     short_description = 'Online social network services management'
