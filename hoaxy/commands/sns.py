@@ -54,7 +54,7 @@ usage:
   hoaxy sns --load-tweets [--strict-on-error] [--number-of-tweets=<nt>]
             <filepath>
   hoaxy sns --reparse-db-tweets [--window-size=<w>] (--delete-tables=<tn> ...)
-            [--ignore-tables=<tn>] (--plain-sql=<q>)
+            [--ignore-tables=<tn> ...] (--plain-sql=<q>)
   hoaxy sns -h | --help
 
 Track posted messages in social networks. Right now only TWITTER platform is
@@ -75,7 +75,7 @@ dumped tweets would not load automatically into database. The adminstrator
 need to check and load them.
 
 --twitter-streaming     Start twitter streaming.
---dump-dir=<d>          The folder to save dumped file when error occurs. The
+--dump-dir=<d>   The folder to save dumped file when error occurs. The
                         default location is HOAXY_HOME/dumps.
 
 (2) The --load-tweets command is used to load local saved tweets (in a file,
@@ -86,8 +86,8 @@ format as one tweet per line).
                         lines, ignore possible errors when parsing and continue
                         on the next line. However, If this flag is set, the
                         program will exit (with 1) on any error.
---number-of-tweets=<nt> How many tweets to collect. If not set, the number is
-                        not set, the number is unlimited.
+-n --number-of-tweets=<nt> How many tweets to collect. If not set, the number
+                        is not set, the number is unlimited.
 <filepath>              File that stores the JSON structured tweets, one tweet
                           per line. Compressed format are supported, which are
                           automatically recognized by their file extension
@@ -114,23 +114,23 @@ are ignored.
 
 --reparse-db            Re-construct everything using the tweets in the
                         database. Backup things before running this command.
---plain-sql=<q>         The plain SQL query that select specified tweets that
+-q --plain-sql=<q>      The plain SQL query that select specified tweets that
                         are used to re-construct other tables. The SELECT
                         statment should return a list of tweet.raw_id.
---delete-tables=<tn>    Specify tables to delete that associated with the
+-d --delete-tables=<tn>    Specify tables to delete that associated with the
                         re-parsing tweets. Current supported tables are:
                         ass_tweet, ass_tweet_url, ass_tweet_hashtag,
                         twitter_network_edge. Administrator can take direct SQL
                         operations on other tables.
---ignore-tables=<tn>    Specify tables that the re-parsing process should not
-                        be updated so that we can ignore.
+-i --ignore-tables=<tn>    Specify tables that the re-parsing process should
+                        not be updated so that we can ignore.
                         WARNING: this parameter should be compatible with
                         `--delete-tables` so that we never ignore tables that
                         are marked as delete. Availabe values are:
                         twitter_user, url, hashtag, twitter_user_union,
                         twitter_network_edge, ass_tweet_url, ass_tweet_hashtag
                         ass_url_platform.
---window-size=<w>       Re-parse on the database would be conducted on windows.
+-s --window-size=<w>    Re-parse on the database would be conducted on windows.
                         This parameter specify the size of the window.
                         [default: 10000]
 
@@ -350,7 +350,7 @@ Examples:
         try:
             args = cls.args_schema.validate(args)
         except SchemaError as e:
-            raise SystemExit(e)
+            raise SystemExit('\n' + e + '\n')
         session = Session(expire_on_commit=False)
         if args['--twitter-streaming'] is True:
             configure_logging('twitter.streaming')
