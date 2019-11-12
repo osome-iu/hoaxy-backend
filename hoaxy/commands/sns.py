@@ -272,6 +272,23 @@ Examples:
             jds = []
 
     @classmethod
+    def _test_table_names(cls, session, args):
+        rs = session.execute(
+            text("""SELECT table_name
+                    FROM information_schema.tables
+                    WHERE table_schema='public'
+                        AND table_type='BASE TABLE'; """))
+        hoaxy_table_names = [row[0] for row in rs]
+        for ignore_table in args['--ignore-tables']:
+            if ignore_table not in hoaxy_table_names:
+                raise ValueError(
+                    'Table {!r} not exist in hoaxy!'.format(ignore_table))
+            if ignore_table in args['--delete-tables']:
+                msg = "Table %s is marked with delete operation, it should " +\
+                    "be set as ignored table!"
+                logger.warning(msg, ignore_table)
+
+    @classmethod
     def reparse_db(cls, session, args):
         """Load tweets from file into database.
         """
@@ -341,7 +358,8 @@ Examples:
                 session, dfs, platform_id, ignore_tables=ignore_tables)
             counter += len(chunk)
             logger.info('Current Number of repared tweets: %s', counter)
-        logger.info('Total number of reparsed tweets: %s! Exit!', counter)
+        logger.info('Total number of reparsed tweets: %s!', counter)
+        logger.info('Reparse done, exit!')
 
     @classmethod
     def run(cls, args):
@@ -359,4 +377,5 @@ Examples:
             cls.load_tweets(session, args)
         elif args['--reparse-db-tweets'] is True:
             configure_logging('twitter.reparse-db', file_level='WARNING')
+            cls._test_table_names(session, args)
             cls.reparse_db(session, args)
