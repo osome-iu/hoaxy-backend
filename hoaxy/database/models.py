@@ -103,6 +103,9 @@ class TableMixin(object):
 class AuditColumns(object):
     """Another Mixin class that adds audit columns: created_at and updated_at.
     """
+    # For tweet table, the created_at should be consistent with its field
+    # `created_at`; for other tables, it should be the timestamp when
+    # records are created.
     created_at = Column(
         DateTime,
         default=datetime.utcnow,
@@ -464,6 +467,8 @@ class TwitterUserUnion(TableMixin, Base):
     screen_name = Column(String(255), nullable=False)
     followers_count = Column(Integer)
     profile = deferred(Column(postgresql.JSONB))
+    # updated_at should be the timestamp when columns like
+    # followers_count, profile are updated or first inserted with.
     updated_at = Column(DateTime, onupdate=datetime.utcnow)
     user_error_code = Column(Integer)
 
