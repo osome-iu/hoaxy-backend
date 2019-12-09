@@ -164,7 +164,7 @@ class QueueHandler(BaseHandler):
         self.hold_on_failure = hold_on_failure
         hold_on_kwargs = dict() if hold_on_kwargs is None else hold_on_kwargs
         self.hold_on_sleep_seconds = hold_on_kwargs.get('sleep', 60)
-        self.hold_on_max_seconds = hold_on_kwargs.get('max', 24*3600)
+        self.hold_on_max_seconds = hold_on_kwargs.get('max', 24 * 3600)
         self.current_hold_on_seconds = 0
         self.is_connection_failed = False
         # keywords arguments when creating parser
@@ -230,9 +230,8 @@ class QueueHandler(BaseHandler):
         logger.info('Consumer thread: qsize=%s', self.queue.qsize())
         logger.info('Consumer thread: bucket_size=%s', this_bucket_size)
         logger.info('Consumer thread: Parsing tweets one by one')
-        parsed_results = parser.parse_many(self.bucket, multiprocesses=False)
-        dfs = parser.to_dict(parsed_results)
-        parser.bulk_save(session, dfs, platform_id)
+        parser.bulk_parse_and_save(
+            self.bucket, session, platform_id, multiprocesses=False)
 
     def gen_filename(self, fn_pre, fn_ext):
         """Generate the filename when dumping"""

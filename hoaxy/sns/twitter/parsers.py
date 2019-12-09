@@ -718,3 +718,21 @@ class Parser():
             ).on_conflict_do_nothing(index_elements=PMETA[tn]['du_keys'])
             session.execute(stmt_do_nothing)
             session.commit()
+
+    def bulk_parse_and_save(self,
+                            jds,
+                            session,
+                            platform_id,
+                            multiprocesses=False,
+                            ignore_tables=[]):
+        """A combined bulk operations: first parse a bucket of tweets, then save
+        the parsed results into database.
+        """
+        if jds:
+            parsed_results = self.parse_many(
+                jds, multiprocesses=multiprocesses)
+            if parsed_results:
+                dfs = self.to_dict(parsed_results)
+                self.bulk_save(session, dfs, platform_id, ignore_tables)
+            else:
+                logger.warning('No parsed results from these tweets!')

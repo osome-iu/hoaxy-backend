@@ -259,16 +259,14 @@ Examples:
             if true_counter % bucket_size == 0:
                 logger.warning('Reading %s lines, %s tweets parsed', counter,
                                true_counter)
-                parsed_results = parser.parse_many(jds, multiprocesses=True)
-                dfs = parser.to_dict(parsed_results)
-                parser.bulk_save(session, dfs, platform_id)
+                parser.bulk_parse_and_save(
+                    jds, session, platform_id, multiprocesses=True)
                 jds = []
         if jds:
             logger.warning('Reading %s lines, %s tweets parsed', counter,
                            true_counter)
-            parsed_results = parser.parse_many(jds, multiprocesses=True)
-            dfs = parser.to_dict(parsed_results)
-            parser.bulk_save(session, dfs, platform_id)
+            parser.bulk_parse_and_save(
+                jds, session, platform_id, multiprocesses=True)
             jds = []
 
     @classmethod
@@ -352,12 +350,10 @@ Examples:
                     raise
             rs = session.execute(text(w_query).bindparams(ids=chunk))
             jds = iter_rows_0(rs)
-            parsed_results = parser.parse_many(jds, multiprocesses=True)
-            dfs = parser.to_dict(parsed_results)
-            parser.bulk_save(
-                session, dfs, platform_id, ignore_tables=ignore_tables)
+            parser.bulk_parse_and_save(
+                jds, session, platform_id, multiprocesses=True, ignore_tables=ignore_tables)
             counter += len(chunk)
-            logger.info('Current Number of repared tweets: %s', counter)
+            logger.info('Current Number of reparsed tweets: %s', counter)
         logger.info('Total number of reparsed tweets: %s!', counter)
         logger.info('Reparse done, exit!')
 
