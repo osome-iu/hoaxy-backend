@@ -228,46 +228,51 @@ Examples:
         jds = []
         f = xopen(args['<filepath>'])
         platform_id = get_platform_id(session, N_PLATFORM_TWITTER)
-        for line in f:
-            counter += 1
-            if line:
-                try:
-                    jd = json.loads(line)
-                    if 'in_reply_to_status_id' in jd and 'user' in jd and\
-                            'text' in jd:
-                        jds.append(json.loads(line))
-                        true_counter += 1
-                    else:
-                        logger.error('Not a tweet at line %s, raw data %r',
-                                     counter, jd)
+        try:
+            for line in f:
+                counter += 1
+                if line:
+                    try:
+                        jd = json.loads(line)
+                        if 'in_reply_to_status_id' in jd and 'user' in jd and\
+                                'text' in jd:
+                            jds.append(json.loads(line))
+                            true_counter += 1
+                        else:
+                            logger.error('Not a tweet at line %s, raw data %r',
+                                         counter, jd)
+                            if strict_on_error:
+                                sys.exit(1)
+                            continue
+                    except Exception as e:
+                        msg = 'JSON loads error at line %s: %r, raw data: %r'
+                        logger.error(msg, counter, e, line)
                         if strict_on_error:
                             sys.exit(1)
                         continue
-                except Exception as e:
-                    msg = 'JSON loads error at line %s: %r, raw data: %r'
-                    logger.error(msg, counter, e, line)
-                    if strict_on_error:
-                        sys.exit(1)
-                    continue
-            else:
-                logger.error('Empty line at line %s', counter)
-            if ntweets is not None and ntweets == true_counter:
-                logger.warning('Reaching the number of tweets %s at line %s',
-                               ntweets, counter)
-                # break the loop
-                break
-            if true_counter % bucket_size == 0:
-                logger.warning('Reading %s lines, %s tweets parsed', counter,
-                               true_counter)
-                parser.bulk_parse_and_save(
-                    jds, session, platform_id, multiprocesses=True)
-                jds = []
+                else:
+                    logger.error('Empty line at line %s', counter)
+                if ntweets is not None and ntweets == true_counter:
+                    logger.warning(
+                        'Reaching the number of tweets %s at line %s', ntweets,
+                        counter)
+                    # break the loop
+                    break
+                if true_counter % bucket_size == 0:
+                    logger.warning('Reading %s lines, %s tweets parsed',
+                                   counter, true_counter)
+                    parser.bulk_parse_and_save(
+                        jds, session, platform_id, multiprocesses=True)
+                    jds = []
+        except Exception as err:
+            logger.exception(err)
+            logger.info('Saving successfully read tweets ...')
         if jds:
-            logger.warning('Reading %s lines, %s tweets parsed', counter,
-                           true_counter)
             parser.bulk_parse_and_save(
                 jds, session, platform_id, multiprocesses=True)
             jds = []
+            logger.warning('Reading %s lines, %s tweets parsed', counter,
+                           true_counter)
 
     @classmethod
     def _test_table_names(cls, session, args):
@@ -351,7 +356,11 @@ Examples:
             rs = session.execute(text(w_query).bindparams(ids=chunk))
             jds = iter_rows_0(rs)
             parser.bulk_parse_and_save(
-                jds, session, platform_id, multiprocesses=True, ignore_tables=ignore_tables)
+                jds,
+                session,
+                platform_id,
+                multiprocesses=True,
+                ignore_tables=ignore_tables)
             counter += len(chunk)
             logger.info('Current Number of reparsed tweets: %s', counter)
         logger.info('Total number of reparsed tweets: %s!', counter)
