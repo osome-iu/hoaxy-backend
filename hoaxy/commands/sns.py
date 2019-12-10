@@ -51,8 +51,8 @@ class SNS(HoaxyCommand):
     """
 usage:
   hoaxy sns --twitter-streaming [--dump-dir=<d>]
-  hoaxy sns --load-tweets [--strict-on-error] [--number-of-tweets=<nt>]
-            <filepath>
+  hoaxy sns --load-tweets [--strict-on-error --window-size=<w>]
+            [--number-of-tweets=<nt>] <filepath>
   hoaxy sns --reparse-db-tweets [--window-size=<w>] (--delete-tables=<tn> ...)
             [--ignore-tables=<tn> ...] (--plain-sql=<q>)
   hoaxy sns -h | --help
@@ -86,6 +86,10 @@ format as one tweet per line).
                         lines, ignore possible errors when parsing and continue
                         on the next line. However, If this flag is set, the
                         program will exit (with 1) on any error.
+-w --window-size=<w>    Operations are executed on a window of tweets.
+                        This parameter specify the size of the window.
+                        It is also used for --reparse-db-tweets subcommand.
+                        [default: 10000]
 -n --number-of-tweets=<nt> How many tweets to collect. If not set, the number
                         is not set, the number is unlimited.
 <filepath>              File that stores the JSON structured tweets, one tweet
@@ -130,11 +134,6 @@ are ignored.
                         twitter_user, url, hashtag, twitter_user_union,
                         twitter_network_edge, ass_tweet_url, ass_tweet_hashtag
                         ass_url_platform.
--s --window-size=<w>    Re-parse on the database would be conducted on windows.
-                        This parameter specify the size of the window.
-                        [default: 10000]
-
-
 -h --help               Show help.
 
 At last, as we know that twitter streaming is a long running process. It is
@@ -217,7 +216,7 @@ Examples:
             logger.info('Clean up done, exit!')
 
     @classmethod
-    def load_tweets(cls, session, args, bucket_size=10000):
+    def load_tweets(cls, session, args):
         """Load tweets from file into database.
         """
         parser = Parser()
@@ -228,6 +227,7 @@ Examples:
         jds = []
         f = xopen(args['<filepath>'])
         platform_id = get_platform_id(session, N_PLATFORM_TWITTER)
+        bucket_size = args['--window-size']
         try:
             for line in f:
                 counter += 1
