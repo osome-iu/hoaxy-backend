@@ -44,7 +44,7 @@ ENV ANT_HOME /usr/share/java/apache-ant
 ENV PATH $PATH:$ANT_HOME/bin
 
 #Install dependencies for hoaxy
-RUN conda install -y \
+RUN conda install -y python=3.7.5\
         docopt \
         Flask \
         gunicorn \
