@@ -81,8 +81,10 @@ is working.
         """
         logger.info('Fetching bot score for top spreaders ...')
         rapid_key = cls.conf['botometer']['rapid_key']
+        botometer_api_url = 'https://botometer-pro.p.rapidapi.com'
         logger.info(rapid_key)
         bon = botometer.Botometer(
+            botometer_api_url=botometer_api_url,
             rapidapi_key=rapid_key,
             wait_on_ratelimit=True,
             **cls.conf['botometer']['twitter_app_credentials'])
