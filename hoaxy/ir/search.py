@@ -174,9 +174,36 @@ class Searcher():
             if use_lucene_syntax is False:
                 query = clean_query(query)
             q = self.mul_parser.parse(self.mul_parser, query)
+            logger.warning(q)
+            if 'date_published:' in query:
+                end = query.find('AND date_published')
+                q_without_date_publushed = query[:end]
+                logger.warning(q_without_date_publushed)
+                q = self.mul_parser.parse(self.mul_parser, q_without_date_publushed)
+                date_published_splits = query.split('date_published:[')
+                date_range = date_published_splits[len(date_published_splits) - 1]
+                date_range = date_range[:-1]
+                logger.warning(date_range)
+                if 'TO' in date_range:
+                    date_range_splits = date_range.split('TO')
+                    dt1_string = date_range_splits[0]
+                    # handling when regex presents
+                    if '*' in dt1_string:
+                        date1_end = dt1_string.find('*') - 1
+                        dt1_string = dt1_string[:date1_end]
+                        logger.warning(dt1_string)
+                    dt1 = utc_from_str(dt1_string)
+                    dt2_string = date_range_splits[1]
+                    if '*' in dt2_string:
+                        date2_end = dt2_string.find('*') - 1
+                        dt2_string = dt2_string[:date2_end]
+                        logger.warning(dt2_string)
+                    dt2 = utc_from_str(dt2_string)
+                    query_dates = self.query_between_dates(dt1, dt2)
+                    q = combine_queries(q, query_dates)
             if min_date_published is not None:
               q = combine_queries(q, q_dates)
-            logger.info('Parsed query: %s', q)
+            logger.warning('Parsed query: %s', q)
         except Exception as e:
             logger.error(e)
             if use_lucene_syntax is True:
