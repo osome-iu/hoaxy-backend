@@ -43,6 +43,8 @@ RUN apk add --no-cache openjdk8 && \
 ENV ANT_HOME /usr/share/java/apache-ant
 ENV PATH $PATH:$ANT_HOME/bin
 
+ENV ANT_OPTS="-Dhttp.proxyHost=proxy -Dhttp.proxyPort=8080"
+
 #Install dependencies for hoaxy
 RUN conda install -y python=3.7.5\
         docopt \
@@ -65,6 +67,10 @@ RUN conda install -y python=3.7.5\
 WORKDIR /usr/src/pylucene
 
 RUN apk add --no-cache --no-progress nano htop jq ca-certificates curl libssl1.1 apache-ant openssl openssl-dev g++ gcc bash git
+
+RUN mkdir -p /root/.ant/lib
+RUN curl https://downloads.apache.org/ant/ivy/2.4.0/apache-ivy-2.4.0-bin.tar.gz | tar -xz --strip-components=1 \
+    && cp ivy-2.4.0.jar /root/.ant/lib/
 
 RUN apk add --no-cache python && \
     python -m ensurepip && \
@@ -89,7 +95,7 @@ RUN apk add --no-cache python && \
 # USER hoaxy
 # WORKDIR /opt/hoaxy
 
-RUN curl https://www.apache.org/dist/lucene/pylucene/pylucene-7.7.1-src.tar.gz | tar -xz --strip-components=1 \
+RUN curl https://downloads.apache.org/lucene/pylucene/pylucene-7.7.1-src.tar.gz | tar -xz --strip-components=1 \
     && cd jcc \
     && export JCC_ARGSEP=";" \
     && export JCC_CFLAGS="-v;-fno-strict-aliasing;-Wno-write-strings;-D__STDC_FORMAT_MACROS" \
@@ -109,6 +115,7 @@ RUN apk add --no-cache --no-progress yaml-dev postgresql-dev \
 
 RUN cd hoaxy-backend \
     && pip install --upgrade --force-reinstall jieba3k==0.35.1 \
+    && pip install requests --upgrade \
     && python setup.py install
 
 #    && pip install --upgrade --force-reinstall setuptools \
