@@ -894,10 +894,8 @@ def db_query_top_spreaders(engine, upper_day, most_recent=False):
     def get_bot_score(bon):
         if bon is None:
             return None
-        elif 'score' in bon:
-            return bon['score']
-        elif 'scores' in bon:
-            return bon['scores'].get('universal')
+        elif 'raw_scores' in bon:
+            return bon['raw_scores']['universal'].get('overall')
         else:
             return None
 
