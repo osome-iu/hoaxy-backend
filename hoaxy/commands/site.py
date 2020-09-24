@@ -205,6 +205,8 @@ Usage:
              (--name=<n> | --domain=<d>) --alternate-domain=<d2>
   hoaxy site --disable (--name=<n> | --domain=<d>)
   hoaxy site --enable (--name=<n> | --domain=<d>)
+  hoaxy site --bulk-enable --exclusive (--names=<n>... | --domains=<d>...)
+  hoaxy site --bulk-disable  (--names=<n>... | --domains=<d>...)
   hoaxy site --status [--include-disabled]
   hoaxy site --dump <file>
 
@@ -306,6 +308,16 @@ Examples (`||` represents the continue of commands, you can ignore when using):
 
        Or re-enable one site:
         hoaxy site --enable --name=abcd.com
+        (Restart of tracking processes)
+
+       Or enable list of sites:
+        hoaxy site --bulk-enable --names=abcd.com, cnn.com
+        hoaxy site --bulk-enable --exclusive --names=abcd.com, cnn.com (if exclusive is specified, all the existing sites
+        will be disabled. Only enables listed sites)
+        (Restart of tracking processes)
+
+       Or disable list of sites:
+        hoaxy site --bulk-disable --names=abcd.com, cnn.com
         (Restart of tracking processes)
 
     4. Dump sites into a YAML file
@@ -796,6 +808,57 @@ You need to restart your tracking process!""", msite.name)
                 logger.warning('Site %s does not exist!', site_identity)
             else:
                 cls.enable_site(session, msite)
+        # bulk enable sites and domains
+        elif args['--bulk-enable'] is True:
+            configure_logging(
+                'site.bulk-enable',
+                console_level=args['--console-log-level'],
+                file_level='WARNING')
+            if args['--exclusive'] is True:
+                ob_expr = Site.id.asc()
+                msites = get_msites(session, fb_kw=None, ob_expr=ob_expr)
+                # disable existing sites
+                for existing_site in msites:
+                    cls.disable_site(session, existing_site)
+            if args['--names'] is not None:
+                site_list = args['--names']
+                for site in site_list:
+                    msite = qquery_msite(session, name=site, domain=None)
+                    if msite is None:
+                        logger.warning('Site %s does not exist!', site)
+                    else:
+                        cls.enable_site(session, msite)
+            else:
+                domain_list = args['--domains']
+                for domain in domain_list:
+                    msite = qquery_msite(session, name=None, domain=domain)
+                    if msite is None:
+                        logger.warning('Site %s does not exist!', domain)
+                    else:
+                        cls.enable_site(session, msite)
+
+        # bulk disable sites and domains
+        elif args['--bulk-disable'] is True:
+            configure_logging(
+                'site.bulk-disable',
+                console_level=args['--console-log-level'],
+                file_level='WARNING')
+            if args['--names'] is not None:
+                site_list = args['--names'].split(",")
+                for site in site_list:
+                    msite = qquery_msite(session, name=site, domain=None)
+                    if msite is None:
+                        logger.warning('Site %s does not exist!', site)
+                    else:
+                        cls.disable_site(session, msite)
+            else:
+                domain_list = args['--domains'].split(",")
+                for domain in domain_list:
+                    msite = qquery_msite(session, name=None, domain=domain)
+                    if msite is None:
+                        logger.warning('Site %s does not exist!', domain)
+                    else:
+                        cls.disable_site(session, msite)
         # --status
         elif args['--status'] is True:
             configure_logging(
