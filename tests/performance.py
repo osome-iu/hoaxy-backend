@@ -1,6 +1,5 @@
 from hoaxy.database import ENGINE as engine
 from hoaxy.ir.search import db_query_network
-from hoaxy.ir.search import db_query_network_old
 from hoaxy.ir.search import db_query_filter_disabled_site
 from hoaxy.ir.search import db_query_twitter_shares
 from hoaxy.backend.api import searcher
@@ -98,9 +97,9 @@ def test_api_flow(n1=N1,
         t3 = time.time()
         ids = df.iloc[:10].id.tolist()
         logger.debug('Starting querying network %s by old api at %r', ids, t3)
-        df = db_query_network_old(engine, ids=ids)
-        t4 = time.time()
-        logger.debug('Starting querying network %s by new api at %r', ids, t4)
+        # df = db_query_network_old(engine, ids=ids)
+        # t4 = time.time()
+        # logger.debug('Starting querying network %s by new api at %r', ids, t4)
         df = db_query_network(engine, ids=ids)
         t5 = time.time()
     except Exception as e:
