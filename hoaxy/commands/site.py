@@ -312,7 +312,7 @@ Examples (`||` represents the continue of commands, you can ignore when using):
 
        Or enable list of sites:
         hoaxy site --bulk-enable --names=abcd.com, cnn.com
-        hoaxy site --bulk-enable --exclusive --names=abcd.com, cnn.com (if exclusive is specified, all the existing sites
+        hoaxy site --bulk-enable [--exclusive] --names=abcd.com, cnn.com (if exclusive is specified, all the existing sites
         will be disabled. Only enables listed sites)
         (Restart of tracking processes)
 
