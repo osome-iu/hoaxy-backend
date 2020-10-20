@@ -205,7 +205,7 @@ Usage:
              (--name=<n> | --domain=<d>) --alternate-domain=<d2>
   hoaxy site --disable (--name=<n> | --domain=<d>)
   hoaxy site --enable (--name=<n> | --domain=<d>)
-  hoaxy site --bulk-enable --exclusive (--names=<n>... | --domains=<d>...)
+  hoaxy site --bulk-enable [--exclusive] (--names=<n>... | --domains=<d>...)
   hoaxy site --bulk-disable  (--names=<n>... | --domains=<d>...)
   hoaxy site --status [--include-disabled]
   hoaxy site --dump <file>
