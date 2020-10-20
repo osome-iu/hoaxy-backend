@@ -844,7 +844,7 @@ You need to restart your tracking process!""", msite.name)
                 console_level=args['--console-log-level'],
                 file_level='WARNING')
             if args['--names'] is not None:
-                site_list = args['--names'].split(",")
+                site_list = args['--names']
                 for site in site_list:
                     msite = qquery_msite(session, name=site, domain=None)
                     if msite is None:
@@ -852,7 +852,7 @@ You need to restart your tracking process!""", msite.name)
                     else:
                         cls.disable_site(session, msite)
             else:
-                domain_list = args['--domains'].split(",")
+                domain_list = args['--domains']
                 for domain in domain_list:
                     msite = qquery_msite(session, name=None, domain=domain)
                     if msite is None:
