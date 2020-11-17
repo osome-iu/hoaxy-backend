@@ -342,7 +342,7 @@ Examples (`||` represents the continue of commands, you can ignore when using):
             ob_expr = Site.id.asc()
             msites = get_msites(session, fb_kw=None, ob_expr=ob_expr)
             for site in msites:
-                if site.site_type is site_type:
+                if site.site_type == site_type:
                     cls.disable_site(session, site)
         logger.info('Sending HTTP requests to infer base URLs ...')
         with open(fn, 'r') as f:
@@ -378,8 +378,9 @@ or Use --ignore-inactive or --force-inactive  to handle inactive domains""")
             elif status == 'redirected' and ignore_redirected is True:
                 continue
             else:
+                site['is_enabled'] = True
                 get_or_create_m(
-                    session, Site, site, fb_uk='domain', onduplicate='ignore')
+                    session, Site, site, fb_uk='domain', onduplicate='update')
                 logger.debug('Insert or update site %s', site['domain'])
 
     @classmethod
