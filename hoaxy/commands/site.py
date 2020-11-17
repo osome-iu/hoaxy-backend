@@ -14,6 +14,7 @@ from hoaxy.database.functions import get_msites
 from hoaxy.database.functions import get_or_create_m
 from hoaxy.database.functions import get_or_create_msite
 from hoaxy.database.functions import qquery_msite
+from hoaxy.database.functions import get_site_tuples
 from hoaxy.database.models import Site, SiteTag, AlternateDomain
 from hoaxy.utils.log import configure_logging
 from hoaxy.utils.url import infer_base_url
@@ -280,8 +281,10 @@ Other options are:
 Examples (`||` represents the continue of commands, you can ignore when using):
     1. At the first stage, you would like to add some claim sites to track.
        If sites own only one domain or you care only one the primary domain.
+       (if exclusive is specified, all the existing sites
+        will be disabled for the same site-type you specified)
        You can provide a list of domains:
-        hoaxy site --load-domain --site-type=claim [YOUR_DOMAINS_FILE]
+        hoaxy site --load-domain [--exclusive] --site-type=claim [YOUR_DOMAINS_FILE]
 
        Or if you have edit your sites.yaml file, load it:
         hoaxy site --load-site [YOUR_SITES_FILE]
@@ -333,7 +336,14 @@ Examples (`||` represents the continue of commands, you can ignore when using):
                      site_type,
                      ignore_inactive=False,
                      force_inactive=False,
-                     ignore_redirected=False):
+                     ignore_redirected=False,
+                     exclusive=False):
+        if exclusive:
+            # disable existing domains of the same site type
+            sites = get_site_tuples(session)
+            for site in sites:
+                if site.site_type is site_type:
+                    cls.disable_site(session, site)
         logger.info('Sending HTTP requests to infer base URLs ...')
         with open(fn, 'r') as f:
             site_tuples = [(n + 1, line) + parse_domain(line, site_type)
@@ -674,7 +684,8 @@ You need to restart your tracking process!""", msite.name)
                 site_type=args['--site-type'],
                 ignore_inactive=args['--ignore-inactive'],
                 force_inactive=args['--force-inactive'],
-                ignore_redirected=args['--ignore-redirected'])
+                ignore_redirected=args['--ignore-redirected'],
+                exclusive=args['--exclusive'])
         # --load-sites commands
         elif args['--load-sites'] is True:
             configure_logging(
