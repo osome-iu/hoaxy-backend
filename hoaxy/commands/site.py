@@ -14,7 +14,6 @@ from hoaxy.database.functions import get_msites
 from hoaxy.database.functions import get_or_create_m
 from hoaxy.database.functions import get_or_create_msite
 from hoaxy.database.functions import qquery_msite
-from hoaxy.database.functions import get_site_tuples
 from hoaxy.database.models import Site, SiteTag, AlternateDomain
 from hoaxy.utils.log import configure_logging
 from hoaxy.utils.url import infer_base_url
@@ -340,8 +339,9 @@ Examples (`||` represents the continue of commands, you can ignore when using):
                      exclusive=False):
         if exclusive:
             # disable existing domains of the same site type
-            sites = get_site_tuples(session)
-            for site in sites:
+            ob_expr = Site.id.asc()
+            msites = get_msites(session, fb_kw=None, ob_expr=ob_expr)
+            for site in msites:
                 if site.site_type is site_type:
                     cls.disable_site(session, site)
         logger.info('Sending HTTP requests to infer base URLs ...')
