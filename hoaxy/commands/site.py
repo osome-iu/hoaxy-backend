@@ -188,7 +188,7 @@ class SiteCmd(HoaxyCommand):
 Usage:
   hoaxy site --load-domains --site-type=<t>
              [(--ignore-inactive | --force-inactive)]
-             [ --ignore-redirected] <file>
+             [ --ignore-redirected] [--exclusive] <file>
   hoaxy site --load-sites
              [(--ignore-inactive | --force-inactive)]
              [--ignore-redirected] <file>
