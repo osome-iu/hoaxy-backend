@@ -305,6 +305,7 @@ class Article(TableMixin, AuditColumns, Base):
     content = deferred(Column(Text, nullable=False))
     date_published = Column(DateTime)
     date_captured = Column(DateTime, nullable=False)
+    html = Column(Text)
     site_id = Column(Integer,
                      ForeignKey(
                          'site.id', ondelete='CASCADE', onupdate='CASCADE'))

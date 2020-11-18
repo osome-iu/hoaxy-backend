@@ -187,7 +187,7 @@ class SiteCmd(HoaxyCommand):
 Usage:
   hoaxy site --load-domains --site-type=<t>
              [(--ignore-inactive | --force-inactive)]
-             [ --ignore-redirected] <file>
+             [ --ignore-redirected] [--exclusive] <file>
   hoaxy site --load-sites
              [(--ignore-inactive | --force-inactive)]
              [--ignore-redirected] <file>
@@ -205,6 +205,8 @@ Usage:
              (--name=<n> | --domain=<d>) --alternate-domain=<d2>
   hoaxy site --disable (--name=<n> | --domain=<d>)
   hoaxy site --enable (--name=<n> | --domain=<d>)
+  hoaxy site --bulk-enable [--exclusive] (--names=<n>... | --domains=<d>...)
+  hoaxy site --bulk-disable  (--names=<n>... | --domains=<d>...)
   hoaxy site --status [--include-disabled]
   hoaxy site --dump <file>
 
@@ -278,8 +280,10 @@ Other options are:
 Examples (`||` represents the continue of commands, you can ignore when using):
     1. At the first stage, you would like to add some claim sites to track.
        If sites own only one domain or you care only one the primary domain.
+       (if exclusive is specified, all the existing sites
+        will be disabled for the same site-type you specified)
        You can provide a list of domains:
-        hoaxy site --load-domain --site-type=claim [YOUR_DOMAINS_FILE]
+        hoaxy site --load-domain [--exclusive] --site-type=claim [YOUR_DOMAINS_FILE]
 
        Or if you have edit your sites.yaml file, load it:
         hoaxy site --load-site [YOUR_SITES_FILE]
@@ -308,6 +312,16 @@ Examples (`||` represents the continue of commands, you can ignore when using):
         hoaxy site --enable --name=abcd.com
         (Restart of tracking processes)
 
+       Or enable list of sites:
+        hoaxy site --bulk-enable --names=abcd.com, cnn.com
+        hoaxy site --bulk-enable [--exclusive] --names=abcd.com, cnn.com (if exclusive is specified, all the existing sites
+        will be disabled. Only enables listed sites)
+        (Restart of tracking processes)
+
+       Or disable list of sites:
+        hoaxy site --bulk-disable --names=abcd.com, cnn.com
+        (Restart of tracking processes)
+
     4. Dump sites into a YAML file
         hoaxy site --dump sites.dump.yaml
     """
@@ -321,7 +335,15 @@ Examples (`||` represents the continue of commands, you can ignore when using):
                      site_type,
                      ignore_inactive=False,
                      force_inactive=False,
-                     ignore_redirected=False):
+                     ignore_redirected=False,
+                     exclusive=False):
+        if exclusive:
+            # disable existing domains of the same site type
+            ob_expr = Site.id.asc()
+            msites = get_msites(session, fb_kw=None, ob_expr=ob_expr)
+            for site in msites:
+                if site.site_type == site_type:
+                    cls.disable_site(session, site)
         logger.info('Sending HTTP requests to infer base URLs ...')
         with open(fn, 'r') as f:
             site_tuples = [(n + 1, line) + parse_domain(line, site_type)
@@ -356,8 +378,9 @@ or Use --ignore-inactive or --force-inactive  to handle inactive domains""")
             elif status == 'redirected' and ignore_redirected is True:
                 continue
             else:
+                site['is_enabled'] = True
                 get_or_create_m(
-                    session, Site, site, fb_uk='domain', onduplicate='ignore')
+                    session, Site, site, fb_uk='domain', onduplicate='update')
                 logger.debug('Insert or update site %s', site['domain'])
 
     @classmethod
@@ -662,7 +685,8 @@ You need to restart your tracking process!""", msite.name)
                 site_type=args['--site-type'],
                 ignore_inactive=args['--ignore-inactive'],
                 force_inactive=args['--force-inactive'],
-                ignore_redirected=args['--ignore-redirected'])
+                ignore_redirected=args['--ignore-redirected'],
+                exclusive=args['--exclusive'])
         # --load-sites commands
         elif args['--load-sites'] is True:
             configure_logging(
@@ -796,6 +820,57 @@ You need to restart your tracking process!""", msite.name)
                 logger.warning('Site %s does not exist!', site_identity)
             else:
                 cls.enable_site(session, msite)
+        # bulk enable sites and domains
+        elif args['--bulk-enable'] is True:
+            configure_logging(
+                'site.bulk-enable',
+                console_level=args['--console-log-level'],
+                file_level='WARNING')
+            if args['--exclusive'] is True:
+                ob_expr = Site.id.asc()
+                msites = get_msites(session, fb_kw=None, ob_expr=ob_expr)
+                # disable existing sites
+                for existing_site in msites:
+                    cls.disable_site(session, existing_site)
+            if args['--names'] is not None:
+                site_list = args['--names']
+                for site in site_list:
+                    msite = qquery_msite(session, name=site, domain=None)
+                    if msite is None:
+                        logger.warning('Site %s does not exist!', site)
+                    else:
+                        cls.enable_site(session, msite)
+            else:
+                domain_list = args['--domains']
+                for domain in domain_list:
+                    msite = qquery_msite(session, name=None, domain=domain)
+                    if msite is None:
+                        logger.warning('Site %s does not exist!', domain)
+                    else:
+                        cls.enable_site(session, msite)
+
+        # bulk disable sites and domains
+        elif args['--bulk-disable'] is True:
+            configure_logging(
+                'site.bulk-disable',
+                console_level=args['--console-log-level'],
+                file_level='WARNING')
+            if args['--names'] is not None:
+                site_list = args['--names']
+                for site in site_list:
+                    msite = qquery_msite(session, name=site, domain=None)
+                    if msite is None:
+                        logger.warning('Site %s does not exist!', site)
+                    else:
+                        cls.disable_site(session, msite)
+            else:
+                domain_list = args['--domains']
+                for domain in domain_list:
+                    msite = qquery_msite(session, name=None, domain=domain)
+                    if msite is None:
+                        logger.warning('Site %s does not exist!', domain)
+                    else:
+                        cls.disable_site(session, msite)
         # --status
         elif args['--status'] is True:
             configure_logging(
