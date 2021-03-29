@@ -26,7 +26,9 @@ from hoaxy.utils.log import configure_logging
 from datetime import datetime
 import demjson
 from requests.utils import quote
+import jieba
 
+jieba.setLogLevel(20)
 logger = logging.getLogger(__name__)
 
 
