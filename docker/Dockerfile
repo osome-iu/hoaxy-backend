@@ -69,8 +69,8 @@ WORKDIR /usr/src/pylucene
 RUN apk add --no-cache --no-progress nano htop jq ca-certificates curl libssl1.1 apache-ant openssl openssl-dev g++ gcc bash git
 
 RUN mkdir -p /root/.ant/lib
-RUN curl https://downloads.apache.org/ant/ivy/2.4.0/apache-ivy-2.4.0-bin.tar.gz | tar -xz --strip-components=1 \
-    && cp ivy-2.4.0.jar /root/.ant/lib/
+RUN curl https://downloads.apache.org/ant/ivy/2.5.0/apache-ivy-2.5.0-bin.tar.gz | tar -xz --strip-components=1 \
+    && cp ivy-2.5.0.jar /root/.ant/lib/
 
 RUN apk add --no-cache python && \
     python -m ensurepip && \
