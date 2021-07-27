@@ -36,7 +36,14 @@ import logging
 import lucene
 import sqlalchemy
 
+import uuid
+
 logger = logging.getLogger(__name__)
+logger2 = logging.getLogger('templogger')
+handler = logging.FileHandler('/home/data/apps/hoaxy/hoaxy-backend-config/api.log')
+formatter = logging.Formatter('%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+handler.setFormatter(formatter)
+logger2.addHandler(handler)
 
 # Flask app instance configuration of rapid authentication
 app = Flask(__name__)
@@ -189,6 +196,9 @@ def query_articles():
                 title : string
 
     """
+    request_id = str(uuid.uuid4())
+
+    logger2.warning("\"" + request_id +"\" " + "\"Articles api starts\"")
     lucene.getVMEnv().attachCurrentThread()
     # Validate input of request
     q_articles_schema = Schema({
@@ -221,6 +231,7 @@ def query_articles():
             num_of_entries=len(df),
             total_hits=n,
             articles=flask.json.loads(df.to_json(**TO_JSON_KWARGS)))
+        logger2.warning("\"" + request_id +"\" " + "\"Articles api ends\"")
     except SchemaError as e:
         response = dict(status='Parameter error', error=str(e))
     except APIParseError as e:
@@ -268,6 +279,8 @@ def query_latest_articles():
                 site_type : {'claim', 'fact_checking'}
                 title : string
     """
+    request_id = str(uuid.uuid4())
+    logger2.warning("\"" + request_id +"\" " + "\"latest-articles starts\"")
     lucene.getVMEnv().attachCurrentThread()
     # Validate input of request
     q_articles_schema = Schema({
@@ -290,6 +303,7 @@ def query_latest_articles():
             status='OK',
             num_of_entries=len(df),
             articles=flask.json.loads(df.to_json(**TO_JSON_KWARGS)))
+        logger2.warning("\"" + request_id +"\" " + "\"latest-articles ends\"")
     except SchemaError as e:
         response = dict(status='Parameter error', error=str(e))
     except APIParseError as e:
@@ -325,6 +339,8 @@ def query_tweets():
             tweet_created_at : string formatted datetime
             tweet_id : string
     """
+    request_id = str(uuid.uuid4())
+    logger2.warning("\"" + request_id +"\" " + "\"tweets EP starts\"")
     lucene.getVMEnv().attachCurrentThread()
     q_tweets_schema = Schema({
         'ids':
@@ -342,6 +358,7 @@ def query_tweets():
             status='OK',
             num_of_entries=len(df),
             tweets=flask.json.loads(df.to_json(**TO_JSON_KWARGS)))
+        logger2.warning("\"" + request_id +"\" " + "\"tweets EP ends\"")
     except SchemaError as e:
         response = dict(status='ERROR', error=str(e))
     except APINoResultError as e:
@@ -373,6 +390,9 @@ def query_timeline():
                 timestamp : list of string formatted datetime
                 volume : list of int
     """
+    request_id = str(uuid.uuid4())
+
+    logger2.warning("\"" + request_id +"\" " +"\"timeline ep starts\"")
     lucene.getVMEnv().attachCurrentThread()
     q_tweets_schema = Schema({
         'ids':
@@ -388,6 +408,7 @@ def query_timeline():
         q_kwargs = q_tweets_schema.validate(q_kwargs)
         rule = '1' + q_kwargs.pop('resolution')
         df = db_query_tweets(engine, q_kwargs['ids'])
+
         if len(df) == 0:
             raise APINoResultError('No tweet found!')
         df = df.set_index('tweet_created_at')
@@ -409,6 +430,7 @@ def query_timeline():
                 claim=dict(
                     timestamp=s2.index.strftime('%Y-%m-%dT%H:%M:%SZ').tolist(),
                     volume=s2.tolist())))
+        logger2.warning("\"" + request_id +"\" " +"\"timeline ep ends\"")
     except SchemaError as e:
         response = dict(status='ERROR', error=str(e))
     except APINoResultError as e:
@@ -451,6 +473,9 @@ def query_network():
             tweet_id: string
             tweet_type: {'origin', 'retweet', 'quote', 'reply'}
     """
+    request_id = str(uuid.uuid4())
+
+    logger2.warning("\"" + request_id +"\" " +"\"network EP starts\"")
     lucene.getVMEnv().attachCurrentThread()
     q_network_schema = Schema({
         'ids':
@@ -474,6 +499,7 @@ def query_network():
             status='OK',
             num_of_entries=len(df),
             edges=flask.json.loads(df.to_json(**TO_JSON_KWARGS)))
+        logger2.warning("\"" + request_id +"\" " + "\"network EP ends\"")
     except SchemaError as e:
         response = dict(status='ERROR', error=str(e))
     except APINoResultError as e:
@@ -509,6 +535,8 @@ def query_top_spreaders():
             user_screen_name : string
 
     """
+    request_id = str(uuid.uuid4())
+    logger2.warning("\"" + request_id +"\" " + "\"topusers EP starts\"")
     lucene.getVMEnv().attachCurrentThread()
     yesterday = datetime.utcnow().date() - timedelta(days=1)
     yesterday = yesterday.strftime('%Y-%m-%d')
@@ -533,6 +561,7 @@ def query_top_spreaders():
             status='OK',
             num_of_entries=len(df),
             spreaders=flask.json.loads(df.to_json(**TO_JSON_KWARGS)))
+        logger2.warning("\"" + request_id +"\" " +"\"Topusers EP ends\"")
     except SchemaError as e:
         response = dict(status='ERROR', error=str(e))
     except APINoResultError as e:
@@ -565,6 +594,8 @@ def query_top_articles():
             title : string
             upper_day : string formatted datetime
     """
+    request_id = str(uuid.uuid4())
+    logger2.warning("\"" + request_id +"\" " + "\"top article EP starts\"")
     lucene.getVMEnv().attachCurrentThread()
     yesterday = datetime.utcnow().date() - timedelta(days=1)
     yesterday = yesterday.strftime('%Y-%m-%d')
@@ -590,6 +621,7 @@ def query_top_articles():
             status='OK',
             num_of_entries=len(df),
             articles=flask.json.loads(df.to_json(**TO_JSON_KWARGS)))
+        logger2.warning("\"" + request_id +"\" " +"\"top article EP ends\"")
     except SchemaError as e:
         response = dict(status='ERROR', error=str(e))
     except APINoResultError as e:
@@ -598,3 +630,4 @@ def query_top_articles():
         logger.exception(e)
         response = dict(status='ERROR', error='Server error, query failed')
     return flask.jsonify(response)
+
