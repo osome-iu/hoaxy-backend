@@ -445,6 +445,7 @@ def db_query_article(engine, ids):
         raise
     finally:
         conn.close()
+        hoaxy_connection_pool.putconn(conn)
     # rs = engine.execution_options(stream_results=True)\
     #     .execute(text(q), gids=ids)
     # return pd.DataFrame(iter(rs), columns=list(rs.keys()))
@@ -594,6 +595,7 @@ def db_query_tweets(engine, ids):
         raise
     finally:
         conn.close()
+        hoaxy_connection_pool.putconn(conn)
     # rs = engine.execution_options()\
     #     .execute(text(q), gids=ids)
     # logger.warning(ids)
@@ -805,6 +807,7 @@ def db_query_network(engine,
 
     finally:
         conn.close()
+        hoaxy_connection_pool.putconn(conn)
     # rs = engine.execution_options()\
     #     .execute(text(q), gids=ids)
     # df2 = pd.DataFrame(
