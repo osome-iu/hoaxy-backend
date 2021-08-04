@@ -14,6 +14,7 @@ import logging
 import re
 
 from hoaxy.database import Session
+from hoaxy.database import hoaxy_connection_pool
 from hoaxy.database.functions import get_max
 from hoaxy.database.models import Top20ArticleMonthly
 from hoaxy.database.models import Top20SpreaderMonthly
@@ -427,14 +428,27 @@ def db_query_article(engine, ids):
                 coalesce(a.date_published, a.date_captured) AS date_published,
                 s.domain AS domain,
                 s.site_type AS site_type
-    FROM UNNEST(:gids) AS t(group_id)
+    FROM UNNEST(%s) AS t(group_id)
         JOIN article AS a ON a.group_id=t.group_id
         JOIN site AS s ON s.id=a.site_id
     ORDER BY a.group_id, a.date_captured
     """
-    rs = engine.execution_options(stream_results=True)\
-        .execute(text(q), gids=ids)
-    return pd.DataFrame(iter(rs), columns=list(rs.keys()))
+    conn = hoaxy_connection_pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(q, (ids,))
+            logger.warning(cur.rowcount)
+            if cur.rowcount > 0:
+                return pd.DataFrame(cur.fetchall(), columns=['id', 'canonical_url', 'title', 'date_published', 'domain', 'site_type'])
+    except:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+        hoaxy_connection_pool.putconn(conn)
+    # rs = engine.execution_options(stream_results=True)\
+    #     .execute(text(q), gids=ids)
+    # return pd.DataFrame(iter(rs), columns=list(rs.keys()))
 
 
 def db_query_latest_articles(engine,
@@ -563,15 +577,29 @@ def db_query_tweets(engine, ids):
     SELECT DISTINCT CAST(tw.raw_id AS text) AS tweet_id,
                     tw.created_at AS tweet_created_at,
                     t.group_id AS id
-    FROM UNNEST(:gids) AS t(group_id)
+    FROM UNNEST( %s ) AS t(group_id)
         JOIN article AS a ON a.group_id=t.group_id
         JOIN url AS u ON u.article_id=a.id
         JOIN ass_tweet_url AS atu ON atu.url_id=u.id
         JOIN tweet AS tw ON tw.id=atu.tweet_id
     """
-    rs = engine.execution_options(stream_results=True)\
-        .execute(text(q), gids=ids)
-    df2 = pd.DataFrame(iter(rs), columns=list(rs.keys()))
+    conn = hoaxy_connection_pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(q, (ids,))
+            logger.warning(cur.rowcount)
+            if cur.rowcount > 0:
+                df2 = pd.DataFrame(cur.fetchall(), columns=['tweet_id','tweet_created_at', 'id'])
+    except:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+        hoaxy_connection_pool.putconn(conn)
+    # rs = engine.execution_options()\
+    #     .execute(text(q), gids=ids)
+    # logger.warning(ids)
+
     df = pd.merge(df, df2, on='id', how='inner', sort=False)
     df = df.sort_values('date_published', ascending=True)
     return df
@@ -751,24 +779,44 @@ def db_query_network(engine,
                 tuu1.screen_name AS from_user_screen_name,
                 tuu2.screen_name AS to_user_screen_name,
                 tne.is_mention, tne.tweet_type, u.id AS url_id
-    FROM UNNEST(:gids) AS t(group_id)
+    FROM UNNEST(%s) AS t(group_id)
         JOIN article AS a ON a.group_id=t.group_id
         JOIN url AS u ON u.article_id=a.id
         JOIN ass_tweet_url AS atu ON atu.url_id=u.id
         JOIN tweet AS tw ON tw.id=atu.tweet_id
         JOIN twitter_network_edge AS tne ON tne.tweet_raw_id=tw.raw_id
         JOIN twitter_user_union AS tuu1 ON tuu1.raw_id=tne.from_raw_id
-        JOIN twitter_user_union AS tuu2 ON tuu2.raw_id=tne.to_raw_id
+        JOIN twitter_user_union AS tuu2 ON tuu2.raw_id=tne.to_raw_id LIMIT 25000
     """
-    rs = engine.execution_options(stream_results=True)\
-        .execute(text(q), gids=ids)
-    df2 = pd.DataFrame(
-        iter(rs),
-        columns=[
-            'id', 'tweet_id', 'tweet_created_at', 'from_user_id', 'to_user_id',
-            'from_user_screen_name', 'to_user_screen_name', 'is_mention',
-            'tweet_type', 'url_id'
-        ])
+    conn = hoaxy_connection_pool.getconn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(q, (ids,))
+            logger.warning(cur.rowcount)
+            if cur.rowcount > 0:
+                df2 = pd.DataFrame(
+                    cur.fetchall(),
+                    columns=[
+                        'id', 'tweet_id', 'tweet_created_at', 'from_user_id', 'to_user_id',
+                        'from_user_screen_name', 'to_user_screen_name', 'is_mention',
+                        'tweet_type', 'url_id'
+                    ])
+    except:
+        conn.rollback()
+        raise
+
+    finally:
+        conn.close()
+        hoaxy_connection_pool.putconn(conn)
+    # rs = engine.execution_options()\
+    #     .execute(text(q), gids=ids)
+    # df2 = pd.DataFrame(
+    #     iter(rs),
+    #     columns=[
+    #         'id', 'tweet_id', 'tweet_created_at', 'from_user_id', 'to_user_id',
+    #         'from_user_screen_name', 'to_user_screen_name', 'is_mention',
+    #         'tweet_type', 'url_id'
+    #     ])
     if len(df2) == 0:
         return pd.DataFrame()
     df = pd.merge(df, df2, on='id', how='inner', sort=False)

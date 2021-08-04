@@ -14,6 +14,7 @@ from sqlalchemy.engine.url import URL
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.orm import sessionmaker
 import os
+from psycopg2 import pool
 
 # if you want to logging the actual queries, use the following setting.
 # import logging
@@ -24,7 +25,9 @@ try:
         URL(**CONF['database']['connect_args']),
         pool_size=CONF['database']['pool_size'],
         pool_recycle=CONF['database']['pool_recycle'],
-        client_encoding='utf8')
+        client_encoding='utf8',
+        echo=True,
+        logging_name='hoaxy_engine')
     Session = scoped_session(sessionmaker(bind=ENGINE))
 except Exception:
     raise
@@ -43,3 +46,15 @@ def checkout(dbapi_connection, connection_record, connection_proxy):
         raise exc.DisconnectionError("Connection record belongs to pid %s, "
                                      "attempting to check out in pid %s" %
                                      (connection_record.info['pid'], pid))
+
+
+hoaxy_connection_pool = pool.SimpleConnectionPool(1,
+                                                CONF['database']['pool_size'],
+                                                host=CONF['database']['connect_args']['host'],
+                                                database=CONF['database']['connect_args']['database'],
+                                                user=CONF['database']['connect_args']['username'],
+                                                password=CONF['database']['connect_args']['password'],
+                                                port=CONF['database']['connect_args']['port'])
+
+if hoaxy_connection_pool:
+    logger.info("Connection pool for hoaxy database created successfully")
