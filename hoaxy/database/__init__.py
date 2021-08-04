@@ -57,4 +57,4 @@ hoaxy_connection_pool = pool.SimpleConnectionPool(1,
                                                 port=CONF['database']['connect_args']['port'])
 
 if hoaxy_connection_pool:
-    logger.info("Connection pool for hoaxy database created successfully")
+    print("Connection pool for hoaxy database created successfully")
