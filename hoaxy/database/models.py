@@ -425,7 +425,7 @@ class Tweet(TableMixin, AuditColumns, Base):
     user = relationship('TwitterUser', back_populates='tweets')
 
 
-class TweetContent(TableMixin, AuditColumns, Base):
+class AssTweetContent(TableMixin, Base):
     """Table `tweet_content` to record tweet content we collect.
     """
     tweet_id = Column(Integer,

@@ -30,7 +30,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from hoaxy.database.models import (
     MAX_URL_LEN, AssTweet, AssTweetHashtag, AssTweetUrl, AssUrlPlatform,
-    Hashtag, Tweet, TwitterNetworkEdge, TwitterUser, TwitterUserUnion, Url, TweetContent)
+    Hashtag, Tweet, TwitterNetworkEdge, TwitterUser, TwitterUserUnion, Url, AssTweetContent)
 from hoaxy.utils.dt import utc_from_str
 
 logger = logging.getLogger(__name__)
@@ -107,7 +107,7 @@ PMETA = dict(
         d_keys=['tweet_id', 'hashtag_id'],
         pu_keys=['tweet_raw_id', 'hashtag_text'],
         du_keys=['tweet_id', 'hashtag_id']),
-    tweet_content=dict(
+    ass_tweet_content=dict(
             p_keys=['tweet_raw_id', 'json_data'],
             d_keys=['tweet_id', 'json_data'],
             pu_keys=['tweet_raw_id'],
@@ -442,7 +442,7 @@ class Parser():
             hashtag=[(hashtag, ) for hashtag in self.hashtags['union']],
             # Table tweet: raw_id,  user_id
             tweet=[(tweet_raw_id, user_raw_id, self.created_at)],
-            tweet_content=[(tweet_raw_id, jd)],
+            ass_tweet_content=[(tweet_raw_id, jd)],
 
             # Table ass_tweet: tweet_id, retweeted_status_id, quoted_status_id
             # in_reply_to_status_id
@@ -716,10 +716,10 @@ class Parser():
             session.commit()
 
         # update and insert tweet_content
-        tn = 'tweet_content'
+        tn = 'ass_tweet_content'
         dfs[tn] = pd.merge(dfs[tn], df_tweet, on='tweet_raw_id')
         if not dfs[tn].empty and tn not in ignore_tables:
-            stmt_do_nothing = insert(TweetContent).values(
+            stmt_do_nothing = insert(AssTweetContent).values(
                 dfs[tn][PMETA[tn]['d_keys']].to_dict(orient='record')
             ).on_conflict_do_nothing(index_elements=PMETA[tn]['du_keys'])
             session.execute(stmt_do_nothing)
