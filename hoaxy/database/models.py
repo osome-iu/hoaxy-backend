@@ -403,7 +403,7 @@ class Tweet(TableMixin, AuditColumns, Base):
     tweet <-- MANY TO ONE  --> tweet_user
     """
     raw_id = Column(BigInteger, unique=True, nullable=False)
-    json_data = deferred(Column(postgresql.JSON, nullable=False))
+    # json_data = deferred(Column(postgresql.JSON, nullable=False))
 
     # foreign keys
     user_id = Column(Integer,
@@ -423,6 +423,15 @@ class Tweet(TableMixin, AuditColumns, Base):
         secondary='ass_tweet_hashtag',
         back_populates='tweets')
     user = relationship('TwitterUser', back_populates='tweets')
+
+
+class TweetContent(TableMixin, AuditColumns, Base):
+    """Table `tweet_content` to record tweet content we collect.
+    """
+    tweet_id = Column(Integer,
+                      ForeignKey(
+                          'tweet.id', ondelete='CASCADE', onupdate='CASCADE'))
+    json_data = deferred(Column(postgresql.JSON, nullable=False))
 
 
 class AssTweet(TableMixin, Base):

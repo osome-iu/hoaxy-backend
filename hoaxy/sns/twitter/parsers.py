@@ -81,8 +81,8 @@ PMETA = dict(
     # order to be seperated from 'user_raw_id'. However, before database
     # operations 'tweet_raw_id' must be renamed to 'raw_id'
     tweet=dict(
-        p_keys=['raw_id', 'json_data', 'user_raw_id', 'created_at'],
-        d_keys=['raw_id', 'json_data', 'user_id', 'created_at'],
+        p_keys=['raw_id', 'user_raw_id', 'created_at'],
+        d_keys=['raw_id', 'user_id', 'created_at'],
         pu_keys=['raw_id'],
         du_keys=['raw_id'],
     ),
@@ -107,6 +107,11 @@ PMETA = dict(
         d_keys=['tweet_id', 'hashtag_id'],
         pu_keys=['tweet_raw_id', 'hashtag_text'],
         du_keys=['tweet_id', 'hashtag_id']),
+    tweet_content=dict(
+            p_keys=['tweet_raw_id', 'json_data'],
+            d_keys=['tweet_id', 'json_data'],
+            pu_keys=['tweet_raw_id'],
+            du_keys=['tweet_id']),
     twitter_network_edge=dict(
         p_keys=[
             'tweet_raw_id', 'from_raw_id', 'to_raw_id', 'url_raw',
@@ -435,8 +440,10 @@ class Parser():
             url=[(url, ) for url in self.urls['union']],
             # Table hashtag: text
             hashtag=[(hashtag, ) for hashtag in self.hashtags['union']],
-            # Table tweet: raw_id, json_data, user_id
-            tweet=[(tweet_raw_id, jd, user_raw_id, self.created_at)],
+            # Table tweet: raw_id,  user_id
+            tweet=[(tweet_raw_id, user_raw_id, self.created_at)],
+            tweet_content=[(tweet_raw_id, jd)],
+
             # Table ass_tweet: tweet_id, retweeted_status_id, quoted_status_id
             # in_reply_to_status_id
             ass_tweet=[self.ass_tweet],
