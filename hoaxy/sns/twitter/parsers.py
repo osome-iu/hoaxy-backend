@@ -30,7 +30,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from hoaxy.database.models import (
     MAX_URL_LEN, AssTweet, AssTweetHashtag, AssTweetUrl, AssUrlPlatform,
-    Hashtag, Tweet, TwitterNetworkEdge, TwitterUser, TwitterUserUnion, Url)
+    Hashtag, Tweet, TwitterNetworkEdge, TwitterUser, TwitterUserUnion, Url, TweetContent)
 from hoaxy.utils.dt import utc_from_str
 
 logger = logging.getLogger(__name__)
@@ -710,6 +710,16 @@ class Parser():
         dfs[tn] = pd.merge(dfs[tn], df_tweet, on='tweet_raw_id')
         if not dfs[tn].empty and tn not in ignore_tables:
             stmt_do_nothing = insert(AssTweetHashtag).values(
+                dfs[tn][PMETA[tn]['d_keys']].to_dict(orient='record')
+            ).on_conflict_do_nothing(index_elements=PMETA[tn]['du_keys'])
+            session.execute(stmt_do_nothing)
+            session.commit()
+
+        # update and insert tweet_content
+        tn = 'tweet_content'
+        dfs[tn] = pd.merge(dfs[tn], df_tweet, on='tweet_raw_id')
+        if not dfs[tn].empty and tn not in ignore_tables:
+            stmt_do_nothing = insert(TweetContent).values(
                 dfs[tn][PMETA[tn]['d_keys']].to_dict(orient='record')
             ).on_conflict_do_nothing(index_elements=PMETA[tn]['du_keys'])
             session.execute(stmt_do_nothing)
