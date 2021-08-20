@@ -165,7 +165,7 @@ is working.
             :upper_day AS upper_day,
             tw.user_id,
             tu.raw_id AS user_raw_id,
-            tw.json_data#>>'{user, screen_name}' AS user_screen_name,
+            atc.json_data#>>'{user, screen_name}' AS user_screen_name,
             'fact_checking' AS site_type,
             'active' AS spreading_type,
             t.number_of_tweets
@@ -174,6 +174,7 @@ is working.
                 SELECT tw1.user_id, COUNT(tw1.id) AS number_of_tweets
                 FROM tweet AS tw1
                     JOIN ass_tweet_url AS atu ON atu.tweet_id=tw1.id
+                    JOIN ass_tweet_content AS atc on atc.tweet_id=tw1.id
                     JOIN url AS u ON u.id=atu.url_id
                     JOIN site AS s ON s.id=u.site_id
                 WHERE tw1.created_at BETWEEN :lower_day AND :upper_day
@@ -193,7 +194,7 @@ is working.
             :upper_day AS upper_day,
             tw.user_id,
             tu.raw_id AS user_raw_id,
-            tw.json_data#>>'{user, screen_name}' AS user_screen_name,
+            atc.json_data#>>'{user, screen_name}' AS user_screen_name,
             'claim' AS site_type,
             'active' AS spreading_type,
             t.number_of_tweets
@@ -202,6 +203,7 @@ is working.
                 SELECT tw1.user_id, COUNT(tw1.id) AS number_of_tweets
                 FROM tweet AS tw1
                     JOIN ass_tweet_url AS atu ON atu.tweet_id=tw1.id
+                    JOIN ass_tweet_content AS atc on atc.tweet_id=tw1.id
                     JOIN url AS u ON u.id=atu.url_id
                     JOIN site AS s ON s.id=u.site_id
                 WHERE tw1.created_at BETWEEN :lower_day AND :upper_day
@@ -221,7 +223,7 @@ is working.
             :upper_day AS upper_day,
             tw.user_id,
             tu.raw_id AS user_raw_id,
-            tw.json_data#>>'{user, screen_name}' AS user_screen_name,
+            atc.json_data#>>'{user, screen_name}' AS user_screen_name,
             'fact_checking' AS site_type,
             'influential' AS spreading_type,
             t.number_of_retweets
@@ -232,6 +234,7 @@ is working.
                 JOIN tweet AS tw ON tw.raw_id=atw.retweeted_status_id
                 JOIN twitter_user AS tu ON tu.id=tw.user_id
                 JOIN ass_tweet_url AS atu ON atu.tweet_id=tw.id
+                JOIN ass_tweet_content AS atc on atc.tweet_id=tw.id
                 JOIN url AS u ON u.id=atu.url_id
                 JOIN site AS s ON s.id=u.site_id
             WHERE tw.created_at BETWEEN :lower_day AND :upper_day
@@ -251,7 +254,7 @@ is working.
             :upper_day AS upper_day,
             tw.user_id,
             tu.raw_id AS user_raw_id,
-            tw.json_data#>>'{user, screen_name}' AS user_screen_name,
+            atc.json_data#>>'{user, screen_name}' AS user_screen_name,
             'claim' AS site_type,
             'influential' AS spreading_type,
             t.number_of_retweets
@@ -261,6 +264,7 @@ is working.
             FROM ass_tweet AS atw
                 JOIN tweet AS tw ON tw.raw_id=atw.retweeted_status_id
                 JOIN twitter_user AS tu ON tu.id=tw.user_id
+                JOIN ass_tweet_content AS atc on atc.tweet_id=tw.id
                 JOIN ass_tweet_url AS atu ON atu.tweet_id=tw.id
                 JOIN url AS u ON u.id=atu.url_id
                 JOIN site AS s ON s.id=u.site_id

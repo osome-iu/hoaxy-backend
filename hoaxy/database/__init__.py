@@ -26,7 +26,7 @@ try:
         pool_size=CONF['database']['pool_size'],
         pool_recycle=CONF['database']['pool_recycle'],
         client_encoding='utf8',
-        echo=True,
+        echo=False,
         logging_name='hoaxy_engine')
     Session = scoped_session(sessionmaker(bind=ENGINE))
 except Exception:
@@ -56,5 +56,3 @@ hoaxy_connection_pool = pool.SimpleConnectionPool(1,
                                                 password=CONF['database']['connect_args']['password'],
                                                 port=CONF['database']['connect_args']['port'])
 
-if hoaxy_connection_pool:
-    logger.info("Connection pool for hoaxy database created successfully")
