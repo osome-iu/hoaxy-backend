@@ -174,7 +174,6 @@ is working.
                 SELECT tw1.user_id, COUNT(tw1.id) AS number_of_tweets
                 FROM tweet AS tw1
                     JOIN ass_tweet_url AS atu ON atu.tweet_id=tw1.id
-                    JOIN ass_tweet_content AS atc on atc.tweet_id=tw1.id
                     JOIN url AS u ON u.id=atu.url_id
                     JOIN site AS s ON s.id=u.site_id
                 WHERE tw1.created_at BETWEEN :lower_day AND :upper_day
@@ -183,6 +182,7 @@ is working.
                 ORDER BY number_of_tweets DESC LIMIT 20
             ) AS t
             JOIN tweet AS tw ON t.user_id=tw.user_id
+            JOIN ass_tweet_ccontent AS atc on atc.tweet_id=tw.id
             JOIN twitter_user AS tu ON tu.id=tw.user_id
         ORDER BY tw.user_id, tw.created_at DESC, t.number_of_tweets DESC
         """
@@ -203,7 +203,6 @@ is working.
                 SELECT tw1.user_id, COUNT(tw1.id) AS number_of_tweets
                 FROM tweet AS tw1
                     JOIN ass_tweet_url AS atu ON atu.tweet_id=tw1.id
-                    JOIN ass_tweet_content AS atc on atc.tweet_id=tw1.id
                     JOIN url AS u ON u.id=atu.url_id
                     JOIN site AS s ON s.id=u.site_id
                 WHERE tw1.created_at BETWEEN :lower_day AND :upper_day
@@ -212,6 +211,7 @@ is working.
                 ORDER BY number_of_tweets DESC LIMIT 20
             ) AS t
             JOIN tweet AS tw ON t.user_id=tw.user_id
+            JOIN ass_tweet_content AS atc on atc.tweet_id=tw.id
             JOIN twitter_user AS tu ON tu.id=tw.user_id
         ORDER BY tw.user_id, t.number_of_tweets DESC, tw.created_at DESC
         """
