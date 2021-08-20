@@ -182,7 +182,7 @@ is working.
                 ORDER BY number_of_tweets DESC LIMIT 20
             ) AS t
             JOIN tweet AS tw ON t.user_id=tw.user_id
-            JOIN ass_tweet_ccontent AS atc on atc.tweet_id=tw.id
+            JOIN ass_tweet_content AS atc on atc.tweet_id=tw.id
             JOIN twitter_user AS tu ON tu.id=tw.user_id
         ORDER BY tw.user_id, tw.created_at DESC, t.number_of_tweets DESC
         """
