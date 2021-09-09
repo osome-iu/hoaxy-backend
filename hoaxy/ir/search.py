@@ -786,7 +786,7 @@ def db_query_network(engine,
         JOIN tweet AS tw ON tw.id=atu.tweet_id
         JOIN twitter_network_edge AS tne ON tne.tweet_raw_id=tw.raw_id
         JOIN twitter_user_union AS tuu1 ON tuu1.raw_id=tne.from_raw_id
-        JOIN twitter_user_union AS tuu2 ON tuu2.raw_id=tne.to_raw_id LIMIT 25000
+        JOIN twitter_user_union AS tuu2 ON tuu2.raw_id=tne.to_raw_id
     """
     conn = hoaxy_connection_pool.getconn()
     try:
