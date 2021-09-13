@@ -437,7 +437,6 @@ def db_query_article(engine, ids):
     try:
         with conn.cursor() as cur:
             cur.execute(q, (ids,))
-            logger.warning(cur.rowcount)
             if cur.rowcount > 0:
                 return pd.DataFrame(cur.fetchall(), columns=['id', 'canonical_url', 'title', 'date_published', 'domain', 'site_type'])
     except:
@@ -587,7 +586,6 @@ def db_query_tweets(engine, ids):
     try:
         with conn.cursor() as cur:
             cur.execute(q, (ids,))
-            logger.warning(cur.rowcount)
             if cur.rowcount > 0:
                 df2 = pd.DataFrame(cur.fetchall(), columns=['tweet_id','tweet_created_at', 'id'])
     except:
@@ -792,7 +790,6 @@ def db_query_network(engine,
     try:
         with conn.cursor() as cur:
             cur.execute(q, (ids,))
-            logger.warning(cur.rowcount)
             if cur.rowcount > 0:
                 df2 = pd.DataFrame(
                     cur.fetchall(),
