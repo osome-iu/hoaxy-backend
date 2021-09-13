@@ -58,6 +58,7 @@ usage:
             [--number-of-tweets=<nt>] <filepath>
   hoaxy sns --reparse-db-tweets [--window-size=<w>] (--delete-tables=<tn> ...)
             [--ignore-tables=<tn> ...] (--plain-sql=<q>)
+  hoaxy sns --prune-db-tweets
   hoaxy sns -h | --help
 
 Track posted messages in social networks. Right now only TWITTER platform is
@@ -165,6 +166,9 @@ Examples:
   hoaxy sns --reparse-db-tweets --delete-tables=twitter_network_edge
             || -d url -d ass_tweet_url -i twitter_user -i tweet
             || -q "SELECT raw_id from tweet WHERE id<10000"
+
+  4. Delete data beyond 6 months from the tweet table
+   hoaxy sns --prune-db-tweets
     """
     name = 'sns'
     short_description = 'Online social network services management'
@@ -386,7 +390,6 @@ Examples:
                 DELETE FROM tweet 
                 WHERE created_at < %s
                 """
-
         conn = hoaxy_connection_pool.getconn()
         try:
             with conn.cursor() as cur:
