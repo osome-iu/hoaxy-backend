@@ -18,6 +18,7 @@ setup(
     include_package_data=True,
     zip_safe=True,
     entry_points={'console_scripts': ['hoaxy = hoaxy.commands.cmdline:main']},
+    setup_requires=['wheel'],    
     classifiers=[
         'Framework :: Scrapy',
         'Development Status :: 5 - Production/Stable',
@@ -53,5 +54,6 @@ setup(
         'ruamel.yaml>=0.15.92',
         'newspaper3k==0.2.8',
         'pathos>=0.2.5',
+        'demjson>=2.2.4',
         'xopen>=0.8.4'
     ],)
