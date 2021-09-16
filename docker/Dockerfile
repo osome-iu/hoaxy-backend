@@ -28,6 +28,7 @@ RUN CONDA_VERSION="4.5.12" && \
     rm miniconda.sh && \
     \
     conda update --all --yes && \
+    conda update -n base -c defaults conda && \
     conda config --set auto_update_conda False && \
     rm -r "$CONDA_DIR/pkgs/" && \
     \
@@ -75,7 +76,7 @@ RUN curl https://downloads.apache.org/ant/ivy/2.5.0/apache-ivy-2.5.0-bin.tar.gz 
 RUN apk add --no-cache python && \
     python -m ensurepip && \
     rm -r /usr/lib/python*/ensurepip && \
-    pip install --upgrade pip setuptools && \
+    pip install setuptools==57.0.0 && \
     rm -r /root/.cache
 
 # Install Gosu to /usr/local/bin/gosu
