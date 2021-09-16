@@ -24,6 +24,7 @@ from hoaxy import HOAXY_HOME
 from hoaxy.commands import HoaxyCommand
 from hoaxy.database import Session
 from hoaxy.database.functions import get_platform_id, get_site_tuples
+from hoaxy.database import hoaxy_connection_pool
 from hoaxy.database.models import N_PLATFORM_TWITTER
 from hoaxy.sns.twitter.handlers import QueueHandler
 from hoaxy.sns.twitter.parsers import Parser
@@ -31,6 +32,8 @@ from hoaxy.sns.twitter.stream import TwitterStream
 from hoaxy.utils import get_track_keywords
 from hoaxy.utils.log import configure_logging
 from schema import Or, Schema, SchemaError, Use
+from datetime import date
+from dateutil.relativedelta import relativedelta
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +58,7 @@ usage:
             [--number-of-tweets=<nt>] <filepath>
   hoaxy sns --reparse-db-tweets [--window-size=<w>] (--delete-tables=<tn> ...)
             [--ignore-tables=<tn> ...] (--plain-sql=<q>)
+  hoaxy sns --prune-db-tweets
   hoaxy sns -h | --help
 
 Track posted messages in social networks. Right now only TWITTER platform is
@@ -134,6 +138,12 @@ are ignored.
                         twitter_user, url, hashtag, twitter_user_union,
                         twitter_network_edge, ass_tweet_url, ass_tweet_hashtag
                         ass_url_platform.
+
+(4) The --prune-db-tweets is used to delete tweets older than 6 months from the tweet table.
+6 months date will calculated
+--prune-db-tweets       Delete data older than 6 months from the current date from the
+                        tweets table in the database.
+
 -h --help               Show help.
 
 At last, as we know that twitter streaming is a long running process. It is
@@ -156,6 +166,9 @@ Examples:
   hoaxy sns --reparse-db-tweets --delete-tables=twitter_network_edge
             || -d url -d ass_tweet_url -i twitter_user -i tweet
             || -q "SELECT raw_id from tweet WHERE id<10000"
+
+  4. Delete data beyond 6 months from the tweet table
+   hoaxy sns --prune-db-tweets
     """
     name = 'sns'
     short_description = 'Online social network services management'
@@ -367,6 +380,29 @@ Examples:
         logger.info('Reparse done, exit!')
 
     @classmethod
+    def delete_tweet_table(cls, session, args):
+        """Delete from tweet table where created_time is more than 6 months from the current data
+        """
+        six_months_ago = date.today() + relativedelta(months=-6)
+        logger.warning(six_months_ago)
+
+        table_deletes_sql ="""\
+                DELETE FROM tweet 
+                WHERE created_at < %s
+                """
+        conn = hoaxy_connection_pool.getconn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(table_deletes_sql, (six_months_ago,))
+        except:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+            hoaxy_connection_pool.putconn(conn)
+        logger.info('Tweets older than 6 months are being deleted !')
+
+    @classmethod
     def run(cls, args):
         """Overriding method as the entry point of this command."""
         try:
@@ -384,3 +420,6 @@ Examples:
             configure_logging('twitter.reparse-db', file_level='WARNING')
             cls._test_table_names(session, args)
             cls.reparse_db(session, args)
+        elif args['--prune-db-tweets'] is True:
+            configure_logging('twitter.prune-db-tweets', file_level='WARNING')
+            cls.delete_tweet_table(session, args)

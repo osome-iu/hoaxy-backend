@@ -165,7 +165,7 @@ is working.
             :upper_day AS upper_day,
             tw.user_id,
             tu.raw_id AS user_raw_id,
-            tw.json_data#>>'{user, screen_name}' AS user_screen_name,
+            atc.json_data#>>'{user, screen_name}' AS user_screen_name,
             'fact_checking' AS site_type,
             'active' AS spreading_type,
             t.number_of_tweets
@@ -182,6 +182,7 @@ is working.
                 ORDER BY number_of_tweets DESC LIMIT 20
             ) AS t
             JOIN tweet AS tw ON t.user_id=tw.user_id
+            JOIN ass_tweet_content AS atc on atc.tweet_id=tw.id
             JOIN twitter_user AS tu ON tu.id=tw.user_id
         ORDER BY tw.user_id, tw.created_at DESC, t.number_of_tweets DESC
         """
@@ -193,7 +194,7 @@ is working.
             :upper_day AS upper_day,
             tw.user_id,
             tu.raw_id AS user_raw_id,
-            tw.json_data#>>'{user, screen_name}' AS user_screen_name,
+            atc.json_data#>>'{user, screen_name}' AS user_screen_name,
             'claim' AS site_type,
             'active' AS spreading_type,
             t.number_of_tweets
@@ -210,6 +211,7 @@ is working.
                 ORDER BY number_of_tweets DESC LIMIT 20
             ) AS t
             JOIN tweet AS tw ON t.user_id=tw.user_id
+            JOIN ass_tweet_content AS atc on atc.tweet_id=tw.id
             JOIN twitter_user AS tu ON tu.id=tw.user_id
         ORDER BY tw.user_id, t.number_of_tweets DESC, tw.created_at DESC
         """
@@ -221,7 +223,7 @@ is working.
             :upper_day AS upper_day,
             tw.user_id,
             tu.raw_id AS user_raw_id,
-            tw.json_data#>>'{user, screen_name}' AS user_screen_name,
+            atc.json_data#>>'{user, screen_name}' AS user_screen_name,
             'fact_checking' AS site_type,
             'influential' AS spreading_type,
             t.number_of_retweets
@@ -240,6 +242,7 @@ is working.
             ORDER BY number_of_retweets DESC LIMIT 20
             ) AS t
             JOIN tweet AS tw ON t.user_id=tw.user_id
+            JOIN ass_tweet_content AS atc on atc.tweet_id=tw.id
             JOIN twitter_user AS tu ON tu.id=tw.user_id
         ORDER BY tw.user_id, tw.created_at DESC, t.number_of_retweets DESC
         """
@@ -251,7 +254,7 @@ is working.
             :upper_day AS upper_day,
             tw.user_id,
             tu.raw_id AS user_raw_id,
-            tw.json_data#>>'{user, screen_name}' AS user_screen_name,
+            atc.json_data#>>'{user, screen_name}' AS user_screen_name,
             'claim' AS site_type,
             'influential' AS spreading_type,
             t.number_of_retweets
@@ -270,6 +273,7 @@ is working.
             ORDER BY number_of_retweets DESC LIMIT 20
             ) AS t
             JOIN tweet AS tw ON t.user_id=tw.user_id
+            JOIN ass_tweet_content AS atc on atc.tweet_id=tw.id
             JOIN twitter_user AS tu ON tu.id=tw.user_id
         ORDER BY tw.user_id, tw.created_at DESC, t.number_of_retweets DESC
 """
