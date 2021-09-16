@@ -18,7 +18,6 @@ setup(
     include_package_data=True,
     zip_safe=True,
     entry_points={'console_scripts': ['hoaxy = hoaxy.commands.cmdline:main']},
-    setup_requires=['wheel'],    
     classifiers=[
         'Framework :: Scrapy',
         'Development Status :: 5 - Production/Stable',
