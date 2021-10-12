@@ -394,6 +394,7 @@ Examples:
         try:
             with conn.cursor() as cur:
                 cur.execute(table_deletes_sql, (six_months_ago,))
+                conn.commit()
         except:
             conn.rollback()
             raise
