@@ -169,6 +169,7 @@ is not determined""", url_id)
                 # First use Mercury
                 try:
                     canonical_url = item['canonical_url']
+                    logger.warning(canonical_url)
                     escaped_url = quote(canonical_url, safe='/:?=&')
                     if canonical_url is not None and canonical_url != "":
                         try:
@@ -205,7 +206,9 @@ is not determined""", url_id)
                         newspaper_article = npArticle(url='')
                         if data['html']:
                             newspaper_article.set_html(data['html'])
+                            newspaper_article.config.fetch_images = False
                             newspaper_article.set_top_img(None)
+                            newspaper_article.set_top_img("")
                         else:
                             raise Exception('Newspaper returned null content.')
                         newspaper_article.parse()
