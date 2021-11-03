@@ -422,5 +422,7 @@ Examples:
             cls._test_table_names(session, args)
             cls.reparse_db(session, args)
         elif args['--prune-db-tweets'] is True:
-            configure_logging('twitter.prune-db-tweets', file_level='WARNING')
+            configure_logging('twitter.prune-db-tweets',
+                            console_level=args['--console-log-level'],
+                            file_level='WARNING')
             cls.delete_tweet_table(session, args)
