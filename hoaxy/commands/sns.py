@@ -219,7 +219,7 @@ Examples:
             streamer = TwitterStream(
                 credentials=credentials,
                 handlers=[consumer],
-                params=dict(track=keywords),
+                params=dict(add=keywords),
                 window_size=window_size)
             streamer.stream()
             logger.info('Twitter steaming exits.')

@@ -124,7 +124,9 @@ sns:
       access_token_secret: '*** REQUIRED ***'
       consumer_key: ''
       consumer_secret: ''
-
+      bearer_token: ''
+    #  <twitter.url>, add comma seperated list of output parameters
+    output_fields: 'attachments,'
 ###############################################################################
 # settings for lucene indexing and searching
 ###############################################################################

@@ -25,7 +25,9 @@ from requests_oauthlib import OAuth1
 from hoaxy.sns.twitter.handlers import QueueHandler
 
 logger = logging.getLogger(__name__)
-API_URL = 'https://stream.twitter.com/1.1/statuses/filter.json'
+# API_URL = 'https://stream.twitter.com/1.1/statuses/filter.json'
+RULES_API_URL = "https://api.twitter.com/2/tweets/search/stream/rules"
+STREAM_API_URL = "https://api.twitter.com/2/tweets/search/stream"
 
 # all times are in seconds. Start with time, then depending on whether
 # kind is linear or exponential either add step or multiply by factor.
@@ -86,7 +88,7 @@ class TwitterStream():
         self.handlers = handlers
         self.window_size = window_size
         self.params = params
-        self.client = None
+        self.client = requests.session()
         self._stall_timeout = 90
         self._backoff_sleep = None  # if not None, we are backing off
         self._backoff_strategy = None
@@ -98,15 +100,20 @@ class TwitterStream():
 
     def _authenticate(self):
         """Authenticate and return a requests client object."""
+    #     crd = self.credentials
+    #     oauth = OAuth1(
+    #         client_key=crd['consumer_key'],
+    #         client_secret=crd['consumer_secret'],
+    #         resource_owner_key=crd['access_token'],
+    #         resource_owner_secret=crd['access_token_secret'],
+    #         signature_type='auth_header')
+    #     self.client = requests.session()
+    #     self.client.auth = oauth
+
         crd = self.credentials
-        oauth = OAuth1(
-            client_key=crd['consumer_key'],
-            client_secret=crd['consumer_secret'],
-            resource_owner_key=crd['access_token'],
-            resource_owner_secret=crd['access_token_secret'],
-            signature_type='auth_header')
-        self.client = requests.session()
-        self.client.auth = oauth
+        bearer_token = crd['bearer_token']
+        header = {"Authorization": "Bearer {}".format(bearer_token)}
+        return header
 
     def _backoff(self, strategy):
         """Backoff strategy.
@@ -160,6 +167,7 @@ class TwitterStream():
         except json.JSONDecodeError as err:
             logger.error('Json loads error: %s, raw data: %s', err, line)
             return False
+        # in version 2 api it is in_reply_to_status_id_str (need to be changed)
         if not ('in_reply_to_status_id' in jd and 'user' in jd and 'id' in jd):
             logger.error('Not status tweet: %s', jd)
             return False
@@ -172,16 +180,71 @@ class TwitterStream():
             handler.process_one(jd)
         return True
 
+    def get_rules(self):
+        """This method checks if rules are exist for the api v2 stream,
+        if exists rules it return object with array of rules ids"""
+
+        rules = {}
+        try:
+            response = self.client.get(RULES_API_URL, headers=self._authenticate())
+            # This condition checks the count of rules exist from the twitter api if 0 then no rules exist.
+            if response.json()['meta']['result_count'] > 0:
+                ids = []
+                for value in response.json()['data']:
+                    ids.append(value["id"])
+                    rules["ids"] = ids
+            return rules
+        except requests.HTTPError as err:
+            raise err
+
+    def add_rules_util(self):
+        try:
+            response = self.client.post(RULES_API_URL, json=self.params, headers=self._authenticate())
+            created_rules = response.json()['meta']['summary']['created']
+            not_created_rules = response.json()['meta']['summary']['not_created']
+            if created_rules != 0 and not_created_rules == 0:
+                logger.warning("The rules has been add to the stream successfully")
+            else:
+                logger.warning("One rule or more has not been add due to duplicated value")
+        except requests.HTTPError as err:
+            raise err
+
+    def add_rules(self):
+        """This method works on deleting the rules if exist and add new rules"""
+        self.get_rules()
+        if self.get_rules() != {}: # If the rules object returned in not empty and has rules then delete the rules.
+            delete = {'delete': self.get_rules()}
+            try:
+                response = self.client.post(RULES_API_URL, json=delete, headers=self._authenticate())
+                not_deleted = response.json()['meta']['summary']['not_deleted']
+                if not_deleted == 0:
+                    logger.warning("The rules has been deleted successfully")
+                else:
+                    logger.warning("The rules has not been deleted successfully, something went wrong")
+            except requests.HTTPError as err:
+                raise err
+            finally: # Finally block to trigger the add rules request after the deletion complete successfully
+                self.add_rules_util()
+        else:  # If the get rules object empty then directly start the add rules process.
+            self.add_rules_util()
 
     def stream(self):
         """The main function to handle twitter stream."""
         logger.info("Started streaming.")
         while True:
             try:
-                self._authenticate()
+                self.add_rules()
+                # get the existing rules
+                #  if there is no existing rules, add new rules
+                # if there is existing rules, delete them all
+                # add the new rules
+                # self._authenticate()
+                parameters = "tweet.fields" + self.credentials['output_fields']
                 resp = self.client.post(
-                    API_URL,
-                    data=self.params,
+                    STREAM_API_URL,
+                    # data=self.params,
+                    params=parameters,
+                    headers=self._authenticate(),
                     stream=True,
                     timeout=self._stall_timeout)
                 data_lines = 0  # includes keepalives

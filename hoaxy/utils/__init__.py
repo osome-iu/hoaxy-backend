@@ -28,8 +28,14 @@ def list_cls_under_mod(mod, cls, uq_attr):
 
 def get_track_keywords(site_tuples):
     k = []
-    for site_id, site_domain in site_tuples:
-        if site_domain.startswith('www.'):
-            site_domain = site_domain[4:]
-        k.append(site_domain.replace('.', ' '))
+    # for site_id, site_domain in site_tuples:
+    #     if site_domain.startswith('www.'):
+    #         site_domain = site_domain[4:]
+    #         lst_dict = {"value": site_domain.replace('.', ' ')}
+    #     # k.append(site_domain.replace('.', ' '))
+    #     k.append(lst_dict)
+    for i in range(1, len(site_tuples)):
+        if i <= 25:  # This condition will be removed, it's there for testing purposes.
+            site_dct = {"value": 'url:' + site_tuples[i]}
+        k.append(site_dct)
     return k
