@@ -36,6 +36,7 @@ def get_track_keywords(site_tuples):
     #     k.append(lst_dict)
     for i in range(1, len(site_tuples)):
         if i <= 25:  # This condition will be removed, it's there for testing purposes.
-            site_dct = {"value": 'url:' + site_tuples[i]}
+            site: str = site_tuples[i]
+            site_dct = {"value": 'url:' + site}
         k.append(site_dct)
     return k
