@@ -197,6 +197,7 @@ Examples:
         keywords = get_track_keywords(sites)
         session.close()
         window_size = cls.conf['window_size']
+        output_fields = cls.conf['sns']['twitter']['output_fields']
         credentials = cls.conf['sns']['twitter']['app_credentials']
         save_none_url_tweet = cls.conf['sns']['twitter']['save_none_url_tweet']
         tw_queue = Queue()
@@ -218,6 +219,7 @@ Examples:
         try:
             streamer = TwitterStream(
                 credentials=credentials,
+                output_fields=output_fields,
                 handlers=[consumer],
                 params=dict(add=keywords),
                 window_size=window_size)

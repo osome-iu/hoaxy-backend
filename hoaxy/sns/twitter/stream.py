@@ -69,7 +69,7 @@ class TwitterStreamError(Exception):
 class TwitterStream():
     """Twitter stream implementation in threading way."""
 
-    def __init__(self, credentials, handlers, params, window_size=1000):
+    def __init__(self, credentials, output_fields, handlers, params, window_size=1000):
         """Constructor for TwitterStream.
 
         Parameters
@@ -85,6 +85,7 @@ class TwitterStream():
             The size of window, do logging.
         """
         self.credentials = credentials
+        self.output_fields = output_fields
         self.handlers = handlers
         self.window_size = window_size
         self.params = params
@@ -239,7 +240,7 @@ class TwitterStream():
                 # if there is existing rules, delete them all
                 # add the new rules
                 # self._authenticate()
-                parameters = "tweet.fields=" + self.credentials['output_fields']
+                parameters = "tweet.fields=" + self.output_fields
                 resp = self.client.post(
                     STREAM_API_URL,
                     # data=self.params,
