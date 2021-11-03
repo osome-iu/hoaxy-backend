@@ -34,7 +34,7 @@ def get_track_keywords(site_tuples):
     #         lst_dict = {"value": site_domain.replace('.', ' ')}
     #     # k.append(site_domain.replace('.', ' '))
     #     k.append(lst_dict)
-    for site_domain in site_tuples:
+    for site_id, site_domain in site_tuples:
         # This condition will be removed, it's there for testing purposes.
         site_dct = {"value": 'url:' + site_domain}
         k.append(site_dct)
