@@ -239,7 +239,7 @@ class TwitterStream():
                 # if there is existing rules, delete them all
                 # add the new rules
                 # self._authenticate()
-                parameters = "tweet.fields" + self.credentials['output_fields']
+                parameters = "tweet.fields=" + self.credentials['output_fields']
                 resp = self.client.post(
                     STREAM_API_URL,
                     # data=self.params,
