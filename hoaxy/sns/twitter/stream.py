@@ -168,8 +168,7 @@ class TwitterStream():
         except json.JSONDecodeError as err:
             logger.error('Json loads error: %s, raw data: %s', err, line)
             return False
-        # in version 2 api it is in_reply_to_status_id_str (need to be changed)
-        if not ('in_reply_to_status_id' in jd and 'user' in jd and 'id' in jd):
+        if not ('id' in jd['data']['referenced_tweets'] and 'users' in jd['includes'] and 'id' in jd['data']):
             logger.error('Not status tweet: %s', jd)
             return False
         self._counter += 1
@@ -240,7 +239,7 @@ class TwitterStream():
                 # if there is existing rules, delete them all
                 # add the new rules
                 # self._authenticate()
-                parameters = "tweet.fields=" + self.output_fields
+                parameters = "?tweet.fields=" + self.output_fields
                 resp = self.client.get(
                     STREAM_API_URL,
                     # data=self.params,
