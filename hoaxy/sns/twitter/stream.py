@@ -168,7 +168,7 @@ class TwitterStream():
         except json.JSONDecodeError as err:
             logger.error('Json loads error: %s, raw data: %s', err, line)
             return False
-        if not ('id' in jd['data']['referenced_tweets'][0] and 'users' in jd['includes'] and 'id' in jd['data']):
+        if not ('referenced_tweets' in jd['data'] and 'users' in jd['includes'] and 'id' in jd['data']):
             logger.error('Not status tweet: %s', jd)
             return False
         self._counter += 1
