@@ -420,6 +420,7 @@ class QueueHandler(BaseHandler):
 
         In Queuehandler, just sent it into queue.
         """
+        logger.log('PROCESS ONE')
         self.queue.put(jd)
 
     def close(self):
