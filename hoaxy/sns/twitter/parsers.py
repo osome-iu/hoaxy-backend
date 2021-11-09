@@ -750,6 +750,8 @@ class Parser():
                 jds, multiprocesses=multiprocesses)
             if parsed_results:
                 dfs = self.to_dict(parsed_results)
+                logger.warning('Before saving to db')
                 self.bulk_save(session, dfs, platform_id, ignore_tables)
+                logger.warning('After saving to db')
             else:
                 logger.warning('No parsed results from these tweets!')
