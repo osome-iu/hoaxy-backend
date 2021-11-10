@@ -168,8 +168,13 @@ class TwitterStream():
         except json.JSONDecodeError as err:
             logger.error('Json loads error: %s, raw data: %s', err, line)
             return False
-        if not ('referenced_tweets' in jd['data'] and 'users' in jd['includes'] and 'id' in jd['data']):
-            logger.error('Not status tweet: %s', jd)
+        if 'referenced_tweets' in jd['data']:
+            rt_type = jd['data']['referenced_tweets'][0]['type']
+            if not (rt_type == 'replied_to' and 'users' in jd['includes'] and 'id' in jd['data']):
+                logger.error('Referenced tweet, but not status tweet: %s', jd)
+            return False
+        else:
+            logger.error('Not referenced tweet: %s', jd)
             return False
         self._counter += 1
         if self._counter % self.window_size == 0:

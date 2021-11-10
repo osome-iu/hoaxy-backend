@@ -353,6 +353,8 @@ class QueueHandler(BaseHandler):
                 for i in range(self.bucket_size):
                     # dequeue with block=True
                     jd = self.queue.get(True)
+                    logger.warning("****************")
+                    logger.warning(jd)
                     if has_task_done is True:
                         self.queue.task_done()
                     if jd is not self._sentinel:
@@ -422,6 +424,8 @@ class QueueHandler(BaseHandler):
         """
         logger.warning('PROCESS ONE')
         self.queue.put(jd)
+        logger.warning(jd)
+        logger.warning(self.queue.qsize())
 
     def close(self):
         self.stop()
