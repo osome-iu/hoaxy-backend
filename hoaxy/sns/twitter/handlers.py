@@ -353,14 +353,16 @@ class QueueHandler(BaseHandler):
                 for i in range(self.bucket_size):
                     # dequeue with block=True
                     jd = self.queue.get(True)
-                    logger.warning("****************")
-                    logger.warning(jd)
+                    logger.warning("****** Get queue true **********")
+                    logger.warning("This is jd data %s", jd)
                     if has_task_done is True:
                         self.queue.task_done()
                     if jd is not self._sentinel:
                         self.global_counter += 1
                         self.bucket.append(jd)
+                        logger.warning('BUCKET %s', self.bucket)
                     else:
+                        logger.warning("The loop has been break")
                         break
                 # consume this bucket
                 self.consume_this_bucket(parser, session, platform_id)
@@ -425,7 +427,7 @@ class QueueHandler(BaseHandler):
         logger.warning('PROCESS ONE')
         self.queue.put(jd)
         logger.warning(jd)
-        logger.warning(self.queue.qsize())
+        logger.warning("Check the size of the queue %s", self.queue.qsize())
 
     def close(self):
         self.stop()

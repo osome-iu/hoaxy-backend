@@ -155,7 +155,7 @@ def replace_null_byte(jd, fp=None, new=''):
         logger.warning(r'NULL byte (\u0000) found in %r and deleted!',
                        jd['data']['id'])
         if fp is not None:
-            fp.write(jd['data']['id'])
+            fp.write(int(jd['data']['id']))
             fp.write('\n')
         data = data.replace(r'\\u0000', new)
         return json.loads(data, encoding='utf-8')
@@ -288,11 +288,11 @@ class Parser():
         if 'referenced_tweets' in jd['data']:
             rt_type = jd['data']['referenced_tweets'][0]['type']
         else:
-            rt_type = ''
+            rt_type = None
 
         # start parsing
-        tweet_raw_id = jd['data']['id']
-        user_raw_id = jd['includes']['users'][0]['id']
+        tweet_raw_id = int(jd['data']['id'])
+        user_raw_id = int(jd['includes']['users'][0]['id'])
         user_screen_name = jd['includes']['users'][0]['username']
         self.created_at = utc_from_str(jd['data']['created_at'])
         # add this user as full_user
@@ -301,13 +301,13 @@ class Parser():
              jd['includes']['users'][0], self.created_at))
         quoted_status_id = None
         retweeted_status_id = None
-        if rt_type == 'quoted':
-            quoted_user_id = jd['includes']['users'][1]['id']
+        if rt_type == 'quoted' and len(jd['includes']['users']) > 1:
+            quoted_user_id = int(jd['includes']['users'][1]['id'])
             quoted_screen_name = jd['includes']['users'][1]['username']
-            quoted_status_id = jd['data']['referenced_tweets']['id']
+            quoted_status_id = int(jd['data']['referenced_tweets'][0]['id'])
             self.full_user.append(
                     (quoted_user_id, quoted_screen_name,
-                     jd['includes']['users'][1]['followers_count'],
+                     jd['includes']['users'][1]['public_metrics']['followers_count'],
                      jd['includes']['users'][1], self.created_at))
         else:
             quoted_user_id = None
@@ -319,14 +319,14 @@ class Parser():
         #         (quoted_user_id, quoted_screen_name,
         #          jd['quoted_status']['user']['followers_count'],
         #          jd['quoted_status']['user'], self.created_at))
-        if rt_type == 'retweeted':
-            retweeted_user_id = jd['includes']['users'][1]['id']
+        if rt_type == 'retweeted' and len(jd['includes']['users']) > 1:
+            retweeted_user_id = int(jd['includes']['users'][1]['id'])
             retweeted_screen_name = jd['includes']['users'][1]['username']
-            retweeted_status_id = jd['data']['referenced_tweets']['id']
+            retweeted_status_id = int(jd['data']['referenced_tweets'][0]['id'])
             self.full_user.append(
                          (retweeted_user_id, retweeted_screen_name,
-                          jd['retweeted_status']['user']['followers_count'],
-                          jd['retweeted_status']['user'], self.created_at))
+                          jd['includes']['users'][1]['public_metrics']['followers_count'],
+                          jd['includes']['users'][1], self.created_at))
         else:
             retweeted_user_id = None
 
@@ -340,11 +340,19 @@ class Parser():
         #          jd['retweeted_status']['user']['followers_count'],
         #          jd['retweeted_status']['user'], self.created_at))
         if rt_type == 'replied_to':
-            in_reply_to_status_id = jd['data']['referenced_tweets'][0]['id']
+            in_reply_to_status_id = int(jd['data']['referenced_tweets'][0]['id'])
         else:
             in_reply_to_status_id = None
-        in_reply_to_user_id = jd['includes']['users'][1]['id']
-        in_reply_to_screen_name = jd['includes']['users'][1]['username']
+        if rt_type and len(jd['includes']['users']) > 1:
+            logger.warning('The length of users array %s', len(jd['includes']['users']))
+            in_reply_to_user_id =int(jd['includes']['users'][1]['id'])
+            in_reply_to_screen_name = jd['includes']['users'][1]['username']
+        elif rt_type and len(jd['includes']['users']) == 1:
+            in_reply_to_user_id = int(jd['includes']['users'][0]['id'])
+            in_reply_to_screen_name = jd['includes']['users'][0]['username']
+        else:
+            in_reply_to_user_id = None
+            in_reply_to_screen_name = None
         if in_reply_to_user_id is not None and\
                 in_reply_to_screen_name is not None:
             self.in_reply_to_user = (in_reply_to_user_id,
@@ -457,8 +465,8 @@ class Parser():
             logger.warning('Tweet=%s with no URL, ignored', jd['data']['id'])
             return None
         self._parse_l2(jd)
-        tweet_raw_id = jd['data']['id']
-        user_raw_id = jd['include']['users'][0]['id']
+        tweet_raw_id = int(jd['data']['id'])
+        user_raw_id =int(jd['includes']['users'][0]['id'])
         mentioned_user = [
             m + (self.created_at, ) for m in self.mentions['union']
         ]
@@ -539,10 +547,12 @@ class Parser():
         reduced_results = reduce(lambda x, y: {k: iconcat(x[k], y[k])
                                                for k in tkeys},
                                  parsed_results)
+        logger.warning('This is the reduced result %s', reduced_results) 
         dfs = {
             k: pd.DataFrame(reduced_results[k], columns=PMETA[k]['p_keys'])
             for k in tkeys
         }
+	
         # drop duplicates mainly based on unique keys
         for k in tkeys:
             if k == 'full_user' or k == 'mentioned_user':
@@ -560,7 +570,7 @@ class Parser():
             #
             if k == 'ass_tweet':
                 # replace np.NAN as None
-                dfs[k] = dfs[k].astype('Int64')
+                dfs[k] = dfs[k].astype('float').astype('Int64')
                 dfs[k].replace({pd.np.nan: None}, inplace=True)
             dfs[k] = dfs[k].drop_duplicates(PMETA[k]['pu_keys'], keep='first')
         return dfs
@@ -677,6 +687,11 @@ class Parser():
 
         # update and insert tweet table
         tn = 'tweet'
+        logger.warning('this is dfs[tn] %s', dfs[tn].user_raw_id.dtype)
+        logger.warning('this is df_user %s', df_user.user_raw_id.dtype)
+       # dfs[tn]['user_raw_id'] =  dfs[tn]['user_raw_id'].values.astype('float').astype('int64')
+        logger.warning('this is the dfs[tn] type %s', dfs[tn].user_raw_id.dtype)
+       # dfs[tn] = dfs[tn].values.astype('int64')
         dfs[tn] = pd.merge(dfs[tn], df_user, on='user_raw_id')
         if not dfs[tn].empty and tn not in ignore_tables:
             stmt_do_nothing = insert(Tweet).returning(
