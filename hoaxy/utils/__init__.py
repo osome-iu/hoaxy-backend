@@ -38,6 +38,6 @@ def get_track_keywords(site_tuples):
         # This condition will be removed, it's there for testing purposes.
         site_dct = {"value": 'url:' + site_domain}
         k.append(site_dct)
-        if len(k) == 25:
-            break
+        # if len(k) == 25:
+        #     break
     return k
