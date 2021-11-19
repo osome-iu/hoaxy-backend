@@ -165,7 +165,7 @@ is working.
             :upper_day AS upper_day,
             tw.user_id,
             tu.raw_id AS user_raw_id,
-            atc.json_data#>>'{user, screen_name}' AS user_screen_name,
+            atc.json_data#>>'{includes,users,0,username}' AS user_screen_name,
             'fact_checking' AS site_type,
             'active' AS spreading_type,
             t.number_of_tweets
@@ -194,7 +194,7 @@ is working.
             :upper_day AS upper_day,
             tw.user_id,
             tu.raw_id AS user_raw_id,
-            atc.json_data#>>'{user, screen_name}' AS user_screen_name,
+            atc.json_data#>>'{includes,users,0,username}' AS user_screen_name,
             'claim' AS site_type,
             'active' AS spreading_type,
             t.number_of_tweets
@@ -223,7 +223,7 @@ is working.
             :upper_day AS upper_day,
             tw.user_id,
             tu.raw_id AS user_raw_id,
-            atc.json_data#>>'{user, screen_name}' AS user_screen_name,
+            atc.json_data#>>'{includes,users,0,username}' AS user_screen_name,
             'fact_checking' AS site_type,
             'influential' AS spreading_type,
             t.number_of_retweets
@@ -254,7 +254,7 @@ is working.
             :upper_day AS upper_day,
             tw.user_id,
             tu.raw_id AS user_raw_id,
-            atc.json_data#>>'{user, screen_name}' AS user_screen_name,
+            atc.json_data#>>'{includes,users,0,username}' AS user_screen_name,
             'claim' AS site_type,
             'influential' AS spreading_type,
             t.number_of_retweets
