@@ -165,7 +165,6 @@ class TwitterStream():
             return True
         try:
             jd = json.loads(line)
-            logger.warning(jd)
         except json.JSONDecodeError as err:
             logger.error('Json loads error: %s, raw data: %s', err, line)
             return False

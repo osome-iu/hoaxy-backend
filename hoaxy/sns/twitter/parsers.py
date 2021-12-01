@@ -547,12 +547,11 @@ class Parser():
         reduced_results = reduce(lambda x, y: {k: iconcat(x[k], y[k])
                                                for k in tkeys},
                                  parsed_results)
-        logger.warning('This is the reduced result %s', reduced_results) 
         dfs = {
             k: pd.DataFrame(reduced_results[k], columns=PMETA[k]['p_keys'])
             for k in tkeys
         }
-	
+
         # drop duplicates mainly based on unique keys
         for k in tkeys:
             if k == 'full_user' or k == 'mentioned_user':
@@ -687,11 +686,6 @@ class Parser():
 
         # update and insert tweet table
         tn = 'tweet'
-        logger.warning('this is dfs[tn] %s', dfs[tn].user_raw_id.dtype)
-        logger.warning('this is df_user %s', df_user.user_raw_id.dtype)
-       # dfs[tn]['user_raw_id'] =  dfs[tn]['user_raw_id'].values.astype('float').astype('int64')
-        logger.warning('this is the dfs[tn] type %s', dfs[tn].user_raw_id.dtype)
-       # dfs[tn] = dfs[tn].values.astype('int64')
         dfs[tn] = pd.merge(dfs[tn], df_user, on='user_raw_id')
         if not dfs[tn].empty and tn not in ignore_tables:
             stmt_do_nothing = insert(Tweet).returning(
@@ -800,9 +794,6 @@ class Parser():
                 jds, multiprocesses=multiprocesses)
             if parsed_results:
                 dfs = self.to_dict(parsed_results)
-                logger.warning('Before saving to db')
                 self.bulk_save(session, dfs, platform_id, ignore_tables)
-                logger.warning('After saving to db')
             else:
-                logger.warning('jds: %s', jds)
                 logger.warning('No parsed results from these tweets!')
