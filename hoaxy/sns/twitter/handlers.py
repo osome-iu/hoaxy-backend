@@ -227,8 +227,6 @@ class QueueHandler(BaseHandler):
         this_bucket_size = len(self.bucket)
         logger.info('Consumer thread: processed tweets N=%s',
                     self.global_counter)
-        logger.info('Consumer thread: qsize=%s', self.queue.qsize())
-        logger.info('Consumer thread: bucket_size=%s', this_bucket_size)
         logger.info('Consumer thread: Parsing tweets one by one')
         parser.bulk_parse_and_save(
             self.bucket, session, platform_id, multiprocesses=False)

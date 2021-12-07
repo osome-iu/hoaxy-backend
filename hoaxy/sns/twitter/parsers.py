@@ -344,7 +344,6 @@ class Parser():
         else:
             in_reply_to_status_id = None
         if rt_type and len(jd['includes']['users']) > 1:
-            logger.warning('The length of users array %s', len(jd['includes']['users']))
             in_reply_to_user_id =int(jd['includes']['users'][1]['id'])
             in_reply_to_screen_name = jd['includes']['users'][1]['username']
         elif rt_type and len(jd['includes']['users']) == 1:
