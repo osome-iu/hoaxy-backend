@@ -249,8 +249,8 @@ Examples:
                 if line:
                     try:
                         jd = json.loads(line)
-                        if 'in_reply_to_status_id' in jd and 'user' in jd and\
-                                'text' in jd:
+                        if 'referenced_tweets' in jd['data'] and 'users' in jd['includes'] and\
+                                'text' in jd['data']:
                             jds.append(json.loads(line))
                             true_counter += 1
                         else:
