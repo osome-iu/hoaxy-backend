@@ -290,8 +290,8 @@ class TwitterStream():
             except socket.error as err:
                 logger.warning('Got socket error: %s, reconnecting!', err)
                 self._backoff('tcp')
-            except Exception as e:
-                logger.warning(e)
+            # except Exception as e:
+            #     logger.warning(e)
             finally:
                 # close the request connection
                 logger.info('Request connection closed!')
