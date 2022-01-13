@@ -233,7 +233,6 @@ class TwitterStream():
         logger.info("Started streaming.")
         while True:
             try:
-                int("dog")
                 self.add_rules()
                 # get the existing rules
                 #  if there is no existing rules, add new rules
@@ -290,8 +289,8 @@ class TwitterStream():
             except socket.error as err:
                 logger.warning('Got socket error: %s, reconnecting!', err)
                 self._backoff('tcp')
-            # except Exception as e:
-            #     logger.warning(e)
+            except Exception as e:
+                logger.warning(e)
             finally:
                 # close the request connection
                 logger.info('Request connection closed!')
