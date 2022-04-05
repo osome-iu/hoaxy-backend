@@ -460,7 +460,7 @@ is working.
                 logger.critical('SNS %r has not been implemented!',
                                 args['--status'])
                 sys.exit(2)
-            sql = 'SELECT created_at FROM {} ORDER BY id DESC LIMIT 1'.format(
+            sql = 'SELECT updated_at FROM {} ORDER BY id DESC LIMIT 1'.format(
                 'tweet')
             with ENGINE.connect() as conn:
                 most_recent, = conn.execute(text(sql)).fetchone()
