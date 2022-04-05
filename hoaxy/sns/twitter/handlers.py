@@ -372,11 +372,11 @@ class QueueHandler(BaseHandler):
                     self.is_connection_failed = True
                 else:
                     logger.error(err)
-                    self.on_db_bulk_save_error()
+                    ## self.on_db_bulk_save_error() ## TODO(vijay): see if commenting this stops dumping the tweets in the dumps folder
             except SQLAlchemyError as err:
                 session.rollback()
                 logger.exception(err)
-                ## self.on_db_bulk_save_error() ## TODO(vijay): see if commenting this stops dumping the tweets in the dumps folder
+                self.on_db_bulk_save_error()
             except BaseException as err:
                 # unexpected exception, logging (will exit)
                 logger.exception(err)
