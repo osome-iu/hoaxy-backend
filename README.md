@@ -1,3 +1,5 @@
+# UPDATE 2022-11-10: This software is no longer maintained and is being archived. 
+
 # Disclaimer
 
 The name Hoaxy is a trademark of Indiana University. Neither the name "Hoaxy" nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
